@@ -1,5 +1,7 @@
 package top.niunaijun.blackbox.proxy;
 
+import android.content.ComponentName;
+
 import java.util.Locale;
 
 import top.niunaijun.blackbox.BlackBoxCore;
@@ -10,6 +12,17 @@ public class ProxyManifest {
 
     public static boolean isProxy(String msg) {
         return getBindProvider().equals(msg) || msg.contains("proxy_content_provider_");
+    }
+
+    public static boolean isHostProxyComponent(ComponentName componentName) {
+        if (componentName == null) {
+            return false;
+        }
+        if (!BlackBoxCore.getHostPkg().equals(componentName.getPackageName())) {
+            return false;
+        }
+        String className = componentName.getClassName();
+        return className != null && className.startsWith("top.niunaijun.blackbox.proxy.");
     }
 
     public static String getBindProvider() {

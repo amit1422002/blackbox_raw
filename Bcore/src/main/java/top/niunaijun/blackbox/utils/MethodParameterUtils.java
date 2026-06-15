@@ -150,4 +150,21 @@ public class MethodParameterUtils {
         }
         return (int)obj;
     }
+
+    public static int toPackageFlags(Object obj) {
+        return toInt(obj);
+    }
+
+    public static void replaceLastUserId(Object[] args) {
+        if (args == null) {
+            return;
+        }
+        int index = ArrayUtils.indexOfLast(args, Integer.class);
+        if (index != -1) {
+            int userId = (int) args[index];
+            if (userId == BlackBoxCore.getBUid() || userId == BActivityThread.getBUid()) {
+                args[index] = BActivityThread.getUserId();
+            }
+        }
+    }
 }

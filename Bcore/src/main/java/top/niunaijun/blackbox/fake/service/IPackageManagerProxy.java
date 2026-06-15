@@ -1,7 +1,7 @@
 package top.niunaijun.blackbox.fake.service;
 
-import android.content.ComponentName;
 import android.content.Intent;
+import android.content.ComponentName;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
@@ -10,13 +10,16 @@ import android.content.pm.ProviderInfo;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
+import android.os.Bundle;
 import android.util.Log;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import black.android.app.BRActivityThread;
 import black.android.app.BRContextImpl;
@@ -24,7 +27,13 @@ import black.android.app.ContextImpl;
 import black.android.content.pm.BRPackageManager;
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.app.BActivityThread;
+import top.niunaijun.blackbox.core.GmsCore;
 import top.niunaijun.blackbox.core.env.AppSystemEnv;
+import top.niunaijun.blackbox.core.system.pm.BPackageManagerService;
+import top.niunaijun.blackbox.core.system.user.BUserHandle;
+import top.niunaijun.blackbox.gms.GmsOAuthLaunchContext;
+import top.niunaijun.blackbox.gms.GmsOAuthSignatureSpoof;
+import top.niunaijun.blackbox.proxy.ProxyManifest;
 import top.niunaijun.blackbox.fake.FakeCore;
 import top.niunaijun.blackbox.fake.hook.BinderInvocationStub;
 import top.niunaijun.blackbox.fake.hook.MethodHook;
@@ -37,9 +46,23 @@ import top.niunaijun.blackbox.utils.Slog;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
 import top.niunaijun.blackbox.utils.compat.ParceledListSliceCompat;
 
-
 public class IPackageManagerProxy extends BinderInvocationStub {
     public static final String TAG = "PackageManagerStub";
+
+    /**
+     * Stub processes (:pN) must resolve host PackageInfo during ActivityThread.handleBindApplication.
+     * Only hide the host loader from queries after the guest app is fully bound.
+     */
+    private static boolean shouldHideHostFromGuest() {
+        if (!BActivityThread.isThreadInit()) {
+            return false;
+        }
+        if (!BActivityThread.currentActivityThread().isInit()) {
+            return false;
+        }
+        String appPkg = BActivityThread.getAppPackageName();
+        return appPkg != null && !appPkg.equals(BlackBoxCore.getHostPkg());
+    }
 
     public IPackageManagerProxy() {
         super(BRActivityThread.get().sPackageManager().asBinder());
@@ -50,19 +73,15 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         return BRActivityThread.get().sPackageManager();
     }
 
-    @Override
+     @Override
     protected void inject(Object baseInvocation, Object proxyInvocation) {
         BRActivityThread.get()._set_sPackageManager(proxyInvocation);
         replaceSystemService("package");
         Object systemContext = BRActivityThread.get(BlackBoxCore.mainThread()).getSystemContext();
-        BRContextImpl.get(systemContext).getPackageManager();
-        PackageManager packageManager = BRContextImpl.get(systemContext).mPackageManager();
-        if (packageManager != null) {
-            BRPackageManager.get().disableApplicationInfoCache();
+        PackageManager mPackageManager = BRContextImpl.get(systemContext).mPackageManager();
+        if (mPackageManager != null) {
             try {
-                Reflector.on("android.app.ApplicationPackageManager")
-                        .field("mPM")
-                        .set(packageManager, proxyInvocation);
+                Reflector.on("android.app.ApplicationPackageManager").field("mPM").set(mPackageManager, proxyInvocation);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -79,13 +98,11 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         super.onBindMethod();
         addMethodHook(new ValueMethodProxy("addOnPermissionsChangeListener", 0));
         addMethodHook(new ValueMethodProxy("removeOnPermissionsChangeListener", 0));
-        addMethodHook(new SimpleAudioPermissionHook());
-        addMethodHook(new CheckSelfPermission());
-        addMethodHook(new ShouldShowRequestPermissionRationale());
-        addMethodHook(new RequestPermissions());
-        addMethodHook(new DisableIconLoading());
-        addMethodHook(new SetSplashScreenTheme());
-        addMethodHook(new XiaomiSecurityBypass());
+        addMethodHook(new PkgMethodProxy("shouldShowRequestPermissionRationale"));
+        if (BuildCompat.isTiramisu()) {
+            return;
+        }
+        addMethodHook(new PkgMethodProxy("clearPackagePreferredActivities"));
     }
 
     @ProxyMethod("resolveIntent")
@@ -95,7 +112,20 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             Intent intent = (Intent) args[0];
             String resolvedType = (String) args[1];
             int flags = MethodParameterUtils.toInt(args[2]);
-            ResolveInfo resolveInfo = BlackBoxCore.getBPackageManager().resolveIntent(intent, resolvedType, flags, BlackBoxCore.getUserId());
+            String guestPkg = BActivityThread.getAppPackageName();
+            String targetPkg = GmsCore.getIntentPackage(intent);
+            if (GmsCore.shouldUseHostGoogle(guestPkg)
+                    && !GmsCore.isOAuthInternalGmsLaunch(intent)
+                    && !GmsCore.isOAuthSessionActive()
+                    && GmsCore.isGoogleIntent(intent)
+                    && targetPkg != null
+                    && GmsCore.isGoogleAppOrService(targetPkg)) {
+                Object hostResolve = method.invoke(who, args);
+                if (hostResolve != null) {
+                    return hostResolve;
+                }
+            }
+            ResolveInfo resolveInfo = BlackBoxCore.getBPackageManager().resolveIntent(intent, resolvedType, flags, BActivityThread.getUserId());
             if (resolveInfo != null) {
                 return resolveInfo;
             }
@@ -110,7 +140,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             Intent intent = (Intent) args[0];
             String resolvedType = (String) args[1];
             int flags = MethodParameterUtils.toInt(args[2]);
-            ResolveInfo resolveInfo = BlackBoxCore.getBPackageManager().resolveService(intent, flags, resolvedType, BlackBoxCore.getUserId());
+            ResolveInfo resolveInfo = BlackBoxCore.getBPackageManager().resolveService(intent, flags, resolvedType, BActivityThread.getUserId());
             if (resolveInfo != null) {
                 return resolveInfo;
             }
@@ -126,33 +156,49 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         }
     }
 
-    @ProxyMethod("getPackageInfo")
+  @ProxyMethod("getPackageInfo")
     public static class GetPackageInfo extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             String packageName = (String) args[0];
-            int flags = MethodParameterUtils.toInt(args[1]);
-
-            PackageInfo packageInfo = BlackBoxCore.getBPackageManager().getPackageInfo(packageName, flags, BlackBoxCore.getUserId());
-            if (packageInfo != null) {
-                
-                if (packageInfo.requestedPermissions != null && packageInfo.requestedPermissionsFlags != null) {
-                    for (int i = 0; i < packageInfo.requestedPermissions.length; i++) {
-                        String perm = packageInfo.requestedPermissions[i];
-                        if (perm != null && (perm.equals(android.Manifest.permission.RECORD_AUDIO)
-                                || perm.equals("android.permission.FOREGROUND_SERVICE_MICROPHONE")
-                                || perm.equals(android.Manifest.permission.MODIFY_AUDIO_SETTINGS)
-                                || perm.equals(android.Manifest.permission.CAPTURE_AUDIO_OUTPUT))) {
-                            packageInfo.requestedPermissionsFlags[i] |= PackageInfo.REQUESTED_PERMISSION_GRANTED;
-                        }
-                    }
-                }
-                return packageInfo;
-            }
-            if (AppSystemEnv.isOpenPackage(packageName)) {
+            // API 33+: getPackageInfo(String, long versionCode, int flags) — arg[1] is versionCode, not flags.
+            if (args.length >= 3 && args[1] instanceof Long) {
                 return method.invoke(who, args);
             }
-            return null;
+            int flags;
+            if (args.length >= 3 && args[1] instanceof Integer && args[2] instanceof Integer) {
+                flags = (int) args[1];
+                MethodParameterUtils.replaceLastUserId(args);
+                return method.invoke(who, args);
+            }
+            flags = MethodParameterUtils.toPackageFlags(args[1]);
+
+            PackageInfo result;
+            if (packageName != null && packageName.equals(BlackBoxCore.getHostPkg())) {
+                if (shouldHideHostFromGuest()) {
+                    return null;
+                }
+                result = (PackageInfo) method.invoke(who, args);
+            } else if (GmsCore.isGoogleAppOrService(packageName)) {
+                result = getClonedGooglePackageInfo(packageName, flags);
+                if (result == null) {
+                    result = (PackageInfo) method.invoke(who, args);
+                }
+            } else {
+                PackageInfo packageInfo = BlackBoxCore.getBPackageManager()
+                        .getPackageInfo(packageName, flags, BActivityThread.getUserId());
+                if (packageInfo != null) {
+                    result = packageInfo;
+                } else {
+                    result = (PackageInfo) method.invoke(who, args);
+                }
+            }
+            try {
+                return GmsOAuthSignatureSpoof.maybeSpoofSignatures(packageName, flags, result);
+            } catch (Throwable t) {
+                Slog.w(TAG, "signature spoof failed for " + packageName, t);
+                return result;
+            }
         }
     }
 
@@ -160,7 +206,39 @@ public class IPackageManagerProxy extends BinderInvocationStub {
     public static class GetPackageUid extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            String packageName = args[0] instanceof String ? (String) args[0] : null;
+            if (packageName != null && packageName.equals(GmsOAuthSignatureSpoof.BGMI_PKG)
+                    && (GmsCore.isOAuthSignatureSpoofActive()
+                    || GmsOAuthLaunchContext.isActiveForGmsHooks())) {
+                int appId = BPackageManagerService.get().getAppId(packageName);
+                if (appId > 0) {
+                    int guestUid = BUserHandle.getUid(BActivityThread.getUserId(), appId);
+                    Slog.d(TAG, "OAuth getPackageUid " + packageName + " -> guest uid " + guestUid);
+                    return guestUid;
+                }
+            }
             MethodParameterUtils.replaceFirstAppPkg(args);
+            return method.invoke(who, args);
+        }
+    }
+
+    @ProxyMethod("hasSigningCertificate")
+    public static class HasSigningCertificate extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            String packageName = (String) args[0];
+            byte[] certificate = (byte[]) args[1];
+            int type = MethodParameterUtils.toInt(args[2]);
+            if (packageName != null
+                    && (GmsCore.isOAuthSignatureSpoofActive()
+                    || GmsOAuthLaunchContext.isActiveForGmsHooks())) {
+                Slog.d(TAG, "OAuth hasSigningCertificate query " + packageName + " type=" + type);
+                boolean spoofed = GmsOAuthSignatureSpoof.matchesSigningCertificate(
+                        packageName, certificate, type);
+                if (spoofed) {
+                    return true;
+                }
+            }
             return method.invoke(who, args);
         }
     }
@@ -170,8 +248,15 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             ComponentName componentName = (ComponentName) args[0];
+            if (ProxyManifest.isHostProxyComponent(componentName) && shouldHideHostFromGuest()
+                    && !GmsCore.isOAuthHelperClass(componentName.getClassName())) {
+                return null;
+            }
+            if (ProxyManifest.isHostProxyComponent(componentName)) {
+                return method.invoke(who, args);
+            }
             int flags = MethodParameterUtils.toInt(args[1]);
-            ProviderInfo providerInfo = BlackBoxCore.getBPackageManager().getProviderInfo(componentName, flags, BlackBoxCore.getUserId());
+            ProviderInfo providerInfo = BlackBoxCore.getBPackageManager().getProviderInfo(componentName, flags, BActivityThread.getUserId());
             if (providerInfo != null)
                 return providerInfo;
             if (AppSystemEnv.isOpenPackage(componentName)) {
@@ -186,8 +271,15 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             ComponentName componentName = (ComponentName) args[0];
+            if (ProxyManifest.isHostProxyComponent(componentName) && shouldHideHostFromGuest()
+                    && !GmsCore.isOAuthHelperClass(componentName.getClassName())) {
+                return null;
+            }
+            if (ProxyManifest.isHostProxyComponent(componentName)) {
+                return method.invoke(who, args);
+            }
             int flags = MethodParameterUtils.toInt(args[1]);
-            ActivityInfo receiverInfo = BlackBoxCore.getBPackageManager().getReceiverInfo(componentName, flags, BlackBoxCore.getUserId());
+            ActivityInfo receiverInfo = BlackBoxCore.getBPackageManager().getReceiverInfo(componentName, flags, BActivityThread.getUserId());
             if (receiverInfo != null)
                 return receiverInfo;
             if (AppSystemEnv.isOpenPackage(componentName)) {
@@ -202,8 +294,15 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             ComponentName componentName = (ComponentName) args[0];
+            if (ProxyManifest.isHostProxyComponent(componentName) && shouldHideHostFromGuest()
+                    && !GmsCore.isOAuthHelperClass(componentName.getClassName())) {
+                return null;
+            }
+            if (ProxyManifest.isHostProxyComponent(componentName)) {
+                return method.invoke(who, args);
+            }
             int flags = MethodParameterUtils.toInt(args[1]);
-            ActivityInfo activityInfo = BlackBoxCore.getBPackageManager().getActivityInfo(componentName, flags, BlackBoxCore.getUserId());
+            ActivityInfo activityInfo = BlackBoxCore.getBPackageManager().getActivityInfo(componentName, flags, BActivityThread.getUserId());
             if (activityInfo != null)
                 return activityInfo;
             if (AppSystemEnv.isOpenPackage(componentName)) {
@@ -219,8 +318,15 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             ComponentName componentName = (ComponentName) args[0];
+            if (ProxyManifest.isHostProxyComponent(componentName) && shouldHideHostFromGuest()
+                    && !GmsCore.isOAuthHelperClass(componentName.getClassName())) {
+                return null;
+            }
+            if (ProxyManifest.isHostProxyComponent(componentName)) {
+                return method.invoke(who, args);
+            }
             int flags = MethodParameterUtils.toInt(args[1]);
-            ServiceInfo serviceInfo = BlackBoxCore.getBPackageManager().getServiceInfo(componentName, flags, BlackBoxCore.getUserId());
+            ServiceInfo serviceInfo = BlackBoxCore.getBPackageManager().getServiceInfo(componentName, flags, BActivityThread.getUserId());
             if (serviceInfo != null)
                 return serviceInfo;
             if (AppSystemEnv.isOpenPackage(componentName)) {
@@ -236,7 +342,9 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             int flags = MethodParameterUtils.toInt(args[0]);
-            List<ApplicationInfo> installedApplications = BlackBoxCore.getBPackageManager().getInstalledApplications(flags, BlackBoxCore.getUserId());
+            List<ApplicationInfo> installedApplications =
+                    new ArrayList<>(BlackBoxCore.getBPackageManager().getInstalledApplications(flags, BActivityThread.getUserId()));
+            mergeHostGoogleApplications(installedApplications, flags);
             return ParceledListSliceCompat.create(installedApplications);
         }
     }
@@ -247,8 +355,24 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             int flags = MethodParameterUtils.toInt(args[0]);
-            List<PackageInfo> installedPackages = BlackBoxCore.getBPackageManager().getInstalledPackages(flags, BlackBoxCore.getUserId());
+            List<PackageInfo> installedPackages =
+                    new ArrayList<>(BlackBoxCore.getBPackageManager().getInstalledPackages(flags, BActivityThread.getUserId()));
+            mergeHostGooglePackages(installedPackages, flags);
             return ParceledListSliceCompat.create(installedPackages);
+        }
+    }
+
+    private static final int GMS_VERSION_META = 12451000;
+
+    private static void ensureHostGmsMetaData(ApplicationInfo info) {
+        if (info == null) {
+            return;
+        }
+        if (info.metaData == null) {
+            info.metaData = new Bundle();
+        }
+        if (!info.metaData.containsKey("com.google.android.gms.version")) {
+            info.metaData.putInt("com.google.android.gms.version", GMS_VERSION_META);
         }
     }
 
@@ -257,19 +381,42 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             String packageName = (String) args[0];
-
-            int flags = MethodParameterUtils.toInt(args[1]);
-
-
-
-            ApplicationInfo applicationInfo = BlackBoxCore.getBPackageManager().getApplicationInfo(packageName, flags, BlackBoxCore.getUserId());
+            int flags = MethodParameterUtils.toPackageFlags(args[1]);
+            if (packageName != null && packageName.equals(BlackBoxCore.getHostPkg())) {
+                if (shouldHideHostFromGuest()) {
+                    return null;
+                }
+                ApplicationInfo info = (ApplicationInfo) method.invoke(who, args);
+                ensureHostGmsMetaData(info);
+                return info;
+            }
+            if (GmsCore.isGoogleAppOrService(packageName)) {
+                ApplicationInfo cloned = getClonedGoogleApplicationInfo(packageName, flags);
+                if (cloned != null) {
+                    return cloned;
+                }
+                ApplicationInfo info = (ApplicationInfo) method.invoke(who, args);
+                ensureHostGmsMetaData(info);
+                return info;
+            }
+            ApplicationInfo applicationInfo = BlackBoxCore.getBPackageManager().getApplicationInfo(packageName, flags, BActivityThread.getUserId());
             if (applicationInfo != null) {
+                applicationInfo.flags |= ApplicationInfo.FLAG_EXTERNAL_STORAGE;
                 return applicationInfo;
             }
-            if (AppSystemEnv.isOpenPackage(packageName)) {
-                return method.invoke(who, args);
+            return method.invoke(who, args);
+        }
+    }
+
+    @ProxyMethod("getPackageInstaller")
+    public static class GetPackageInstaller extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            Object installer = method.invoke(who, args);
+            if (!shouldVirtualizePackageInstaller()) {
+                return installer;
             }
-            return null;
+            return VirtualPackageInstaller.wrap(installer);
         }
     }
 
@@ -279,7 +426,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             int flags = MethodParameterUtils.toInt(args[2]);
             List<ProviderInfo> providers = BlackBoxCore.getBPackageManager().
-                    queryContentProviders(BlackBoxCore.getAppProcessName(), BlackBoxCore.getBUid(), flags, BlackBoxCore.getUserId());
+                    queryContentProviders(BActivityThread.getAppProcessName(), BActivityThread.getBUid(), flags, BActivityThread.getUserId());
             return ParceledListSliceCompat.create(providers);
         }
     }
@@ -294,12 +441,12 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             List<ResolveInfo> resolves = BlackBoxCore.getBPackageManager().queryBroadcastReceivers(intent, flags, type, BActivityThread.getUserId());
             Slog.d(TAG, "queryIntentReceivers: " + resolves);
 
-            
+            // http://androidxref.com/7.0.0_r1/xref/frameworks/base/core/java/android/app/ApplicationPackageManager.java#872
             if (BuildCompat.isN()) {
                 return ParceledListSliceCompat.create(resolves);
             }
 
-            
+            // http://androidxref.com/6.0.1_r10/xref/frameworks/base/core/java/android/app/ApplicationPackageManager.java#699
             return resolves;
         }
     }
@@ -309,6 +456,12 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             String authority = (String) args[0];
+            if (ProxyManifest.isProxy(authority) && shouldHideHostFromGuest()) {
+                return null;
+            }
+            if (ProxyManifest.isProxy(authority)) {
+                return method.invoke(who, args);
+            }
             int flags = MethodParameterUtils.toInt(args[1]);
             ProviderInfo providerInfo = BlackBoxCore.getBPackageManager().resolveContentProvider(authority, flags, BActivityThread.getUserId());
             if (providerInfo == null) {
@@ -346,7 +499,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
     public static class GetInstallerPackageName extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            
+            // fake google play
             return "com.android.vending";
         }
     }
@@ -355,8 +508,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
     public static class GetSharedLibraries extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            
-            return ParceledListSliceCompat.create(new ArrayList<>());
+            return method.invoke(who, args);
         }
     }
 
@@ -366,12 +518,9 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             ComponentName componentName = (ComponentName) args[0];
             String packageName = componentName.getPackageName();
+            
             ApplicationInfo applicationInfo = BlackBoxCore.getBPackageManager().getApplicationInfo(packageName,0, BActivityThread.getUserId());
-
-
-
-
-
+            
             if(applicationInfo != null){
                 return PackageManager.COMPONENT_ENABLED_STATE_DEFAULT;
             }
@@ -382,339 +531,92 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         }
     }
 
-
-
-
-
-    @ProxyMethod("checkPermission")
-    public static class SimpleAudioPermissionHook extends MethodHook {
-        @Override
-        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            String permission = (String) args[0];
-            String packageName = (String) args[1];
-            
-            
-            if (isAudioPermission(permission)) {
-                Slog.d(TAG, "SimpleAudioPermissionHook: Granting audio permission: " + permission + " to " + packageName);
-                return PackageManager.PERMISSION_GRANTED;
-            }
-
-            
-            if (isStorageOrMediaPermission(permission)) {
-                Slog.d(TAG, "SimpleAudioPermissionHook: Granting storage/media permission: " + permission + " to " + packageName);
-                return PackageManager.PERMISSION_GRANTED;
-            }
-            
-            
-            if (isNotificationOrXiaomiPermission(permission)) {
-                Slog.d(TAG, "SimpleAudioPermissionHook: Granting notification/Xiaomi permission: " + permission + " to " + packageName);
-                return PackageManager.PERMISSION_GRANTED;
-            }
-            
-            
-            return method.invoke(who, args);
+  /** Cloned GSF/GMS/Play Store must use virtual dataDir so Finsky can write prefs/SQLite. */
+    private static boolean shouldUseClonedGooglePaths() {
+        String caller = BActivityThread.getAppPackageName();
+        if (caller == null) {
+            return false;
         }
+        return GmsCore.isGoogleAppOrService(caller)
+                || GmsCore.SETTINGS_PKG.equals(caller);
     }
 
-    @ProxyMethod("checkSelfPermission")
-    public static class CheckSelfPermission extends MethodHook {
-        @Override
-        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            String permission = (String) args[0];
-            String packageName = (String) args[1];
-            
-            
-            if (isAudioPermission(permission)) {
-                Slog.d(TAG, "CheckSelfPermission: Granting audio permission: " + permission + " to " + packageName);
-                return PackageManager.PERMISSION_GRANTED;
-            }
-
-            
-            if (isStorageOrMediaPermission(permission)) {
-                Slog.d(TAG, "CheckSelfPermission: Granting storage/media permission: " + permission + " to " + packageName);
-                return PackageManager.PERMISSION_GRANTED;
-            }
-            
-            
-            if (isNotificationOrXiaomiPermission(permission)) {
-                Slog.d(TAG, "CheckSelfPermission: Granting notification/Xiaomi permission: " + permission + " to " + packageName);
-                return PackageManager.PERMISSION_GRANTED;
-            }
-            
-            
-            return method.invoke(who, args);
+    private static boolean shouldVirtualizePackageInstaller() {
+        if (!BActivityThread.isThreadInit()) {
+            return false;
         }
+        String caller = BActivityThread.getAppPackageName();
+        return caller != null && !caller.equals(BlackBoxCore.getHostPkg());
     }
 
-    @ProxyMethod("shouldShowRequestPermissionRationale")
-    public static class ShouldShowRequestPermissionRationale extends MethodHook {
-        @Override
-        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            String permission = (String) args[0];
-            String packageName = (String) args[1];
-            
-            
-            if (isAudioPermission(permission)) {
-                Slog.d(TAG, "ShouldShowRequestPermissionRationale: Not showing rationale for audio permission: " + permission);
-                return false;
+    private static ApplicationInfo getClonedGoogleApplicationInfo(String packageName, int flags) {
+        if (!shouldUseClonedGooglePaths()) {
+            return null;
+        }
+        int userId = BActivityThread.getUserId();
+        if (!BlackBoxCore.get().isInstalled(packageName, userId)) {
+            return null;
+        }
+        ApplicationInfo virtual = BlackBoxCore.getBPackageManager()
+                .getApplicationInfo(packageName, flags, userId);
+        if (virtual != null) {
+            ensureHostGmsMetaData(virtual);
+        }
+        return virtual;
+    }
+
+    private static PackageInfo getClonedGooglePackageInfo(String packageName, int flags) {
+        if (!shouldUseClonedGooglePaths()) {
+            return null;
+        }
+        int userId = BActivityThread.getUserId();
+        if (!BlackBoxCore.get().isInstalled(packageName, userId)) {
+            return null;
+        }
+        PackageInfo virtual = BlackBoxCore.getBPackageManager()
+                .getPackageInfo(packageName, flags, userId);
+        if (virtual != null && virtual.applicationInfo != null) {
+            ensureHostGmsMetaData(virtual.applicationInfo);
+        }
+        return virtual;
+    }
+
+    private static void mergeHostGooglePackages(List<PackageInfo> installedPackages, int flags) {
+        if (!GmsCore.shouldUseHostGoogle(BActivityThread.getAppPackageName())) {
+            return;
+        }
+        Set<String> present = new HashSet<>();
+        for (PackageInfo info : installedPackages) {
+            present.add(info.packageName);
+        }
+        PackageManager hostPm = BlackBoxCore.getContext().getPackageManager();
+        for (String googlePkg : GmsCore.getAllGooglePackages()) {
+            if (present.contains(googlePkg)) {
+                continue;
             }
-
-            
-            if (isStorageOrMediaPermission(permission)) {
-                Slog.d(TAG, "ShouldShowRequestPermissionRationale: Not showing rationale for storage/media permission: " + permission);
-                return false;
-            }
-            
-            
-            if (isNotificationOrXiaomiPermission(permission)) {
-                Slog.d(TAG, "ShouldShowRequestPermissionRationale: Not showing rationale for notification/Xiaomi permission: " + permission);
-                return false;
-            }
-            
-            
-            return method.invoke(who, args);
-        }
-    }
-
-    @ProxyMethod("requestPermissions")
-    public static class RequestPermissions extends MethodHook {
-        @Override
-        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            String[] permissions = (String[]) args[0];
-            String packageName = (String) args[1];
-            
-            
-            
-            if (permissions != null) {
-                Slog.d(TAG, "RequestPermissions: Allowing permission request flow for: " + java.util.Arrays.toString(permissions));
-            }
-            
-            return method.invoke(who, args);
-        }
-    }
-
-    @ProxyMethod("getDrawable")
-    public static class DisableIconLoading extends MethodHook {
-        @Override
-        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            
-            Slog.d(TAG, "Blocking icon loading to prevent resource errors");
-            return null; 
-        }
-    }
-
-    
-    private static boolean isStorageOrMediaPermission(String permission) {
-        if (permission == null) return false;
-        
-        if (permission.equals(android.Manifest.permission.READ_EXTERNAL_STORAGE)
-                || permission.equals(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-            return true;
-        }
-        
-        if (permission.equals(android.Manifest.permission.READ_MEDIA_AUDIO)
-                || permission.equals(android.Manifest.permission.READ_MEDIA_VIDEO)
-                || permission.equals(android.Manifest.permission.READ_MEDIA_IMAGES)
-                || permission.equals("android.permission.READ_MEDIA_VISUAL")
-                || permission.equals("android.permission.READ_MEDIA_AURAL")
-                || permission.equals(android.Manifest.permission.ACCESS_MEDIA_LOCATION)) {
-            return true;
-        }
-        
-        if (permission.equals("android.permission.READ_MEDIA_AUDIO_USER_SELECTED")
-                || permission.equals("android.permission.READ_MEDIA_VIDEO_USER_SELECTED")
-                || permission.equals("android.permission.READ_MEDIA_IMAGES_USER_SELECTED")
-                || permission.equals("android.permission.READ_MEDIA_VISUAL_USER_SELECTED")
-                || permission.equals("android.permission.READ_MEDIA_AURAL_USER_SELECTED")) {
-            return true;
-        }
-        return false;
-    }
-
-    
-    private static boolean isAudioPermission(String permission) {
-        if (permission == null) return false;
-        return permission.equals(android.Manifest.permission.RECORD_AUDIO)
-                || permission.equals(android.Manifest.permission.CAPTURE_AUDIO_OUTPUT)
-                || permission.equals(android.Manifest.permission.MODIFY_AUDIO_SETTINGS)
-                || permission.equals("android.permission.FOREGROUND_SERVICE_MICROPHONE")
-                || permission.equals("android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION")
-                || permission.equals("android.permission.FOREGROUND_SERVICE_CAMERA")
-                || permission.equals("android.permission.FOREGROUND_SERVICE_LOCATION")
-                || permission.equals("android.permission.FOREGROUND_SERVICE_HEALTH")
-                || permission.equals("android.permission.FOREGROUND_SERVICE_DATA_SYNC")
-                || permission.equals("android.permission.FOREGROUND_SERVICE_SPECIAL_USE")
-                || permission.equals("android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED")
-                || permission.equals("android.permission.FOREGROUND_SERVICE_PHONE_CALL")
-                || permission.equals("android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE");
-    }
-    
-    
-    private static boolean isNotificationOrXiaomiPermission(String permission) {
-        if (permission == null) return false;
-        
-        
-        if (permission.equals("android.permission.POST_NOTIFICATIONS")) {
-            return true;
-        }
-        
-        
-        if (permission.equals("miui.permission.USE_INTERNAL_GENERAL_API") ||
-            permission.equals("miui.permission.OPTIMIZE_POWER") ||
-            permission.equals("miui.permission.RUN_IN_BACKGROUND") ||
-            permission.equals("miui.permission.POST_NOTIFICATIONS") ||
-            permission.equals("miui.permission.AUTO_START") ||
-            permission.equals("miui.permission.BACKGROUND_POPUP_WINDOW") ||
-            permission.equals("miui.permission.SHOW_WHEN_LOCKED") ||
-            permission.equals("miui.permission.TURN_SCREEN_ON")) {
-            return true;
-        }
-        
-        return false;
-    }
-
-    @ProxyMethod("setSplashScreenTheme")
-    public static class SetSplashScreenTheme extends MethodHook {
-        @Override
-        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            
-            
-            
-            String packageName = args.length > 0 ? (String) args[0] : "unknown";
-            Slog.d(TAG, "SetSplashScreenTheme: Bypassing UID check for package: " + packageName);
-            
-            
-            boolean isXiaomi = BuildCompat.isMIUI() || 
-                              Build.MANUFACTURER.toLowerCase().contains("xiaomi") ||
-                              Build.BRAND.toLowerCase().contains("xiaomi") ||
-                              Build.DISPLAY.toLowerCase().contains("hyperos");
-                              
-            if (isXiaomi) {
-                Slog.d(TAG, "SetSplashScreenTheme: Detected Xiaomi/HyperOS, using enhanced bypass");
-                
-                return null;
-            }
-            
-            
             try {
-                return method.invoke(who, args);
-            } catch (SecurityException e) {
-                Slog.w(TAG, "SetSplashScreenTheme: SecurityException caught, bypassing: " + e.getMessage());
-                return null;
-            } catch (Exception e) {
-                
-                if (e.getCause() instanceof SecurityException) {
-                    Slog.w(TAG, "SetSplashScreenTheme: SecurityException (wrapped) caught, bypassing: " + e.getCause().getMessage());
-                    return null;
-                }
-                throw e; 
+                installedPackages.add(hostPm.getPackageInfo(googlePkg, flags));
+            } catch (PackageManager.NameNotFoundException ignored) {
             }
         }
     }
 
-    
-    public static class XiaomiSecurityBypass extends MethodHook {
-        private static final String[] XIAOMI_SECURITY_METHODS = {
-            "setApplicationEnabledSetting",
-            "setComponentEnabledSetting", 
-            "setInstallLocation",
-            "setInstallerPackageName",
-            "setPackageStoppedState",
-            "setSystemAppState",
-            "setApplicationCategoryHint",
-            "setApplicationHiddenSettingAsUser",
-            "setBlockUninstallForUser",
-            "setDefaultBrowserPackageNameAsUser",
-            "setDistractingPackageRestrictionsAsUser",
-            "setPackagesSuspendedAsUser",
-            "setUpdateAvailable",
-            "setRequiredForSystemUser",
-            "setSystemAppHiddenUntilInstalled",
-            "setHarmfulAppWarningEnabled",
-            "setKeepUninstalledPackages",
-            "verifyIntentFilter",
-            "verifyPendingInstall",
-            "extendVerificationTimeout",
-            "setDefaultHomeActivity",
-            "resetApplicationPreferences",
-            "clearApplicationProfileData",
-            "clearApplicationUserData",
-            "deleteApplicationCacheFiles",
-            "deleteApplicationCacheFilesAsUser",
-            "freeStorageAndNotify",
-            "freeStorage",
-            "movePackage",
-            "movePackageToSd",
-            "movePrimaryStorage"
-        };
-
-        @Override
-        public boolean isEnable() {
-            
-            return BuildCompat.isMIUI() || 
-                   Build.MANUFACTURER.toLowerCase().contains("xiaomi") ||
-                   Build.BRAND.toLowerCase().contains("xiaomi") ||
-                   Build.DISPLAY.toLowerCase().contains("hyperos");
+    private static void mergeHostGoogleApplications(List<ApplicationInfo> installedApplications, int flags) {
+        if (!GmsCore.shouldUseHostGoogle(BActivityThread.getAppPackageName())) {
+            return;
         }
-
-        @Override
-        public String getMethodName() {
-            return null; 
+        Set<String> present = new HashSet<>();
+        for (ApplicationInfo info : installedApplications) {
+            present.add(info.packageName);
         }
-
-        @Override
-        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            String methodName = method.getName();
-            
-            
-            for (String securityMethod : XIAOMI_SECURITY_METHODS) {
-                if (securityMethod.equals(methodName)) {
-                    Slog.d(TAG, "XiaomiSecurityBypass: Intercepting " + methodName + " on Xiaomi/HyperOS");
-                    
-                    
-                    if (method.getReturnType() == void.class) {
-                        return null;
-                    }
-                    
-                    else if (method.getReturnType() == boolean.class) {
-                        return true;
-                    }
-                    
-                    else if (method.getReturnType() == int.class) {
-                        return 0;
-                    }
-                    
-                    else {
-                        return null;
-                    }
-                }
+        PackageManager hostPm = BlackBoxCore.getContext().getPackageManager();
+        for (String googlePkg : GmsCore.getAllGooglePackages()) {
+            if (present.contains(googlePkg)) {
+                continue;
             }
-            
-            
             try {
-                return method.invoke(who, args);
-            } catch (SecurityException e) {
-                Slog.w(TAG, "XiaomiSecurityBypass: SecurityException in " + methodName + ", bypassing: " + e.getMessage());
-                
-                if (method.getReturnType() == boolean.class) {
-                    return false;
-                } else if (method.getReturnType() == int.class) {
-                    return -1;
-                } else {
-                    return null;
-                }
-            } catch (Exception e) {
-                if (e.getCause() instanceof SecurityException) {
-                    Slog.w(TAG, "XiaomiSecurityBypass: SecurityException (wrapped) in " + methodName + ", bypassing: " + e.getCause().getMessage());
-                    if (method.getReturnType() == boolean.class) {
-                        return false;
-                    } else if (method.getReturnType() == int.class) {
-                        return -1;
-                    } else {
-                        return null;
-                    }
-                }
-                throw e;
+                installedApplications.add(hostPm.getApplicationInfo(googlePkg, flags));
+            } catch (PackageManager.NameNotFoundException ignored) {
             }
         }
     }

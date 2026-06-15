@@ -158,7 +158,7 @@ public class BActivityThread extends IBActivityThread.Stub {
     }
 
     public static int getBAppId() {
-        return BUserHandle.getAppId(getBUid());
+        return BUserHandle.getAppId(BlackBoxCore.getHostUid());
     }
 
     public static int getCallingBUid() {

@@ -1,12 +1,17 @@
 package top.niunaijun.blackbox.core;
 
+import android.content.ComponentName;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
 import top.niunaijun.blackbox.BlackBoxCore;
+import top.niunaijun.blackbox.app.BActivityThread;
 import top.niunaijun.blackbox.entity.pm.InstallResult;
+import top.niunaijun.blackbox.gms.GmsOAuthLaunchContext;
 import top.niunaijun.blackbox.gms.MicroGInstaller;
 import top.niunaijun.blackbox.gms.MicroGBootstrap;
 import top.niunaijun.blackbox.utils.Slog;
@@ -20,6 +25,7 @@ public class GmsCore {
     public static final String GMS_PKG = "com.google.android.gms";
     public static final String GSF_PKG = "com.google.android.gsf";
     public static final String VENDING_PKG = "com.android.vending";
+    public static final String SETTINGS_PKG = "com.android.settings";
 
     static {
         GOOGLE_APP.add(VENDING_PKG);
@@ -47,6 +53,67 @@ public class GmsCore {
 
     public static boolean isGoogleAppOrService(String str) {
         return GOOGLE_APP.contains(str) || GOOGLE_SERVICE.contains(str);
+    }
+
+    public static Set<String> getAllGooglePackages() {
+        Set<String> all = new HashSet<>();
+        all.addAll(GOOGLE_APP);
+        all.addAll(GOOGLE_SERVICE);
+        return Collections.unmodifiableSet(all);
+    }
+
+    /** Guest apps that have no cloned GMS should see host Google packages. */
+    public static boolean shouldUseHostGoogle(String guestPkg) {
+        if (guestPkg == null || guestPkg.equals(BlackBoxCore.getHostPkg())) {
+            return false;
+        }
+        int userId = BActivityThread.getUserId();
+        return !BlackBoxCore.get().isInstalled(GMS_PKG, userId);
+    }
+
+    public static String getIntentPackage(Intent intent) {
+        if (intent == null) {
+            return null;
+        }
+        String pkg = intent.getPackage();
+        if (pkg != null) {
+            return pkg;
+        }
+        ComponentName component = intent.getComponent();
+        return component != null ? component.getPackageName() : null;
+    }
+
+    public static boolean isGoogleIntent(Intent intent) {
+        String pkg = getIntentPackage(intent);
+        return pkg != null && isGoogleAppOrService(pkg);
+    }
+
+    public static boolean isOAuthSessionActive() {
+        return GmsOAuthLaunchContext.isActiveForGmsHooks();
+    }
+
+    public static boolean isOAuthSignatureSpoofActive() {
+        return GmsOAuthLaunchContext.isActiveForGmsHooks();
+    }
+
+    public static boolean isOAuthInternalGmsLaunch(Intent intent) {
+        if (intent == null) {
+            return false;
+        }
+        ComponentName component = intent.getComponent();
+        if (component != null && isOAuthHelperClass(component.getClassName())) {
+            return true;
+        }
+        return GMS_PKG.equals(getIntentPackage(intent));
+    }
+
+    public static boolean isOAuthHelperClass(String className) {
+        if (className == null) {
+            return false;
+        }
+        return className.equals("top.niunaijun.blackbox.gms.GoogleSignInActivity")
+                || className.equals("top.niunaijun.blackbox.gms.MicroGLoginBridgeActivity")
+                || className.startsWith("top.niunaijun.blackbox.proxy.");
     }
 
     private static InstallResult installPackages(Set<String> list, int userId) {
