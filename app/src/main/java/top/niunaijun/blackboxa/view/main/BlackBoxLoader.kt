@@ -11,6 +11,7 @@ import top.niunaijun.blackbox.app.configuration.ClientConfiguration
 import top.niunaijun.blackboxa.app.App
 import top.niunaijun.blackboxa.app.rocker.RockerManager
 import top.niunaijun.blackboxa.biz.cache.AppSharedPreferenceDelegate
+import top.niunaijun.blackboxa.skin.GuestLoginLifecycleCallback
 
 
 class BlackBoxLoader {
@@ -121,6 +122,7 @@ class BlackBoxLoader {
 
     fun addLifecycleCallback() {
         try {
+            BlackBoxCore.get().addAppLifecycleCallback(GuestLoginLifecycleCallback())
             BlackBoxCore.get()
                     .addAppLifecycleCallback(
                             object : AppLifecycleCallback() {

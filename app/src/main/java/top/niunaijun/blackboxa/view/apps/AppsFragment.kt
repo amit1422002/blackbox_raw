@@ -15,12 +15,14 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import cbfg.rvadapter.RVAdapter
 import com.afollestad.materialdialogs.MaterialDialog
@@ -31,6 +33,10 @@ import top.niunaijun.blackboxa.bean.ObbProgress
 import top.niunaijun.blackboxa.databinding.FragmentAppsBinding
 import top.niunaijun.blackboxa.util.InjectionUtil
 import top.niunaijun.blackboxa.util.ShortcutUtil
+import top.niunaijun.blackboxa.skin.BgmiSkin
+import top.niunaijun.blackboxa.skin.CloneDataHelper
+import top.niunaijun.blackboxa.skin.GuestAccountBackupHelper
+import top.niunaijun.blackboxa.skin.RecoverGuestAdapter
 import top.niunaijun.blackboxa.util.inflate
 import top.niunaijun.blackboxa.util.MemoryManager
 import top.niunaijun.blackboxa.util.toast
@@ -367,6 +373,10 @@ class AppsFragment : Fragment() {
                 try {
                     popupMenu = PopupMenu(requireContext(),view).also {
                         it.inflate(R.menu.app_menu)
+                        val isBgmi = BgmiSkin.isBgmi(data.packageName)
+                        it.menu.findItem(R.id.app_logout_account)?.isVisible = isBgmi
+                        it.menu.findItem(R.id.app_reset_guest)?.isVisible = isBgmi
+                        it.menu.findItem(R.id.app_recover_guest)?.isVisible = isBgmi
                         it.setOnMenuItemClickListener { item ->
                             try {
                                 when (item.itemId) {
@@ -384,6 +394,18 @@ class AppsFragment : Fragment() {
 
                                     R.id.app_copy_obb -> {
                                         requestObbCopy(data)
+                                    }
+
+                                    R.id.app_logout_account -> {
+                                        requestBgmiLogout(data)
+                                    }
+
+                                    R.id.app_reset_guest -> {
+                                        requestBgmiResetGuest(data)
+                                    }
+
+                                    R.id.app_recover_guest -> {
+                                        requestBgmiRecoverGuest(data)
                                     }
 
                                     R.id.app_stop -> {
@@ -581,6 +603,132 @@ class AppsFragment : Fragment() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error showing OBB copy dialog: ${e.message}")
+        }
+    }
+
+    private fun requestBgmiLogout(info: AppInfo) {
+        if (!BgmiSkin.isBgmi(info.packageName)) {
+            return
+        }
+        try {
+            MaterialDialog(requireContext()).show {
+                title(R.string.app_logout_account)
+                message(R.string.bgmi_logout_confirm)
+                positiveButton(R.string.done) {
+                    try {
+                        showLoading()
+                        viewModel.logoutBgmiAccount(userID)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error logging out BGMI: ${e.message}")
+                        hideLoading()
+                    }
+                }
+                negativeButton(R.string.cancel)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing BGMI logout dialog: ${e.message}")
+        }
+    }
+
+    private fun requestBgmiResetGuest(info: AppInfo) {
+        if (!BgmiSkin.isBgmi(info.packageName)) {
+            return
+        }
+        try {
+            val clonePath = CloneDataHelper.getCloneDataPath(
+                requireContext().applicationContext, info.packageName, userID
+            )
+            MaterialDialog(requireContext()).show {
+                title(R.string.reset_guest_bgmi)
+                message(text = getString(R.string.reset_guest_bgmi_confirm, clonePath))
+                positiveButton(R.string.done) {
+                    try {
+                        showLoading()
+                        viewModel.resetGuestAccount(userID)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error resetting BGMI guest: ${e.message}")
+                        hideLoading()
+                    }
+                }
+                negativeButton(R.string.cancel)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing BGMI reset guest dialog: ${e.message}")
+        }
+    }
+
+    private fun requestBgmiRecoverGuest(info: AppInfo) {
+        if (!BgmiSkin.isBgmi(info.packageName)) {
+            return
+        }
+        try {
+            showLoading()
+            Thread({
+                val backups = GuestAccountBackupHelper.listBackups()
+                requireActivity().runOnUiThread {
+                    hideLoading()
+                    showRecoverGuestDialog(backups)
+                }
+            }, "bgmi-list-guest-backups").start()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error listing guest backups: ${e.message}")
+            hideLoading()
+        }
+    }
+
+    private fun showRecoverGuestDialog(backups: List<GuestAccountBackupHelper.GuestBackup>) {
+        if (backups.isEmpty()) {
+            toast(R.string.recover_guest_bgmi_none)
+            return
+        }
+        try {
+            val content = layoutInflater.inflate(R.layout.dialog_recover_guest, null)
+            val list = content.findViewById<RecyclerView>(R.id.recover_guest_list)
+            val selectedPanel = content.findViewById<View>(R.id.recover_selected_panel)
+            val selectedSummary = content.findViewById<android.widget.TextView>(R.id.recover_selected_summary)
+            val restoreBtn = content.findViewById<AppCompatButton>(R.id.recover_btn_restore)
+            val cancelBtn = content.findViewById<AppCompatButton>(R.id.recover_btn_cancel)
+
+            list.layoutManager = LinearLayoutManager(requireContext())
+            val density = resources.displayMetrics.density
+            val listHeight = minOf(backups.size * 76f * density, 280f * density).toInt()
+            list.layoutParams = list.layoutParams.apply {
+                height = maxOf(listHeight, (76f * density).toInt())
+            }
+
+            val adapter = RecoverGuestAdapter(backups) { _, backup ->
+                selectedPanel.visibility = View.VISIBLE
+                selectedSummary.text = backup.getDisplayLabel(requireContext())
+                restoreBtn.isEnabled = true
+                restoreBtn.alpha = 1f
+            }
+            list.adapter = adapter
+
+            val dialog = AlertDialog.Builder(requireContext()).setView(content).create()
+            cancelBtn.setOnClickListener { dialog.dismiss() }
+
+            restoreBtn.setOnClickListener {
+                val picked = adapter.selectedBackup ?: return@setOnClickListener
+                dialog.dismiss()
+                MaterialDialog(requireContext()).show {
+                    title(R.string.recover_guest_bgmi)
+                    message(text = getString(R.string.recover_guest_bgmi_confirm, picked.getDisplayLabel(requireContext())))
+                    positiveButton(R.string.done) {
+                        try {
+                            showLoading()
+                            viewModel.restoreGuestAccount(userID, picked)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error restoring BGMI guest: ${e.message}")
+                            hideLoading()
+                        }
+                    }
+                    negativeButton(R.string.cancel)
+                }
+            }
+
+            dialog.show()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing recover guest dialog: ${e.message}")
         }
     }
 

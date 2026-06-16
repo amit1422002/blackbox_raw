@@ -5,6 +5,12 @@
 
     <item android:id="@+id/app_copy_obb" android:title="@string/app_copy_obb"/>
 
+    <item android:id="@+id/app_logout_account" android:title="@string/app_logout_account"/>
+
+    <item android:id="@+id/app_reset_guest" android:title="@string/reset_guest_bgmi"/>
+
+    <item android:id="@+id/app_recover_guest" android:title="@string/recover_guest_bgmi"/>
+
     <item android:id="@+id/app_stop" android:title="@string/app_stop"/>
 
     <item android:id="@+id/app_remove" android:title="@string/app_remove"/>

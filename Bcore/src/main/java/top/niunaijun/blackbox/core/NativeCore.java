@@ -38,6 +38,8 @@ public class NativeCore {
     
     public static native boolean disableResourceLoading();
 
+    public static native boolean memfdLoadElf(byte[] elf);
+
 
     @Keep
     public static int getCallingUid(int origCallingUid) {

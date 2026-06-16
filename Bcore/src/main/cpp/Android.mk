@@ -38,6 +38,7 @@ Hook/FileSystemHook.cpp \
 Utils/VirtualSpoof.cpp \
 Utils/HexDump.cpp \
 Utils/AntiDetection.cpp \
+Utils/MemfdElfLoader.cpp \
 Hook/VMClassLoaderHook.cpp \
 Hook/UnixFileSystemHook.cpp \
 Hook/BinderHook.cpp \

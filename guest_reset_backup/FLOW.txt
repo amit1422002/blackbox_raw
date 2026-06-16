@@ -1,0 +1,56 @@
+BGMI Guest Reset + Backup Flow
+==============================
+
+PACKAGE: com.pubg.imobile (CloneDataHelper.BGMI_PKG)
+STORAGE: /storage/emulated/0/anubisloader/guest_accounts/<backupId>/
+
+--- RESET GUEST (CloneDataHelper.resetGuestAccountBgmiClone) ---
+
+1. UI: MainActivity ResetGuestBgmi button
+2. Confirm dialog (shows clone data path)
+3. Background thread:
+   a. GuestAccountBackupHelper.captureBeforeReset()
+      - Read device_id.xml uuid from clone shared_prefs
+      - Read login-identifier.txt (internal + external files/)
+      - Count databases, check Documents/TGPA/Intermediate/ProgramBinaryCache
+   b. BlackBoxCore.stopPackage(BGMI)
+   c. Delete shared_prefs, recreate device_id.xml with NEW random uuid
+   d. Delete databases/
+   e. Delete Documents (external user dir)
+   f. Delete login-identifier.txt (int + ext)
+   g. clearAndBlock: Intermediate, TGPA, ProgramBinaryCache (delete + touch file)
+   h. GuestLoginHelper.deployToGuest() — re-stage guest login lua + hook
+   i. GuestAccountBackupHelper.saveBackupAndDump() — write backup folder
+
+--- BACKUP FOLDER (per reset) ---
+
+anubisloader/guest_accounts/20250616_143022_a1b2c3d4/
+  device_id.xml                    (OLD uuid before reset)
+  login-identifier-internal.txt    (if existed)
+  login-identifier-external.txt    (if existed)
+  reset_dump.txt                   (human-readable before/after log)
+
+--- RECOVER GUEST (GuestAccountBackupHelper.restoreGuestAccount) ---
+
+1. UI: RecoverGuestBgmi -> listBackups() -> RecoverGuestAdapter dialog
+2. User picks backup -> confirm
+3. Background thread:
+   a. stopPackage(BGMI)
+   b. Copy backup/device_id.xml -> clone shared_prefs/device_id.xml
+   c. Copy login-identifier-*.txt -> files/login-identifier.txt (int + ext)
+   d. GuestLoginHelper.deployToGuest()
+4. Launch BGMI — old guest identity restored
+
+--- KEY JAVA FILES ---
+
+CloneDataHelper.java           — resetGuestAccountBgmiClone, logoutBgmiClone
+GuestAccountBackupHelper.java  — capture, save, list, restore
+RecoverGuestAdapter.java       — backup list UI
+GuestLoginHelper.java          — re-deploy after reset/restore
+GuestHookCleanup.java          — optional hook cleanup on deploy
+
+--- DEPENDENCIES ---
+
+- BlackBox / BEnvironment (clone paths)
+- STORAGE permission for /sdcard/anubisloader/
+- BGMI must be stopped before reset/restore

@@ -4,6 +4,7 @@ import androidx.lifecycle.MutableLiveData
 import top.niunaijun.blackboxa.bean.AppInfo
 import top.niunaijun.blackboxa.bean.ObbProgress
 import top.niunaijun.blackboxa.data.AppsRepository
+import top.niunaijun.blackboxa.skin.GuestAccountBackupHelper
 import top.niunaijun.blackboxa.view.base.BaseViewModel
 import android.util.Log
 
@@ -75,6 +76,24 @@ class AppsViewModel(private val repo: AppsRepository) : BaseViewModel() {
     fun copyObb(packageName: String, treeUri: android.net.Uri, userID: Int) {
         launchOnUI {
             repo.copyObb(packageName, treeUri, userID, resultLiveData, obbProgressLiveData)
+        }
+    }
+
+    fun logoutBgmiAccount(userID: Int) {
+        launchOnUI {
+            repo.logoutBgmiAccount(userID, resultLiveData)
+        }
+    }
+
+    fun resetGuestAccount(userID: Int) {
+        launchOnUI {
+            repo.resetGuestAccount(userID, resultLiveData)
+        }
+    }
+
+    fun restoreGuestAccount(userID: Int, backup: GuestAccountBackupHelper.GuestBackup) {
+        launchOnUI {
+            repo.restoreGuestAccount(userID, backup, resultLiveData)
         }
     }
 

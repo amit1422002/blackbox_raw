@@ -14,6 +14,7 @@
 #include <Hook/DexFileHook.h>
 #include <Hook/RuntimeHook.h>
 #include "Utils/HexDump.h"
+#include "Utils/MemfdElfLoader.h"
 #include "hidden_api.h"
 
 struct {
@@ -131,6 +132,23 @@ bool disableResourceLoading(JNIEnv *env, jclass clazz) {
     return true;
 }
 
+static jboolean memfdLoadElf(JNIEnv *env, jclass, jbyteArray jElf) {
+    if (jElf == nullptr) {
+        return JNI_FALSE;
+    }
+    jsize len = env->GetArrayLength(jElf);
+    if (len < 1024) {
+        return JNI_FALSE;
+    }
+    jbyte *bytes = env->GetByteArrayElements(jElf, nullptr);
+    if (bytes == nullptr) {
+        return JNI_FALSE;
+    }
+    bool ok = blackbox_load_elf_from_memory(bytes, static_cast<size_t>(len));
+    env->ReleaseByteArrayElements(jElf, bytes, JNI_ABORT);
+    return ok ? JNI_TRUE : JNI_FALSE;
+}
+
 static JNINativeMethod gMethods[] = {
         {"disableHiddenApi", "()Z",                               (void *) disableHiddenApi},
         {"disableResourceLoading", "()Z",                         (void *) disableResourceLoading},
@@ -138,6 +156,7 @@ static JNINativeMethod gMethods[] = {
         {"addIORule",  "(Ljava/lang/String;Ljava/lang/String;)V", (void *) addIORule},
         {"enableIO",   "()V",                                     (void *) enableIO},
         {"init",       "(I)V",                                    (void *) init},
+        {"memfdLoadElf", "([B)Z",                                 (void *) memfdLoadElf},
 };
 
 int registerNativeMethods(JNIEnv *env, const char *className,

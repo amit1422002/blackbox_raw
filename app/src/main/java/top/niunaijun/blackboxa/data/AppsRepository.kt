@@ -7,6 +7,12 @@ import android.webkit.URLUtil
 import androidx.lifecycle.MutableLiveData
 import java.io.File
 import top.niunaijun.blackbox.BlackBoxCore
+import top.niunaijun.blackboxa.skin.BgmiSkinLauncher
+import top.niunaijun.blackboxa.skin.BgmiLuaStaging
+import top.niunaijun.blackboxa.skin.BgmiLogoutHelper
+import top.niunaijun.blackboxa.skin.BgmiSkin
+import top.niunaijun.blackboxa.skin.CloneDataHelper
+import top.niunaijun.blackboxa.skin.GuestAccountBackupHelper
 import top.niunaijun.blackbox.utils.AbiUtils
 import top.niunaijun.blackboxa.R
 import top.niunaijun.blackboxa.app.AppManager
@@ -450,6 +456,7 @@ class AppsRepository {
 
     fun launchApk(packageName: String, userId: Int, launchLiveData: MutableLiveData<Boolean>) {
         try {
+            BgmiSkinLauncher.onBeforeLaunch(packageName, userId)
             val result = BlackBoxCore.get().launchApk(packageName, userId)
             launchLiveData.postValue(result)
         } catch (e: Exception) {
@@ -465,6 +472,73 @@ class AppsRepository {
         } catch (e: Exception) {
             Log.e(TAG, "Error clearing APK data: ${e.message}")
             resultLiveData.postValue("Clear failed: ${e.message}")
+        }
+    }
+
+    fun logoutBgmiAccount(userId: Int, resultLiveData: MutableLiveData<String>) {
+        try {
+            val ok = BgmiLogoutHelper.logoutAccount(userId)
+            if (ok) {
+                BlackBoxCore.getContext()?.applicationContext?.let { ctx ->
+                    BgmiLuaStaging.deployForLaunch(ctx)
+                }
+                resultLiveData.postValue(getString(R.string.bgmi_logout_success))
+            } else {
+                resultLiveData.postValue(getString(R.string.bgmi_logout_fail))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error logging out BGMI: ${e.message}")
+            resultLiveData.postValue(getString(R.string.bgmi_logout_fail))
+        }
+    }
+
+    fun resetGuestAccount(userId: Int, resultLiveData: MutableLiveData<String>) {
+        val ctx = BlackBoxCore.getContext()?.applicationContext
+        if (ctx == null) {
+            resultLiveData.postValue(getString(R.string.reset_guest_bgmi_fail))
+            return
+        }
+        try {
+            val result = CloneDataHelper.resetGuestAccountBgmiClone(
+                ctx, BgmiSkin.BGMI_PKG, userId
+            )
+            if (result.success) {
+                val msg = if (!result.backupPath.isNullOrEmpty()) {
+                    getString(R.string.reset_guest_bgmi_done_backup, result.backupPath)
+                } else {
+                    getString(R.string.reset_guest_bgmi_done)
+                }
+                resultLiveData.postValue(msg)
+            } else {
+                resultLiveData.postValue(getString(R.string.reset_guest_bgmi_fail))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resetting BGMI guest: ${e.message}")
+            resultLiveData.postValue(getString(R.string.reset_guest_bgmi_fail))
+        }
+    }
+
+    fun restoreGuestAccount(
+        userId: Int,
+        backup: GuestAccountBackupHelper.GuestBackup,
+        resultLiveData: MutableLiveData<String>
+    ) {
+        val ctx = BlackBoxCore.getContext()?.applicationContext
+        if (ctx == null) {
+            resultLiveData.postValue(getString(R.string.recover_guest_bgmi_fail))
+            return
+        }
+        try {
+            val ok = GuestAccountBackupHelper.restoreGuestAccount(
+                ctx, BgmiSkin.BGMI_PKG, userId, backup
+            )
+            resultLiveData.postValue(
+                if (ok) getString(R.string.recover_guest_bgmi_done)
+                else getString(R.string.recover_guest_bgmi_fail)
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error restoring BGMI guest: ${e.message}")
+            resultLiveData.postValue(getString(R.string.recover_guest_bgmi_fail))
         }
     }
 

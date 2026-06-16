@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import top.niunaijun.blackbox.BlackBoxCore
+import top.niunaijun.blackboxa.skin.BgmiSkinLauncher
 
 
 class ShortcutActivity:AppCompatActivity() {
@@ -16,6 +17,7 @@ class ShortcutActivity:AppCompatActivity() {
         val userID = intent.getIntExtra("userId",0)
 
         lifecycleScope.launch {
+            BgmiSkinLauncher.onBeforeLaunch(pkg ?: "", userID)
             BlackBoxCore.get().launchApk(pkg,userID)
             finish()
         }

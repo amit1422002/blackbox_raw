@@ -9,4 +9,7 @@
     <color name="white">#FFFFFFFF</color>
     <color name="background">#FFFFFFFF</color>
     <color name="surface">#FFFFFFFF</color>
+    <color name="recover_accent">#C62828</color>
+    <color name="dialog_card_bg">#F5F5F5</color>
+    <color name="dialog_stroke">#BDBDBD</color>
 </resources>

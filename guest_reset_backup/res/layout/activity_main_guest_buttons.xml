@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Paste into your activity layout -->
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/ResetGuestBgmi"
+        android:layout_width="108dp"
+        android:layout_height="28dp"
+        android:layout_marginTop="3dp"
+        android:background="@drawable/btn_action_secondary"
+        android:fontFamily="@font/mfontx"
+        android:paddingVertical="0dp"
+        android:text="@string/reset_guest_bgmi"
+        android:textAllCaps="true"
+        android:textColor="@color/gaming_text_muted"
+        android:textSize="7sp" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/RecoverGuestBgmi"
+        android:layout_width="108dp"
+        android:layout_height="28dp"
+        android:layout_marginTop="3dp"
+        android:background="@drawable/btn_action_secondary"
+        android:fontFamily="@font/mfontx"
+        android:paddingVertical="0dp"
+        android:text="@string/recover_guest_bgmi"
+        android:textAllCaps="true"
+        android:textColor="@color/gaming_text_muted"
+        android:textSize="7sp" />
+
+</merge>
