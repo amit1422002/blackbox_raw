@@ -15,6 +15,9 @@
 #include <Hook/RuntimeHook.h>
 #include "Utils/HexDump.h"
 #include "Utils/MemfdElfLoader.h"
+#include "Utils/MapsHide.h"
+#include "Utils/LibNuke.h"
+#include "Utils/AntiDetection.h"
 #include "hidden_api.h"
 
 struct {
@@ -86,7 +89,18 @@ void hideXposed(JNIEnv *env, jclass clazz) {
     VMClassLoaderHook::hideXposed();
 }
 
-void init(JNIEnv *env, jobject clazz, jint api_level) {
+static void nukeTargetLibrary(JNIEnv *env, jclass, jstring jLibName, jint layerMask) {
+    if (jLibName == nullptr) {
+        return;
+    }
+    const char *lib = env->GetStringUTFChars(jLibName, JNI_FALSE);
+    if (lib != nullptr) {
+        nuke_target_library(lib, layerMask);
+        env->ReleaseStringUTFChars(jLibName, lib);
+    }
+}
+
+void initNative(JNIEnv *env, jobject clazz, jint api_level) {
     ALOGD("NativeCore init.");
     VMEnv.api_level = api_level;
     VMEnv.NativeCoreClass = (jclass) env->NewGlobalRef(env->FindClass(VMCORE_CLASS));
@@ -99,6 +113,11 @@ void init(JNIEnv *env, jobject clazz, jint api_level) {
                                                 "()[J");
 
     JniHook::InitJniHook(env, api_level);
+}
+
+static void installGuestAntiDetection(JNIEnv *, jclass) {
+    ALOGD("Installing safe inject-only maps hide (libanubis.so + libguestloginhook).");
+    install_maps_hide_hooks();
 }
 
 void addIORule(JNIEnv *env, jclass clazz, jstring target_path,
@@ -149,14 +168,26 @@ static jboolean memfdLoadElf(JNIEnv *env, jclass, jbyteArray jElf) {
     return ok ? JNI_TRUE : JNI_FALSE;
 }
 
+static jint countInjectMapsVisible(JNIEnv *, jclass) {
+    return static_cast<jint>(maps_hide_count_visible_inject_lines());
+}
+
+static void refreshInjectMapsHide(JNIEnv *, jclass) {
+    maps_hide_refresh_inject_paths();
+}
+
 static JNINativeMethod gMethods[] = {
         {"disableHiddenApi", "()Z",                               (void *) disableHiddenApi},
         {"disableResourceLoading", "()Z",                         (void *) disableResourceLoading},
         {"hideXposed", "()V",                                     (void *) hideXposed},
         {"addIORule",  "(Ljava/lang/String;Ljava/lang/String;)V", (void *) addIORule},
         {"enableIO",   "()V",                                     (void *) enableIO},
-        {"init",       "(I)V",                                    (void *) init},
+        {"initNative", "(I)V",                                  (void *) initNative},
+        {"installGuestAntiDetection", "()V",                   (void *) installGuestAntiDetection},
+        {"nukeTargetLibrary", "(Ljava/lang/String;I)V",        (void *) nukeTargetLibrary},
         {"memfdLoadElf", "([B)Z",                                 (void *) memfdLoadElf},
+        {"countInjectMapsVisible", "()I",                         (void *) countInjectMapsVisible},
+        {"refreshInjectMapsHide", "()V",                         (void *) refreshInjectMapsHide},
 };
 
 int registerNativeMethods(JNIEnv *env, const char *className,

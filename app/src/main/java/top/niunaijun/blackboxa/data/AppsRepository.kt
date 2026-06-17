@@ -205,6 +205,14 @@ class AppsRepository {
                         )
                         retryCount++
                         Thread.sleep(100) 
+                    } else if (applicationList.isEmpty() && retryCount < maxRetries - 1) {
+                        Log.w(
+                                TAG,
+                                "getVmInstallList: Attempt ${retryCount + 1} returned empty, retrying..."
+                        )
+                        retryCount++
+                        Thread.sleep(300)
+                        applicationList = null
                     }
                 } catch (e: Exception) {
                     Log.e(
@@ -415,6 +423,11 @@ class AppsRepository {
 
             if (installResult.success) {
                 updateAppSortList(userId, installResult.packageName, true)
+                try {
+                    BlackBoxCore.getBPackageManager().forceReinitialize()
+                } catch (e: Exception) {
+                    Log.w(TAG, "forceReinitialize after install: ${e.message}")
+                }
                 val packageName = installResult.packageName
                 if (BlackBoxCore.get().needsObbCopy(packageName)) {
                     val progressListener = createObbProgressListener(obbProgressLiveData)
@@ -434,8 +447,8 @@ class AppsRepository {
                 }
             } else {
                 resultLiveData.postValue(getString(R.string.install_fail, installResult.msg))
+                scanUser()
             }
-            scanUser()
         } catch (e: Exception) {
             Log.e(TAG, "Error installing APK: ${e.message}")
             resultLiveData.postValue("Installation failed: ${e.message}")

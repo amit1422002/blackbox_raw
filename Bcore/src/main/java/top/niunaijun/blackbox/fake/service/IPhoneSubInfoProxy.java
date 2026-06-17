@@ -7,6 +7,7 @@ import top.niunaijun.blackbox.fake.hook.ClassInvocationStub;
 import top.niunaijun.blackbox.fake.hook.MethodHook;
 import top.niunaijun.blackbox.fake.hook.ProxyMethod;
 import top.niunaijun.blackbox.utils.MethodParameterUtils;
+import top.niunaijun.blackbox.utils.VirtualDeviceIds;
 
 
 public class IPhoneSubInfoProxy extends ClassInvocationStub {
@@ -42,6 +43,104 @@ public class IPhoneSubInfoProxy extends ClassInvocationStub {
         return false;
     }
 
+    @ProxyMethod("getDeviceId")
+    public static class GetDeviceId extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return VirtualDeviceIds.getImei();
+        }
+    }
+
+    @ProxyMethod("getDeviceIdForPhone")
+    public static class GetDeviceIdForPhone extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return VirtualDeviceIds.getImei();
+        }
+    }
+
+    @ProxyMethod("getDeviceIdForSubscriber")
+    public static class GetDeviceIdForSubscriber extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return VirtualDeviceIds.getImei();
+        }
+    }
+
+    @ProxyMethod("getImeiForSubscriber")
+    public static class GetImeiForSubscriber extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return VirtualDeviceIds.getImei();
+        }
+    }
+
+    @ProxyMethod("getMeidForSubscriber")
+    public static class GetMeidForSubscriber extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return VirtualDeviceIds.getMeid();
+        }
+    }
+
+    @ProxyMethod("getSubscriberId")
+    public static class GetSubscriberId extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return VirtualDeviceIds.getImsi();
+        }
+    }
+
+    @ProxyMethod("getSubscriberIdForSubscriber")
+    public static class GetSubscriberIdForSubscriber extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return VirtualDeviceIds.getImsi();
+        }
+    }
+
+    @ProxyMethod("getIccSerialNumber")
+    public static class GetIccSerialNumber extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return VirtualDeviceIds.getSerial();
+        }
+    }
+
+    @ProxyMethod("getIccSerialNumberForSubscriber")
+    public static class GetIccSerialNumberForSubscriber extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return VirtualDeviceIds.getSerial();
+        }
+    }
 
     @ProxyMethod("getLine1NumberForSubscriber")
     public static class getLine1NumberForSubscriber extends MethodHook {

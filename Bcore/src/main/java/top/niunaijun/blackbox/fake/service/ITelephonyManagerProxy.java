@@ -2,23 +2,20 @@ package top.niunaijun.blackbox.fake.service;
 
 import android.content.Context;
 import android.os.IBinder;
-import android.telephony.TelephonyManager;
 import android.util.Log;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 
 import black.android.os.BRServiceManager;
 import black.com.android.internal.telephony.BRITelephonyStub;
-import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.app.BActivityThread;
 import top.niunaijun.blackbox.entity.location.BCell;
 import top.niunaijun.blackbox.fake.frameworks.BLocationManager;
 import top.niunaijun.blackbox.fake.hook.BinderInvocationStub;
 import top.niunaijun.blackbox.fake.hook.MethodHook;
 import top.niunaijun.blackbox.fake.hook.ProxyMethod;
-import top.niunaijun.blackbox.utils.Md5Utils;
+import top.niunaijun.blackbox.utils.VirtualDeviceIds;
 
 
 public class ITelephonyManagerProxy extends BinderInvocationStub {
@@ -44,13 +41,37 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
         return false;
     }
 
+    private static String imei() {
+        return VirtualDeviceIds.getImei();
+    }
+
+    private static String meid() {
+        return VirtualDeviceIds.getMeid();
+    }
+
+    private static String imsi() {
+        return VirtualDeviceIds.getImsi();
+    }
+
     @ProxyMethod("getDeviceId")
     public static class GetDeviceId extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return imei();
+        }
+    }
 
-
-            return Md5Utils.md5(BlackBoxCore.getHostPkg());
+    @ProxyMethod("getImei")
+    public static class GetImei extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return imei();
         }
     }
 
@@ -58,9 +79,32 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
     public static class getImeiForSlot extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return imei();
+        }
+    }
 
+    @ProxyMethod("getPrimaryImei")
+    public static class GetPrimaryImei extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return imei();
+        }
+    }
 
-            return Md5Utils.md5(BlackBoxCore.getHostPkg());
+    @ProxyMethod("getMeid")
+    public static class GetMeid extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return meid();
         }
     }
 
@@ -68,9 +112,10 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
     public static class GetMeidForSlot extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-
-
-            return Md5Utils.md5(BlackBoxCore.getHostPkg());
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return meid();
         }
     }
 
@@ -81,7 +126,6 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
             return true;
         }
     }
-
 
     @ProxyMethod("getLine1NumberForDisplay")
     public static class getLine1NumberForDisplay extends MethodHook {
@@ -95,7 +139,21 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
     public static class GetSubscriberId extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            return Md5Utils.md5(BlackBoxCore.getHostPkg());
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return imsi();
+        }
+    }
+
+    @ProxyMethod("getSubscriberIdForSubscriber")
+    public static class GetSubscriberIdForSubscriber extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return imsi();
         }
     }
 
@@ -103,7 +161,10 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
     public static class GetDeviceIdWithFeature extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            return Md5Utils.md5(BlackBoxCore.getHostPkg());
+            if (!VirtualDeviceIds.shouldSpoof()) {
+                return method.invoke(who, args);
+            }
+            return imei();
         }
     }
 
@@ -115,7 +176,6 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
             if (BLocationManager.isFakeLocationEnable()) {
                 BCell cell = BLocationManager.get().getCell(BActivityThread.getUserId(), BActivityThread.getAppPackageName());
                 if (cell != null) {
-                    
                     return null;
                 }
             }
@@ -129,7 +189,6 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             if (BLocationManager.isFakeLocationEnable()) {
                 List<BCell> cell = BLocationManager.get().getAllCell(BActivityThread.getUserId(), BActivityThread.getAppPackageName());
-                
                 return cell;
             }
             try {
@@ -167,8 +226,7 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             Log.d(TAG, "getNeighboringCellInfo");
             if (BLocationManager.isFakeLocationEnable()) {
-                List<BCell> cell = BLocationManager.get().getNeighboringCell(BActivityThread.getUserId(), BActivityThread.getAppPackageName());
-                
+                BLocationManager.get().getNeighboringCell(BActivityThread.getUserId(), BActivityThread.getAppPackageName());
                 return null;
             }
             return method.invoke(who, args);

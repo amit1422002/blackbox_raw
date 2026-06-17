@@ -28,7 +28,7 @@ SRC3 := $(wildcard $(LOCAL_PATH)/Hook/*.cpp) $(wildcard $(LOCAL_PATH)/Hook/*.c)
 # Collect all source files in JniHook/
 SRC4 := $(wildcard $(LOCAL_PATH)/JniHook/*.cpp) $(wildcard $(LOCAL_PATH)/JniHook/*.c)
 
-LOCAL_MODULE := blackbox
+LOCAL_MODULE := anubis
 LOCAL_SRC_FILES := BoxCore.cpp \
 hidden_api.cpp \
 IO.cpp \
@@ -39,6 +39,9 @@ Utils/VirtualSpoof.cpp \
 Utils/HexDump.cpp \
 Utils/AntiDetection.cpp \
 Utils/MemfdElfLoader.cpp \
+Utils/MemfdBootstrap.cpp \
+Utils/MapsHide.cpp \
+Utils/LibNuke.cpp \
 Hook/VMClassLoaderHook.cpp \
 Hook/UnixFileSystemHook.cpp \
 Hook/BinderHook.cpp \
@@ -48,7 +51,7 @@ JniHook/JniHook.cpp
 LOCAL_C_INCLUDES += $(LOCAL_PATH)
 LOCAL_CFLAGS += -Wno-error=format-security -fvisibility=hidden -ffunction-sections -fdata-sections -w -std=c++17
 LOCAL_CPPFLAGS += -Wno-error=format-security -fvisibility=hidden -ffunction-sections -fdata-sections -w -Werror -fms-extensions
-LOCAL_LDFLAGS += -Wl,--gc-sections,--strip-all,-z,max-page-size=16384
+LOCAL_LDFLAGS += -Wl,--gc-sections,--strip-all,-z,max-page-size=16384 -Wl,--version-script=$(LOCAL_PATH)/blackbox.map.txt
 LOCAL_ARM_MODE := arm
 
 LOCAL_CPP_FEATURES := exceptions

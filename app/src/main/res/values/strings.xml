@@ -57,6 +57,14 @@
     <string name="reset_guest_bgmi_done">Guest account reset — launch BGMI</string>
     <string name="reset_guest_bgmi_fail">Guest reset failed — close BGMI in loader first, then retry</string>
     <string name="reset_guest_bgmi_done_backup">Guest reset done.\nBackup: %1$s</string>
+    <string name="change_imei_bgmi">Change IMEI</string>
+    <string name="change_imei_bgmi_title">BGMI IMEI (user 0 only)</string>
+    <string name="change_imei_bgmi_current">Current IMEI:\n%1$s\n\nApplies on next BGMI launch (close game first).</string>
+    <string name="change_imei_bgmi_random">New random IMEI</string>
+    <string name="change_imei_bgmi_custom">Set custom IMEI</string>
+    <string name="change_imei_bgmi_hint">15 digits only</string>
+    <string name="change_imei_bgmi_done">IMEI updated — restart BGMI clone</string>
+    <string name="change_imei_bgmi_fail">Invalid IMEI (need 15 digits)</string>
     <string name="recover_guest_bgmi">Recover Guest</string>
     <string name="recover_guest_bgmi_title">Select guest to restore</string>
     <string name="recover_guest_bgmi_hint">Tap an account below — selected row is highlighted</string>
@@ -64,7 +72,7 @@
     <string name="recover_guest_bgmi_no_uuid">No UUID saved</string>
     <string name="recover_guest_bgmi_selected_label">SELECTED ACCOUNT</string>
     <string name="recover_guest_bgmi_restore">Restore</string>
-    <string name="recover_guest_bgmi_none">No backups found in anubisloader/guest_accounts — reset once first</string>
+    <string name="recover_guest_bgmi_none">No backups found — reset once first</string>
     <string name="recover_guest_bgmi_confirm">Restore this guest account?\n\n%1$s</string>
     <string name="recover_guest_bgmi_done">Guest restored — launch BGMI</string>
     <string name="recover_guest_bgmi_fail">Restore failed — close BGMI in loader first</string>

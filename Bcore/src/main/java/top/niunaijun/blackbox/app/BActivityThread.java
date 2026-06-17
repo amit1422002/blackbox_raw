@@ -66,6 +66,7 @@ import top.niunaijun.blackbox.core.CrashHandler;
 import top.niunaijun.blackbox.core.IBActivityThread;
 import top.niunaijun.blackbox.core.IOCore;
 import top.niunaijun.blackbox.core.NativeCore;
+import top.niunaijun.blackbox.core.env.BEnvironment;
 import top.niunaijun.blackbox.core.env.VirtualRuntime;
 import top.niunaijun.blackbox.core.system.user.BUserHandle;
 import top.niunaijun.blackbox.entity.AppConfig;
@@ -402,7 +403,10 @@ public class BActivityThread extends IBActivityThread.Stub {
         }
 
         NativeCore.init(Build.VERSION.SDK_INT);
-        assert packageContext != null;
+        BEnvironment.ensureDataLayout(packageName, BActivityThread.getUserId());
+        if (packageContext == null) {
+            throw new IllegalStateException("packageContext is null for " + packageName);
+        }
         IOCore.get().enableRedirect(packageContext);
 
         AppBindData bindData = new AppBindData();

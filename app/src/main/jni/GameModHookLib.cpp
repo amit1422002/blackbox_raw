@@ -17,9 +17,15 @@
 #include <vector>
 #include <sys/mman.h>
 
+#define STEALTH_LOGS 1
+#if STEALTH_LOGS
+#define LOGI(...) ((void)0)
+#define LOGW(...) ((void)0)
+#else
 #define TAG "guest-login"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, TAG, __VA_ARGS__)
+#endif
 
 namespace {
 

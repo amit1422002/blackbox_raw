@@ -127,6 +127,23 @@ public class BEnvironment {
         return new File(getDataDir(packageName, userId), "databases");
     }
 
+    /** Standard Android data subdirs — SQLite/WorkManager need these before Application.onCreate. */
+    public static void ensureDataLayout(String packageName, int userId) {
+        FileUtils.mkdirs(getDataDir(packageName, userId));
+        FileUtils.mkdirs(getDataCacheDir(packageName, userId));
+        FileUtils.mkdirs(new File(getDataDir(packageName, userId), "code_cache"));
+        FileUtils.mkdirs(getDataFilesDir(packageName, userId));
+        FileUtils.mkdirs(getDataDatabasesDir(packageName, userId));
+        FileUtils.mkdirs(new File(getDataDir(packageName, userId), "shared_prefs"));
+        FileUtils.mkdirs(new File(getDataDir(packageName, userId), "no_backup"));
+        FileUtils.mkdirs(getDataLibDir(packageName, userId));
+        FileUtils.mkdirs(getDeDataDir(packageName, userId));
+        FileUtils.mkdirs(getExternalDataDir(packageName, userId));
+        FileUtils.mkdirs(getExternalDataCacheDir(packageName, userId));
+        FileUtils.mkdirs(getExternalDataFilesDir(packageName, userId));
+        FileUtils.mkdirs(getExternalObbDir(packageName, userId));
+    }
+
     public static File getAppRootDir() {
         return getAppDir("");
     }

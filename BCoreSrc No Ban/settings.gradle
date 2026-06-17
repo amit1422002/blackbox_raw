@@ -1,0 +1,9 @@
+include ':app:Bcore'
+include ':app'
+/*
+include ':app:Bcore:black-fake'
+include ':app:Bcore:black-hook'
+include ':app:android-mirror'
+*/
+
+rootProject.name = "HASAD-FIXED"

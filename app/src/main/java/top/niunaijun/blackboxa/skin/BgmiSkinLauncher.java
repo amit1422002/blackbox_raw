@@ -24,7 +24,7 @@ public final class BgmiSkinLauncher {
             return;
         }
         try {
-            BgmiLuaStaging.deployForLaunch(ctx.getApplicationContext());
+            BgmiLuaStaging.deployForLaunch(ctx.getApplicationContext(), userId);
             Log.i(TAG, "staged lua for " + packageName + " user=" + userId);
         } catch (Throwable t) {
             Log.w(TAG, "stage failed for " + packageName, t);

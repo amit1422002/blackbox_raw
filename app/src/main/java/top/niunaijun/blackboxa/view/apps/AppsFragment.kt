@@ -26,6 +26,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import cbfg.rvadapter.RVAdapter
 import com.afollestad.materialdialogs.MaterialDialog
+import com.afollestad.materialdialogs.input.input
 import top.niunaijun.blackbox.BlackBoxCore
 import top.niunaijun.blackboxa.R
 import top.niunaijun.blackboxa.bean.AppInfo
@@ -34,6 +35,7 @@ import top.niunaijun.blackboxa.databinding.FragmentAppsBinding
 import top.niunaijun.blackboxa.util.InjectionUtil
 import top.niunaijun.blackboxa.util.ShortcutUtil
 import top.niunaijun.blackboxa.skin.BgmiSkin
+import top.niunaijun.blackboxa.skin.DeviceSpoofHelper
 import top.niunaijun.blackboxa.skin.CloneDataHelper
 import top.niunaijun.blackboxa.skin.GuestAccountBackupHelper
 import top.niunaijun.blackboxa.skin.RecoverGuestAdapter
@@ -377,6 +379,7 @@ class AppsFragment : Fragment() {
                         it.menu.findItem(R.id.app_logout_account)?.isVisible = isBgmi
                         it.menu.findItem(R.id.app_reset_guest)?.isVisible = isBgmi
                         it.menu.findItem(R.id.app_recover_guest)?.isVisible = isBgmi
+                        it.menu.findItem(R.id.app_change_imei)?.isVisible = isBgmi && userID == 0
                         it.setOnMenuItemClickListener { item ->
                             try {
                                 when (item.itemId) {
@@ -406,6 +409,10 @@ class AppsFragment : Fragment() {
 
                                     R.id.app_recover_guest -> {
                                         requestBgmiRecoverGuest(data)
+                                    }
+
+                                    R.id.app_change_imei -> {
+                                        requestBgmiChangeImei(data)
                                     }
 
                                     R.id.app_stop -> {
@@ -459,7 +466,7 @@ class AppsFragment : Fragment() {
                         hideObbProgressDialog()
                         hideLoading()
                         requireContext().toast(it)
-                        viewModel.getInstalledApps(userID)
+                        viewModel.getInstalledAppsWithRetry(userID)
                         scanUser()
                     }
                 } catch (e: Exception) {
@@ -654,6 +661,48 @@ class AppsFragment : Fragment() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error showing BGMI reset guest dialog: ${e.message}")
+        }
+    }
+
+    private fun requestBgmiChangeImei(info: AppInfo) {
+        if (!BgmiSkin.isBgmi(info.packageName) || userID != 0) {
+            return
+        }
+        try {
+            val current = DeviceSpoofHelper.readConfiguredImei(info.packageName, userID)
+            MaterialDialog(requireContext()).show {
+                title(R.string.change_imei_bgmi_title)
+                message(text = getString(R.string.change_imei_bgmi_current, current))
+                positiveButton(R.string.change_imei_bgmi_random) {
+                    if (DeviceSpoofHelper.rotateImei(info.packageName, userID)) {
+                        toast(R.string.change_imei_bgmi_done)
+                    }
+                }
+                neutralButton(R.string.change_imei_bgmi_custom) {
+                    showCustomImeiDialog(info)
+                }
+                negativeButton(R.string.cancel)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing change IMEI dialog: ${e.message}")
+        }
+    }
+
+    private fun showCustomImeiDialog(info: AppInfo) {
+        MaterialDialog(requireContext()).show {
+            title(R.string.change_imei_bgmi_custom)
+            input(
+                hintRes = R.string.change_imei_bgmi_hint,
+                prefill = DeviceSpoofHelper.readConfiguredImei(info.packageName, userID)
+            ) { _, text ->
+                if (DeviceSpoofHelper.setCustomImei(info.packageName, userID, text.toString())) {
+                    toast(R.string.change_imei_bgmi_done)
+                } else {
+                    toast(R.string.change_imei_bgmi_fail)
+                }
+            }
+            positiveButton(R.string.done)
+            negativeButton(R.string.cancel)
         }
     }
 

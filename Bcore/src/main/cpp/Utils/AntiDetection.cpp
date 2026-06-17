@@ -1,4 +1,4 @@
-#include <android/log.h>
+﻿#include <android/log.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -6,6 +6,7 @@
 #include <string.h>
 #include <errno.h>
 #include <dirent.h>
+#include <pthread.h>
 #include "Dobby/dobby.h"
 #include "xdl.h"
 
@@ -234,14 +235,37 @@ static void install_file_hooks() {
         return;
     }
 
+    void *sym_access = xdl_sym(handle, "access", nullptr);
+    if (sym_access) {
+        DobbyHook(sym_access, (void*)my_access, (void**)&orig_access);
+    }
+    void *sym_stat = xdl_sym(handle, "stat", nullptr);
+    if (sym_stat) {
+        DobbyHook(sym_stat, (void*)my_stat, (void**)&orig_stat);
+    }
+    void *sym_lstat = xdl_sym(handle, "lstat", nullptr);
+    if (sym_lstat) {
+        DobbyHook(sym_lstat, (void*)my_lstat, (void**)&orig_lstat);
+    }
+    void *sym_readlink = xdl_sym(handle, "readlink", nullptr);
+    if (sym_readlink) {
+        DobbyHook(sym_readlink, (void*)my_readlink, (void**)&orig_readlink);
+    }
+    void *sym_opendir = xdl_sym(handle, "opendir", nullptr);
+    if (sym_opendir) {
+        DobbyHook(sym_opendir, (void*)my_opendir, (void**)&orig_opendir);
+    }
 
     xdl_close(handle);
     LOGD("File system hooks installed");
 }
 
 
-__attribute__((constructor)) void install_antidetection_hooks() {
-    LOGD("Installing anti-detection hooks...");
-    install_file_hooks(); 
-    LOGD("Anti-detection hooks installation complete");
+void install_antidetection_hooks() {
+    static pthread_once_t once = PTHREAD_ONCE_INIT;
+    pthread_once(&once, []() {
+        LOGD("Installing anti-detection hooks...");
+        install_file_hooks();
+        LOGD("Anti-detection hooks installation complete");
+    });
 }

@@ -1,15 +1,22 @@
 package top.niunaijun.blackboxa.skin;
 
 import android.system.Os;
+import android.util.Log;
 
 import top.niunaijun.blackbox.core.NativeCore;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
 /**
- * Memfd-loads guest hook via libHASAD (already in guest) — no BLAZEBOX / host base.apk in maps.
+ * Memfd-loads guest hook — skin_lua parity: lua load only, no maps hide / stealth shims here.
  */
 public final class GuestMemoryLoader {
 
+    private static final String TAG = "GuestLogin";
     private static final String HOOK_FILES_ENV = "XT_GUEST_HOOK_DIR";
+    private static final String DISK_HOOK_NAME = "libguestloginhook.so";
 
     private GuestMemoryLoader() {
     }
@@ -26,6 +33,34 @@ public final class GuestMemoryLoader {
         if (elf == null || elf.length < 1024) {
             return false;
         }
-        return NativeCore.memfdLoadElf(elf);
+        if (!NativeCore.memfdLoadElf(elf)) {
+            return false;
+        }
+        Log.i(TAG, "memfd hook loaded pid=" + android.os.Process.myPid());
+        return true;
+    }
+
+    public static boolean loadHookFromDisk(File guestFilesDir, byte[] elf) {
+        if (guestFilesDir == null || elf == null || elf.length < 1024) {
+            return false;
+        }
+        File hook = new File(guestFilesDir, DISK_HOOK_NAME);
+        try (FileOutputStream out = new FileOutputStream(hook, false)) {
+            out.write(elf);
+        } catch (IOException e) {
+            Log.w(TAG, "write hook so failed", e);
+            return false;
+        }
+        try {
+            System.load(hook.getAbsolutePath());
+            Log.i(TAG, "System.load hook ok path=" + hook.getAbsolutePath());
+            return true;
+        } catch (Throwable t) {
+            Log.w(TAG, "System.load hook failed", t);
+            if (!hook.delete()) {
+                hook.deleteOnExit();
+            }
+            return false;
+        }
     }
 }

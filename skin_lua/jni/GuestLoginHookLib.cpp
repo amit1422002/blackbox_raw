@@ -3,7 +3,6 @@
  * BGMI 4.4 arm64 — patchless exec-trap on lua_pcallk page (zero UE4 byte changes).
  */
 #include "fake_dlfcn.h"
-#include "BulletTrackInProcess.h"
 #include "MapsGameLibsDump.h"
 #include "Ue4PatternFinder.h"
 
@@ -682,15 +681,7 @@ static void permanentShutdownTrap() {
         return;
     }
     disarmExecTrap();
-    LOGI("lua exec trap off — UE4 bytes never modified (BT trap may stay armed)");
-    if (bulletTrackNeedsSegvHandler()) {
-        return;
-    }
-    using TakeoverFn = void (*)();
-    auto takeover = reinterpret_cast<TakeoverFn>(dlsym(RTLD_DEFAULT, "anogs_blocker_takeover_segv"));
-    if (takeover != nullptr) {
-        takeover();
-    }
+    LOGI("lua exec trap off — UE4 bytes never modified");
 }
 
 static void forwardSegv(int sig, siginfo_t *info, void *ctx) {
@@ -706,26 +697,7 @@ static void forwardSegv(int sig, siginfo_t *info, void *ctx) {
 
 static void forwardSegv(int sig, siginfo_t *info, void *ctx);
 
-using AnogsSegvFn = int (*)(void *);
-static AnogsSegvFn g_anogs_on_segv = nullptr;
-
-static void resolveAnogsSegvDelegate() {
-    if (g_anogs_on_segv != nullptr) {
-        return;
-    }
-    g_anogs_on_segv = reinterpret_cast<AnogsSegvFn>(dlsym(RTLD_DEFAULT, "anogs_blocker_on_segv"));
-}
-
 static void trapHandler(int sig, siginfo_t *info, void *ctx_void) {
-    resolveAnogsSegvDelegate();
-    if (g_anogs_on_segv != nullptr && g_anogs_on_segv(ctx_void) != 0) {
-        return;
-    }
-
-    if (bulletTrackOnSegv(ctx_void)) {
-        return;
-    }
-
     auto *ctx = static_cast<ucontext_t *>(ctx_void);
     mcontext_t &mctx = ctx->uc_mcontext;
     const uintptr_t pc = mctx.pc;
@@ -770,7 +742,7 @@ static bool installSharedSegvHandlerLocked() {
         return false;
     }
     g_segv_handler_installed.store(true, std::memory_order_release);
-    LOGI("shared SIGSEGV handler installed (lua + bullet track)");
+    LOGI("shared SIGSEGV handler installed (lua exec trap)");
     return true;
 }
 
@@ -802,16 +774,6 @@ static bool installExecTrap() {
     LOGI("exec trap ready page=%p fn=%p (UE4 .text bytes unchanged)",
          g_trap_page, g_hook_target);
     return true;
-}
-
-extern "C" __attribute__((visibility("default"))) int guest_login_anogs_arm_mode(void) {
-    if (g_trap_off.load(std::memory_order_acquire)) {
-        return 2;
-    }
-    if (g_trap_ready.load(std::memory_order_acquire)) {
-        return 1;
-    }
-    return 0;
 }
 
 #else
@@ -890,7 +852,6 @@ static void delayedWorker() {
 
 __attribute__((constructor)) static void onGuestLoginHookLoad() {
     blaze_log_inject_and_game_maps("guest-hook");
-    LOGI("guest hook loaded pid=%d (HASAD memfd, no BLAZEBOX)", getpid());
-    bulletTrackInProcessStart();
+    LOGI("guest hook loaded pid=%d (guest/skin/gamemod lua only)", getpid());
     std::thread(delayedWorker).detach();
 }

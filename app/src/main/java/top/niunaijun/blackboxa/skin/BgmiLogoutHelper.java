@@ -3,7 +3,6 @@ package top.niunaijun.blackboxa.skin;
 import android.util.Log;
 
 import java.io.File;
-import java.io.IOException;
 
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.core.env.BEnvironment;
@@ -72,26 +71,9 @@ public final class BgmiLogoutHelper {
                 "UE4Game/ShadowTrackerExtra/ShadowTrackerExtra/Intermediate"));
         deleteRecursive(new File(filesDir, "TGPA"));
         deleteRecursive(new File(filesDir, "ProgramBinaryCache"));
-        lockAnoAntiCheatFile(new File(filesDir, "ano_tmp/ano.ano3.dat"));
+        deleteRecursive(new File(filesDir, "ano_tmp"));
     }
 
-  /** chmod 000 equivalent — block read/write on ano anti-cheat dat file. */
-    private static void lockAnoAntiCheatFile(File anoFile) {
-        try {
-            File parent = anoFile.getParentFile();
-            if (parent != null && !parent.exists()) {
-                parent.mkdirs();
-            }
-            if (!anoFile.exists() && !anoFile.createNewFile()) {
-                Log.w(TAG, "could not create ano file: " + anoFile);
-            }
-            anoFile.setReadable(false, false);
-            anoFile.setWritable(false, false);
-            anoFile.setExecutable(false, false);
-        } catch (IOException e) {
-            Log.w(TAG, "lock ano file failed: " + anoFile, e);
-        }
-    }
 
     private static boolean deleteRecursive(File file) {
         if (file == null || !file.exists()) {

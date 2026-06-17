@@ -11,6 +11,8 @@
 
     <item android:id="@+id/app_recover_guest" android:title="@string/recover_guest_bgmi"/>
 
+    <item android:id="@+id/app_change_imei" android:title="@string/change_imei_bgmi"/>
+
     <item android:id="@+id/app_stop" android:title="@string/app_stop"/>
 
     <item android:id="@+id/app_remove" android:title="@string/app_remove"/>

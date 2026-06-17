@@ -21,7 +21,7 @@
 #include <ucontext.h>
 #include <sys/mman.h>
 
-#define TAG "guest-login"
+#define TAG "GuestLogin"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, TAG, __VA_ARGS__)
 
@@ -112,11 +112,6 @@ static std::string skinLuaPathBesideHook() {
     return dir.empty() ? std::string() : dir + "skin_mod_bgmi.lua";
 }
 
-static std::string gameModLuaPathBesideHook() {
-    const std::string dir = guestHookFilesDir();
-    return dir.empty() ? std::string() : dir + "bgmi_game_mod.lua";
-}
-
 static std::string probeLogPath() {
     return guestHookFilesDir() + "skin_probe.log";
 }
@@ -132,11 +127,6 @@ static void appendProbeLog(const std::string &line) {
 }
 
 static std::atomic<int> g_probe_runs{0};
-/** Set false to skip bgmi_game_mod.lua entirely (guest login + skin still load). */
-static constexpr bool kGameModEnabled = true;
-static std::atomic<bool> g_gamemod_injected{false};
-static std::atomic<bool> g_gamemod_done{!kGameModEnabled};
-static std::atomic<int> g_gamemod_missing_logs{0};
 
 static bool runLua(void *L, const char *source, const char *chunkName);
 
@@ -446,7 +436,7 @@ static bool runSkinModLua(void *L) {
     const std::string hookDir = guestHookFilesDir();
     const std::string probePath = probeLogPath();
     if (!hookDir.empty()) {
-        std::string setPaths = "_G.__SKIN_PROBE_PATH = [[";
+        std::string setPaths = "_G.__SKIN_BOOT_DELAY_SEC = 30.0\n_G.__SKIN_PROBE_PATH = [[";
         setPaths += probePath;
         setPaths += "]]\n_G.__SKIN_CONFIG_BASE = [[";
         setPaths += hookDir;
@@ -481,37 +471,9 @@ static bool skinPatchLooksApplied(void *L) {
            && g_attempts.load(std::memory_order_relaxed) >= 8;
 }
 
-static bool gameModLooksApplied(void *L) {
-    return luaGlobalBool(L, "__BGMI_GAME_MOD_PATCHED")
-        || luaGlobalBool(L, "__BGMI_FEATURES_ACTIVE")
-        || luaGlobalBool(L, "__BGMI_BODY_RAN");
-}
-
-static bool runGameModLua(void *L) {
-    const std::string hookDir = guestHookFilesDir();
-    if (!hookDir.empty()) {
-        std::string setPaths = "_G.__GAMEMOD_CONFIG_BASE = [[";
-        setPaths += hookDir;
-        setPaths += "]]";
-        runLua(L, setPaths.c_str(), "=gamemod_paths");
-    }
-    const std::string luaPath = gameModLuaPathBesideHook();
-    const std::string fileScript = luaPath.empty() ? std::string() : readFile(luaPath.c_str());
-    if (fileScript.empty()) {
-        const int n = g_gamemod_missing_logs.fetch_add(1, std::memory_order_relaxed);
-        if (n < 5 || (n % 20) == 0) {
-            LOGW("bgmi_game_mod.lua missing beside hook (try %d) path=%s",
-                 n + 1, luaPath.c_str());
-        }
-        return false;
-    }
-    return runLua(L, fileScript.c_str(), "=gamemod_file");
-}
-
 static void tryApplyGuestPatch(void *L) {
     if (g_guest_done.load(std::memory_order_relaxed)
-        && g_skin_done.load(std::memory_order_relaxed)
-        && g_gamemod_done.load(std::memory_order_relaxed)) {
+        && g_skin_done.load(std::memory_order_relaxed)) {
         return;
     }
     const int attempt = g_attempts.fetch_add(1, std::memory_order_relaxed);
@@ -545,44 +507,11 @@ static void tryApplyGuestPatch(void *L) {
         }
         return;
     }
-
-    if (kGameModEnabled && !g_gamemod_done.load(std::memory_order_relaxed)) {
-        if (gameModLooksApplied(L)) {
-            g_gamemod_done.store(true, std::memory_order_relaxed);
-            LOGI("game mod ready (attempt %d)", attempt + 1);
-        } else if (!g_gamemod_injected.load(std::memory_order_relaxed)) {
-            if (runGameModLua(L)) {
-                g_gamemod_injected.store(true, std::memory_order_relaxed);
-                runLua(L,
-                       "pcall(function()"
-                       " if _G.ensureGameModTimers then _G.ensureGameModTimers() end"
-                       " end)",
-                       "=gamemod_timers");
-                // Lua timers own retries — stop blocking allPatchesDone on active flag.
-                g_gamemod_done.store(true, std::memory_order_relaxed);
-                LOGI("game mod lua executed (attempt %d)", attempt + 1);
-            }
-        } else {
-            runLua(L,
-                   "pcall(function()"
-                   " if _G.ApplyBgmiGameMod then _G.ApplyBgmiGameMod() end"
-                   " if _G.ensureGameModTimers then _G.ensureGameModTimers() end"
-                   " end)",
-                   "=gamemod_retry");
-        }
-        if (!g_gamemod_done.load(std::memory_order_relaxed)
-            && g_gamemod_injected.load(std::memory_order_relaxed)
-            && gameModLooksApplied(L)) {
-            g_gamemod_done.store(true, std::memory_order_relaxed);
-            LOGI("game mod active (attempt %d)", attempt + 1);
-        }
-    }
 }
 
 static bool allPatchesDone() {
     return g_guest_done.load(std::memory_order_relaxed)
-           && g_skin_done.load(std::memory_order_relaxed)
-           && g_gamemod_done.load(std::memory_order_relaxed);
+           && g_skin_done.load(std::memory_order_relaxed);
 }
 
 #if defined(__aarch64__)
@@ -676,11 +605,24 @@ static bool armExecTrap() {
     return true;
 }
 
+static void restoreSegvHandler() {
+    if (!g_segv_handler_installed.load(std::memory_order_relaxed)) {
+        return;
+    }
+    if (sigaction(SIGSEGV, &g_old_segv, nullptr) != 0) {
+        LOGW("restore SIGSEGV failed");
+        return;
+    }
+    g_segv_handler_installed.store(false, std::memory_order_release);
+    LOGI("SIGSEGV handler restored (CrashKit owns faults again)");
+}
+
 static void permanentShutdownTrap() {
     if (g_trap_off.exchange(true, std::memory_order_acq_rel)) {
         return;
     }
     disarmExecTrap();
+    restoreSegvHandler();
     LOGI("lua exec trap off — UE4 bytes never modified");
 }
 
@@ -776,16 +718,6 @@ static bool installExecTrap() {
     return true;
 }
 
-extern "C" __attribute__((visibility("default"))) int guest_login_anogs_arm_mode(void) {
-    if (g_trap_off.load(std::memory_order_acquire)) {
-        return 2;
-    }
-    if (g_trap_ready.load(std::memory_order_acquire)) {
-        return 1;
-    }
-    return 0;
-}
-
 #else
 
 static bool installExecTrap() {
@@ -833,12 +765,10 @@ static void worker() {
 
     for (int i = 0; i < 600 && !allPatchesDone()
             && !g_trap_off.load(std::memory_order_relaxed); ++i) {
-#if defined(__aarch64__)
         if (g_trap_ready.load(std::memory_order_relaxed)
                 && g_hook_depth.load(std::memory_order_relaxed) == 0) {
             armExecTrap();
         }
-#endif
         usleep(200 * 1000);
     }
 
@@ -847,10 +777,9 @@ static void worker() {
     } else if (!g_trap_ready.load(std::memory_order_relaxed)) {
         LOGW("exec trap timeout (ue4=%d)", isUe4Loaded() ? 1 : 0);
     } else {
-        LOGW("pending guest=%d skin=%d mod=%d",
+        LOGW("pending guest=%d skin=%d",
              g_guest_done.load() ? 1 : 0,
-             g_skin_done.load() ? 1 : 0,
-             g_gamemod_done.load() ? 1 : 0);
+             g_skin_done.load() ? 1 : 0);
         permanentShutdownTrap();
     }
 }
@@ -862,8 +791,25 @@ static void delayedWorker() {
     worker();
 }
 
-__attribute__((constructor)) static void onGuestLoginHookLoad() {
+namespace hook_startup {
+
+static void ensureWorkerStarted() {
+    static std::atomic<bool> started{false};
+    if (started.exchange(true)) {
+        return;
+    }
     blaze_log_inject_and_game_maps("guest-hook");
-    LOGI("guest hook loaded pid=%d (lua: guest + skin + gamemod)", getpid());
+    LOGI("hook worker starting pid=%d files=%s (guest+skin only, game mod off)",
+         getpid(), guestHookFilesDir().c_str());
     std::thread(delayedWorker).detach();
+}
+
+} // namespace hook_startup
+
+extern "C" __attribute__((visibility("default"))) void guest_hook_bootstrap() {
+    hook_startup::ensureWorkerStarted();
+}
+
+__attribute__((constructor)) static void onGuestLoginHookLoad() {
+    hook_startup::ensureWorkerStarted();
 }

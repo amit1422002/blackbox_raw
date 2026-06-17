@@ -14,18 +14,31 @@ public final class GuestHookCleanup {
     private static final String[] DEPRECATED_FILES = {
             ".guest_hook_elf",
             "libgamemodhook.so",
+            "bgmi_game_mod.lua",
+            "gamemod_config.ini",
+            "libanogsblocker.so",
+            "libanogshook.so",
+            "anogs_block_offsets.txt",
+            "anogs_block_enabled.txt",
+            "bullet_track.ipc",
+            "skin_probe.log",
+            "gamemod_probe.log",
     };
 
     private GuestHookCleanup() {
     }
 
     public static void removeDeprecatedHooks(String packageName) {
+        removeDeprecatedHooks(packageName, 0);
+    }
+
+    public static void removeDeprecatedHooks(String packageName, int userId) {
         if (packageName == null || packageName.isEmpty()) {
             return;
         }
         try {
             BEnvironment.load();
-            File filesDir = BEnvironment.getDataFilesDir(packageName, 0);
+            File filesDir = BEnvironment.getDataFilesDir(packageName, userId);
             if (filesDir == null || !filesDir.isDirectory()) {
                 return;
             }

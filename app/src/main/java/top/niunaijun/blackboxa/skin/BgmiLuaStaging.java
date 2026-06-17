@@ -4,7 +4,7 @@ import android.content.Context;
 import android.util.Log;
 
 /**
- * Stages BGMI Lua assets only: guest login, skin mod, and game mod.
+ * Stages BGMI Lua assets: guest login + skin mod only (no game mod / bullet track).
  */
 public final class BgmiLuaStaging {
 
@@ -13,16 +13,20 @@ public final class BgmiLuaStaging {
     private BgmiLuaStaging() {
     }
 
-    public static void deployForLaunch(Context context) {
+    public static void deployForLaunch(Context context, int userId) {
         if (context == null) {
             return;
         }
         try {
-            GuestLoginHelper.deployToGuest(context.getApplicationContext(), BgmiSkin.BGMI_PKG);
-            GameModHelper.deployToGuest(context.getApplicationContext(), BgmiSkin.BGMI_PKG);
-            Log.i(TAG, "guest + skin + game mod lua staged for " + BgmiSkin.BGMI_PKG);
+            GuestHookCleanup.removeDeprecatedHooks(BgmiSkin.BGMI_PKG, userId);
+            GuestLoginHelper.deployToGuest(context.getApplicationContext(), BgmiSkin.BGMI_PKG, userId);
+            Log.i(TAG, "guest + skin lua staged for " + BgmiSkin.BGMI_PKG + " user=" + userId);
         } catch (Throwable t) {
             Log.w(TAG, "lua staging failed", t);
         }
+    }
+
+    public static void deployForLaunch(Context context) {
+        deployForLaunch(context, 0);
     }
 }

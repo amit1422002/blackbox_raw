@@ -5,11 +5,11 @@ import java.lang.reflect.Method;
 
 import black.android.os.BRIDeviceIdentifiersPolicyServiceStub;
 import black.android.os.BRServiceManager;
-import top.niunaijun.blackbox.BlackBoxCore;
+import top.niunaijun.blackbox.app.BActivityThread;
 import top.niunaijun.blackbox.fake.hook.BinderInvocationStub;
 import top.niunaijun.blackbox.fake.hook.MethodHook;
 import top.niunaijun.blackbox.fake.hook.ProxyMethod;
-import top.niunaijun.blackbox.utils.Md5Utils;
+import top.niunaijun.blackbox.utils.VirtualDeviceIds;
 
 
 public class IDeviceIdentifiersPolicyProxy extends BinderInvocationStub {
@@ -37,9 +37,10 @@ public class IDeviceIdentifiersPolicyProxy extends BinderInvocationStub {
     public static class x extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-
-
-            return Md5Utils.md5(BlackBoxCore.getHostPkg());
+            if (!VirtualDeviceIds.shouldSpoof(BActivityThread.getUserId())) {
+                return method.invoke(who, args);
+            }
+            return VirtualDeviceIds.getSerial();
         }
     }
 }

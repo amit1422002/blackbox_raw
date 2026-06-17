@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#3F3F3F</color>
+    <color name="primary_dark">#ffffff</color>
+    <color name="primary_light">#3F3F3F</color>
+    <color name="accent">#111111</color>
+    <color name="primary_text">#212121</color>
+    <color name="secondary_text">#757575</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="colorPrimary">#f76103</color>
+    <color name="colorPrimaryDark">#ffffff</color>
+    <color name="colorAccent">#f76103</color>
+    <color name="background">#13161D</color>
+    
+    <color name="gray2">#C0C0C0</color>
+    <color name="black_20_transparent">#FF000000</color>
+    <color name="blue2">#FF198DFA</color>
+    <color name="green_1">#FF85FF00</color>
+
+    <color name="primaryColor">#1E88E5</color> <!-- blue, change as you like -->
+
+
+    <color name="black">#212121</color>
+    <color name="newwhite">#FFFFFF</color>
+    
+  
+    <color name="dark_bg">#222222</color>
+</resources>

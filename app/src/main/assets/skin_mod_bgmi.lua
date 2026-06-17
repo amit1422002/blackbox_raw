@@ -7217,7 +7217,7 @@ end
 end)()
 
 pcall(function()
-    later(2.5, function()
+    later((_G.__SKIN_BOOT_DELAY_SEC or 2.5), function()
         local ok, err = pcall(start)
         if not ok then
             skinProbeLog("START ERROR: " .. tostring(err))

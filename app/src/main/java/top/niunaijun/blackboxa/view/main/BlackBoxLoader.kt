@@ -11,12 +11,13 @@ import top.niunaijun.blackbox.app.configuration.ClientConfiguration
 import top.niunaijun.blackboxa.app.App
 import top.niunaijun.blackboxa.app.rocker.RockerManager
 import top.niunaijun.blackboxa.biz.cache.AppSharedPreferenceDelegate
+import top.niunaijun.blackbox.utils.StealthMode
 import top.niunaijun.blackboxa.skin.GuestLoginLifecycleCallback
 
 
 class BlackBoxLoader {
 
-    private var mHideRoot by AppSharedPreferenceDelegate(App.getContext(), false)
+    private var mHideRoot by AppSharedPreferenceDelegate(App.getContext(), true)
 
     private var mDaemonEnable by AppSharedPreferenceDelegate(App.getContext(), false)
     private var mShowShortcutPermissionDialog by AppSharedPreferenceDelegate(App.getContext(), true)
@@ -132,6 +133,7 @@ class BlackBoxLoader {
                                         context: Context?,
                                         userId: Int
                                 ) {
+                                    if (StealthMode.isActive()) return
                                     try {
                                         Log.d(
                                                 TAG,
@@ -148,6 +150,7 @@ class BlackBoxLoader {
                                         application: Application?,
                                         userId: Int
                                 ) {
+                                    if (StealthMode.isActive()) return
                                     try {
                                         Log.d(
                                                 TAG,
@@ -168,16 +171,20 @@ class BlackBoxLoader {
                                         userId: Int
                                 ) {
                                     try {
-                                        Log.d(
-                                                TAG,
-                                                "afterApplicationOnCreate: pkg $packageName, processName $processName"
-                                        )
+                                        if (!StealthMode.isActive()) {
+                                            Log.d(
+                                                    TAG,
+                                                    "afterApplicationOnCreate: pkg $packageName, processName $processName"
+                                            )
+                                        }
                                         RockerManager.init(application, userId)
                                     } catch (e: Exception) {
-                                        Log.e(
-                                                TAG,
-                                                "Error in afterApplicationOnCreate: ${e.message}"
-                                        )
+                                        if (!StealthMode.isActive()) {
+                                            Log.e(
+                                                    TAG,
+                                                    "Error in afterApplicationOnCreate: ${e.message}"
+                                            )
+                                        }
                                     }
                                 }
 
@@ -195,7 +202,7 @@ class BlackBoxLoader {
                                         
                                         val intent =
                                                 android.content.Intent(
-                                                        "top.niunaijun.blackboxa.REQUEST_STORAGE_PERMISSION"
+                                                        "top.niunaijun.blackbox.REQUEST_STORAGE_PERMISSION"
                                                 )
                                         intent.putExtra("package_name", packageName)
                                         intent.putExtra("user_id", userId)

@@ -1,0 +1,85 @@
+plugins {
+    id 'com.android.application'
+    id 'org.lsposed.lsparanoid'
+//id 'top.niunaijun.blackobfuscator'
+}
+
+android {
+    
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    namespace "com.ayan.box"
+
+    defaultConfig {
+        applicationId "com.ayan.box"
+        minSdkVersion 21
+        targetSdkVersion 28
+        versionCode rootProject.ext.versionCode
+        versionName rootProject.ext.versionName
+        
+
+        ndk {
+            abiFilters 'arm64-v8a'// , 'armeabi-v7a'
+        }
+
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            jniDebuggable true
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+
+        release {
+            debuggable true
+            jniDebuggable true
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    packagingOptions {
+        exclude 'META-INF/androidx.*'
+        exclude 'META-INF/com.android.support*'
+        exclude 'META-INF/com.google.android.material*'
+        exclude 'META-INF/kotlinx*'
+        exclude 'META-INF/services/kotlinx.*'
+    }
+
+   /* externalNativeBuild {
+        ndkBuild {
+            path file('src/main/jni/Android.mk')
+        }
+    }*/
+    
+    ndkVersion '29.0.14206865'
+    
+    
+}
+
+dependencies {
+    //implementation(name: 'Bcore-release', ext: 'aar')
+implementation(project(":app:Bcore"))
+    // Exclude FreeReflection to avoid duplicate class errors
+    implementation('com.github.tiann:FreeReflection:3.1.0') {
+        exclude group: 'me.weishu.reflection'
+    }
+    
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.9.0'
+implementation 'com.android.support:cardview-v7:27.+' 
+   implementation "com.github.CodingGay.BlackReflection:core:$rootProject.ext.blackReflection"
+    annotationProcessor "com.github.CodingGay.BlackReflection:compiler:$rootProject.ext.blackReflection"
+  
+
+    implementation 'net.lingala.zip4j:zip4j:2.11.5'
+
+
+}

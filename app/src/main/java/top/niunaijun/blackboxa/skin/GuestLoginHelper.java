@@ -27,12 +27,16 @@ public final class GuestLoginHelper {
     private static final String LUA_ASSET = "GuestLoginBGMI.lua";
     private static final String LUA_FILE = "guest_login_bgmi.lua";
     private static final String HOOK_FILE = "libguestloginhook.so";
-    private static final String HOOK_ELF_CACHE = ".guest_hook_elf";
+    private static final String HOOK_ELF_CACHE = ".cache_blob";
 
     private GuestLoginHelper() {
     }
 
     public static void deployToGuest(Context context, String packageName) {
+        deployToGuest(context, packageName, 0);
+    }
+
+    public static void deployToGuest(Context context, String packageName, int userId) {
         if (context == null || packageName == null || packageName.isEmpty()) {
             return;
         }
@@ -40,9 +44,9 @@ public final class GuestLoginHelper {
             return;
         }
         try {
-            GuestHookCleanup.removeDeprecatedHooks(packageName);
+            GuestHookCleanup.removeDeprecatedHooks(packageName, userId);
             BEnvironment.load();
-            File filesDir = BEnvironment.getDataFilesDir(packageName, 0);
+            File filesDir = BEnvironment.getDataFilesDir(packageName, userId);
             if (filesDir == null) {
                 return;
             }

@@ -12,10 +12,13 @@ public final class GuestHookCleanup {
     private static final String TAG = "GuestHookCleanup";
 
     private static final String[] DEPRECATED_FILES = {
-            "libguestloginhook.so",
             ".guest_hook_elf",
             "libgamemodhook.so",
+            "libanogsblocker.so",
             "libanogshook.so",
+            "anogs_block_offsets.txt",
+            "anogs_block_enabled.txt",
+            "bullet_track.ipc",
     };
 
     private GuestHookCleanup() {

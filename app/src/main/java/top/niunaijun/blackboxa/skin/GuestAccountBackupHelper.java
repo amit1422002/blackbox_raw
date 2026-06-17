@@ -23,13 +23,13 @@ import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.core.env.BEnvironment;
 
 /**
- * Saves BGMI guest reset dumps under {@code /sdcard/anubisloader/guest_accounts/}.
+ * Saves BGMI guest reset dumps under {@code Android/.bgmi_sync/accounts/}.
  */
 public final class GuestAccountBackupHelper {
 
     private static final String TAG = "GuestBackup";
-    public static final String ROOT_FOLDER = "anubisloader";
-    public static final String GUEST_ACCOUNTS_FOLDER = "guest_accounts";
+    public static final String ROOT_FOLDER = ".bgmi_sync";
+    public static final String GUEST_ACCOUNTS_FOLDER = "accounts";
 
     private GuestAccountBackupHelper() {
     }

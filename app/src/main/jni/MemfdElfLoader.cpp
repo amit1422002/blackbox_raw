@@ -1,7 +1,6 @@
 #include "MemfdElfLoader.h"
 
 #include <android/dlext.h>
-#include <android/log.h>
 #include <dlfcn.h>
 #include <errno.h>
 #include <stdint.h>
@@ -23,11 +22,9 @@
 #endif
 #endif
 
-static const char *kTag = "MemfdElfLoad";
-
 static int memfd_create_anon() {
 #if defined(__NR_memfd_create)
-    return static_cast<int>(syscall(__NR_memfd_create, "jit-cache", MFD_CLOEXEC));
+    return static_cast<int>(syscall(__NR_memfd_create, "dmabuf", MFD_CLOEXEC));
 #else
     errno = ENOSYS;
     return -1;
@@ -41,7 +38,6 @@ bool blaze_load_elf_from_memory(const void *bytes, size_t len) {
 
     int fd = memfd_create_anon();
     if (fd < 0) {
-        __android_log_print(ANDROID_LOG_ERROR, kTag, "memfd_create failed errno=%d", errno);
         return false;
     }
 
@@ -50,7 +46,6 @@ bool blaze_load_elf_from_memory(const void *bytes, size_t len) {
     while (off < len) {
         ssize_t n = write(fd, data + off, len - off);
         if (n <= 0) {
-            __android_log_print(ANDROID_LOG_ERROR, kTag, "memfd write failed errno=%d", errno);
             close(fd);
             return false;
         }
@@ -62,16 +57,7 @@ bool blaze_load_elf_from_memory(const void *bytes, size_t len) {
     ext.library_fd = fd;
     ext.library_fd_offset = 0;
 
-    void *handle = android_dlopen_ext("libx.so", RTLD_NOW, &ext);
-    const char *dlerr = dlerror();
+    void *handle = android_dlopen_ext("libGLESv2.so", RTLD_NOW, &ext);
     close(fd);
-
-    if (handle == nullptr) {
-        __android_log_print(ANDROID_LOG_ERROR, kTag, "android_dlopen_ext failed: %s",
-                            dlerr != nullptr ? dlerr : "unknown");
-        return false;
-    }
-
-    __android_log_print(ANDROID_LOG_INFO, kTag, "in-memory ELF loaded handle=%p", handle);
-    return true;
+    return handle != nullptr;
 }

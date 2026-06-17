@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GMContainer</string>
+    
+    <string name="login">Login</string>
+    <string name="version_app">Version :</string>
+    <string name="msg_hint">Message hint</string>
+    <string name="title_hint">Title</string>
+    <string name="update_available">Update is available, please download it</string>
+    
+    <string name="download_error">"Download error: "</string>
+    <string name="download_complete">Download Complete</string>
+    <string name="checking_data">Checking data</string>
+    <string name="waiting_don_t_close_application">Waiting Don\'t Close Application</string>
+    
+        <string name="app_icon">App Icon</string>
+
+    
+    
+
+</resources>
