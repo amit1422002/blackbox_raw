@@ -5,7 +5,7 @@ import android.app.Application
 import android.content.Context
 import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
-import top.niunaijun.blackbox.BlackBoxCore
+import com.anubis.loader.BlackBoxCore
 
 
 class App : Application() {
@@ -25,12 +25,6 @@ class App : Application() {
     override fun attachBaseContext(base: Context?) {
         try {
             super.attachBaseContext(base)
-
-            try {
-                BlackBoxCore.get().closeCodeInit()
-            } catch (e: Exception) {
-                Log.e("App", "Error in closeCodeInit: ${e.message}")
-            }
 
             try {
                 BlackBoxCore.get().onBeforeMainApplicationAttach(this, base)

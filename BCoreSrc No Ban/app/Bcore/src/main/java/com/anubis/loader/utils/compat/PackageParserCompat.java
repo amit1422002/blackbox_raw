@@ -13,6 +13,7 @@ import black.android.content.pm.BRPackageParserLollipop22;
 import black.android.content.pm.BRPackageParserMarshmallow;
 import black.android.content.pm.BRPackageParserNougat;
 import black.android.content.pm.BRPackageParserPie;
+import black.android.content.pm.BRPackageParserTiramisu;
 
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.LOLLIPOP_MR1;
@@ -27,7 +28,9 @@ public class PackageParserCompat {
 
 
     public static PackageParser createParser(File packageFile) {
-        if (API_LEVEL >= M) {
+        if (BuildCompat.isT()) {
+            return BRPackageParserTiramisu.get()._new();
+        } else if (API_LEVEL >= M) {
             return BRPackageParserMarshmallow.get()._new();
         } else if (API_LEVEL >= LOLLIPOP_MR1) {
             return BRPackageParserLollipop22.get()._new();
@@ -38,7 +41,9 @@ public class PackageParserCompat {
     }
 
     public static Package parsePackage(PackageParser parser, File packageFile, int flags) throws Throwable {
-        if (API_LEVEL >= M) {
+        if (BuildCompat.isT()) {
+            return BRPackageParserTiramisu.getWithException(parser).parsePackage(packageFile, flags);
+        } else if (API_LEVEL >= M) {
             return BRPackageParserMarshmallow.getWithException(parser).parsePackage(packageFile, flags);
         } else if (API_LEVEL >= LOLLIPOP_MR1) {
             return BRPackageParserLollipop22.getWithException(parser).parsePackage(packageFile, flags);

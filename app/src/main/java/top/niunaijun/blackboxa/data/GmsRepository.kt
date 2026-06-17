@@ -1,7 +1,7 @@
 package top.niunaijun.blackboxa.data
 
 import androidx.lifecycle.MutableLiveData
-import top.niunaijun.blackbox.BlackBoxCore
+import com.anubis.loader.BlackBoxCore
 import top.niunaijun.blackboxa.R
 import top.niunaijun.blackboxa.app.AppManager
 import top.niunaijun.blackboxa.bean.GmsBean

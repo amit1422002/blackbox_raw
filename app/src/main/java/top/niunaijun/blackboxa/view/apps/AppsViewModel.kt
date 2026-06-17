@@ -73,6 +73,18 @@ class AppsViewModel(private val repo: AppsRepository) : BaseViewModel() {
         }
     }
 
+    fun copyObbFromAnubisLoader(packageName: String, userID: Int) {
+        launchOnUI {
+            repo.copyObbFromAnubisLoader(packageName, userID, resultLiveData, obbProgressLiveData)
+        }
+    }
+
+    fun copyDataFromAnubisLoader(packageName: String, userID: Int) {
+        launchOnUI {
+            repo.copyDataFromAnubisLoader(packageName, userID, resultLiveData, obbProgressLiveData)
+        }
+    }
+
     fun copyObb(packageName: String, treeUri: android.net.Uri, userID: Int) {
         launchOnUI {
             repo.copyObb(packageName, treeUri, userID, resultLiveData, obbProgressLiveData)

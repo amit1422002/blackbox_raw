@@ -22,7 +22,7 @@ public final class BcoreEmbedConfig {
     /**
      * Non-empty → server-style check is enforced. Empty string → skip activation check (still honour expiry if set).
      */
-    public static final String EMBEDDED_ACTIVATION_KEY = "CHANGE_THIS_TO_YOUR_SECRET_KEY";
+    public static final String EMBEDDED_ACTIVATION_KEY = "";
 
     /**
      * Expiry as {@code YYYYMMDD} in UTC (e.g. {@code 20290601} = 1 June 2029). License is valid for the whole of that day UTC.

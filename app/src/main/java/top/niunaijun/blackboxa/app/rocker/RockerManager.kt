@@ -11,8 +11,8 @@ import com.imuxuan.floatingview.FloatingMagnetView
 import com.imuxuan.floatingview.FloatingView
 import kotlin.math.cos
 import kotlin.math.sin
-import top.niunaijun.blackbox.entity.location.BLocation
-import top.niunaijun.blackbox.fake.frameworks.BLocationManager
+import com.anubis.loader.entity.location.BLocation
+import com.anubis.loader.fake.frameworks.BLocationManager
 import top.niunaijun.blackboxa.app.App
 import top.niunaijun.blackboxa.widget.EnFloatView
 

@@ -3,14 +3,14 @@ package top.niunaijun.blackboxa.skin;
 import android.system.Os;
 import android.util.Log;
 
-import top.niunaijun.blackbox.core.NativeCore;
+import com.anubis.loader.core.NativeCore;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
 /**
- * Memfd-loads guest hook — skin_lua parity: lua load only, no maps hide / stealth shims here.
+ * Memfd-loads guest hook; stealth maps refresh is handled by caller after load.
  */
 public final class GuestMemoryLoader {
 

@@ -3,7 +3,7 @@ package top.niunaijun.blackboxa.skin;
 import android.content.Context;
 import android.util.Log;
 
-import top.niunaijun.blackbox.BlackBoxCore;
+import com.anubis.loader.BlackBoxCore;
 
 /**
  * Stage Lua + hook ELF into cloned BGMI before launch (host process only).

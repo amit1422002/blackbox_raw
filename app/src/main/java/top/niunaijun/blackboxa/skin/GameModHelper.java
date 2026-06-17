@@ -3,7 +3,7 @@ package top.niunaijun.blackboxa.skin;
 import android.content.Context;
 import android.util.Log;
 
-import top.niunaijun.blackbox.core.env.BEnvironment;
+import com.anubis.loader.core.env.BEnvironment;
 
 import java.io.File;
 import java.io.FileOutputStream;

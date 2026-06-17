@@ -75,4 +75,25 @@ function _G.ForceEnableGuestLogin()
     end)
 end
 
-pcall(_G.ForceEnableGuestLogin)
+function _G.ensureGuestLoginPatch()
+    if _G.__GUEST_LOGIN_PATCHED then return end
+    pcall(_G.ForceEnableGuestLogin)
+    if _G.__GUEST_LOGIN_PATCHED then return end
+
+    local function retryLater()
+        if _G.__GUEST_LOGIN_PATCHED then return end
+        if _G.ensureGuestLoginPatch then
+            pcall(_G.ensureGuestLoginPatch)
+        end
+    end
+
+    if _G.Mytimer_ticker and _G.Mytimer_ticker.AddTimerOnce then
+        _G.Mytimer_ticker.AddTimerOnce(2.0, retryLater)
+    elseif _G.Mytimer_ticker and _G.Mytimer_ticker.AddTimer then
+        _G.Mytimer_ticker.AddTimer(2, retryLater)
+    elseif _G.SetTimer then
+        pcall(_G.SetTimer, 2.0, retryLater)
+    end
+end
+
+pcall(_G.ensureGuestLoginPatch)

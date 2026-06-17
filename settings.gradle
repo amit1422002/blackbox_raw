@@ -9,4 +9,9 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral(); maven { url "https://www.jitpack.io" } }
 }
 rootProject.name = "NewBlackbox"
-include ':app'; include(":black-reflection"); include(":compiler"); include ':Bcore'; include ':rvadapter-stub'
+include ':app'
+include ':black-reflection'
+include ':compiler'
+include ':Bcore'
+include ':rvadapter-stub'
+project(':Bcore').projectDir = new File(settingsDir, 'BCoreSrc No Ban/app/Bcore')

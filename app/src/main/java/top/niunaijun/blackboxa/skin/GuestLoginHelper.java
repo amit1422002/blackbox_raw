@@ -5,8 +5,8 @@ import android.content.pm.ApplicationInfo;
 import android.os.Build;
 import android.util.Log;
 
-import top.niunaijun.blackbox.BlackBoxCore;
-import top.niunaijun.blackbox.core.env.BEnvironment;
+import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.core.env.BEnvironment;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -105,7 +105,8 @@ public final class GuestLoginHelper {
     private static void stageHookElfCache(Context hostContext, File guestFilesDir) {
         byte[] elf = readHookLibraryBytes(hostContext);
         if (elf == null || elf.length < 1024) {
-            Log.w(TAG, "hook ELF not found in host APK");
+            Log.e(TAG, "hook ELF not found in host APK — rebuild app with guest JNI enabled "
+                    + "(lib/" + HOOK_FILE + ")");
             return;
         }
         File cache = new File(guestFilesDir, HOOK_ELF_CACHE);

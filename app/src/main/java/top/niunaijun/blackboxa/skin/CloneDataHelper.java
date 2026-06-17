@@ -10,8 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Locale;
 
-import top.niunaijun.blackbox.BlackBoxCore;
-import top.niunaijun.blackbox.core.env.BEnvironment;
+import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.core.env.BEnvironment;
 
 /**
  * BGMI clone data operations on virtual FS (no root).

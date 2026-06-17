@@ -15,6 +15,7 @@ import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.net.Uri;
 import android.os.Binder;
+import android.os.Build;
 import android.os.RemoteException;
 import android.text.TextUtils;
 import java.util.HashMap;
@@ -693,7 +694,7 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
                 return new InstallResult().installError("not a XP module");
             }
 
-            PackageInfo packageArchiveInfo = BlackBoxCore.getPackageManager().getPackageArchiveInfo(apkFile.getAbsolutePath(), 0);
+            PackageInfo packageArchiveInfo = getPackageArchiveInfo(apkFile.getAbsolutePath());
             if (packageArchiveInfo == null) {
                 return result.installError("getPackageArchiveInfo error.Please check whether APK is normal.");
             }
@@ -826,6 +827,17 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
             mComponentResolver.addAllComponents(value.pkg);
         }
     }
+
+    private static PackageInfo getPackageArchiveInfo(String apkPath) {
+        PackageManager pm = BlackBoxCore.getPackageManager();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return pm.getPackageArchiveInfo(
+                    apkPath,
+                    PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES));
+        }
+        return pm.getPackageArchiveInfo(apkPath, PackageManager.GET_SIGNING_CERTIFICATES);
+    }
+
     public void injectFakeApp(String packageName, ApplicationInfo info) {
     mFakeApps.put(packageName, info);
 }

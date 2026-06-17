@@ -27,13 +27,15 @@ import androidx.recyclerview.widget.RecyclerView
 import cbfg.rvadapter.RVAdapter
 import com.afollestad.materialdialogs.MaterialDialog
 import com.afollestad.materialdialogs.input.input
-import top.niunaijun.blackbox.BlackBoxCore
+import com.anubis.loader.BlackBoxCore
 import top.niunaijun.blackboxa.R
 import top.niunaijun.blackboxa.bean.AppInfo
 import top.niunaijun.blackboxa.bean.ObbProgress
 import top.niunaijun.blackboxa.databinding.FragmentAppsBinding
 import top.niunaijun.blackboxa.util.InjectionUtil
 import top.niunaijun.blackboxa.util.ShortcutUtil
+import top.niunaijun.blackboxa.skin.AnubisLoaderImportHelper
+import com.anubis.loader.utils.StoragePermissionHelper
 import top.niunaijun.blackboxa.skin.BgmiSkin
 import top.niunaijun.blackboxa.skin.DeviceSpoofHelper
 import top.niunaijun.blackboxa.skin.CloneDataHelper
@@ -216,17 +218,6 @@ class AppsFragment : Fragment() {
         try {
             super.onStart()
             
-            
-            try {
-                BlackBoxCore.get().addServiceAvailableCallback {
-                    Log.d(TAG, "Services became available, refreshing app list")
-                    
-                    viewModel.getInstalledAppsWithRetry(userID)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error registering service available callback: ${e.message}")
-            }
-            
             viewModel.getInstalledAppsWithRetry(userID)
         } catch (e: Exception) {
             Log.e(TAG, "Error in onStart: ${e.message}")
@@ -376,6 +367,8 @@ class AppsFragment : Fragment() {
                     popupMenu = PopupMenu(requireContext(),view).also {
                         it.inflate(R.menu.app_menu)
                         val isBgmi = BgmiSkin.isBgmi(data.packageName)
+                        it.menu.findItem(R.id.app_copy_obb)?.isVisible = isBgmi
+                        it.menu.findItem(R.id.app_copy_data)?.isVisible = isBgmi
                         it.menu.findItem(R.id.app_logout_account)?.isVisible = isBgmi
                         it.menu.findItem(R.id.app_reset_guest)?.isVisible = isBgmi
                         it.menu.findItem(R.id.app_recover_guest)?.isVisible = isBgmi
@@ -397,6 +390,10 @@ class AppsFragment : Fragment() {
 
                                     R.id.app_copy_obb -> {
                                         requestObbCopy(data)
+                                    }
+
+                                    R.id.app_copy_data -> {
+                                        requestCopyData(data)
                                     }
 
                                     R.id.app_logout_account -> {
@@ -600,16 +597,56 @@ class AppsFragment : Fragment() {
 
     private fun requestObbCopy(info: AppInfo) {
         try {
+            val sourcePath = AnubisLoaderImportHelper.getObbSourceDir().absolutePath
             MaterialDialog(requireContext()).show {
                 title(R.string.app_copy_obb)
-                message(text = getString(R.string.obb_copy_hint, info.packageName))
+                message(text = getString(R.string.anubisloader_obb_copy_hint, sourcePath))
                 positiveButton(R.string.done) {
-                    launchObbPicker(info.packageName)
+                    try {
+                        viewModel.copyObbFromAnubisLoader(info.packageName, userID)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error copying OBB: ${e.message}")
+                    }
                 }
                 negativeButton(R.string.cancel)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error showing OBB copy dialog: ${e.message}")
+        }
+    }
+
+    private fun requestCopyData(info: AppInfo) {
+        if (!BgmiSkin.isBgmi(info.packageName)) {
+            return
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R
+                && !StoragePermissionHelper.hasAllFilesAccess()) {
+            MaterialDialog(requireContext()).show {
+                title(R.string.app_copy_data)
+                message(R.string.anubisloader_storage_required)
+                positiveButton(R.string.done) {
+                    StoragePermissionHelper.requestAllFilesAccess(requireActivity())
+                }
+                negativeButton(R.string.cancel)
+            }
+            return
+        }
+        try {
+            val sourcePath = AnubisLoaderImportHelper.getDataSourceDir(info.packageName).absolutePath
+            MaterialDialog(requireContext()).show {
+                title(R.string.app_copy_data)
+                message(text = getString(R.string.anubisloader_data_copy_hint, sourcePath))
+                positiveButton(R.string.done) {
+                    try {
+                        viewModel.copyDataFromAnubisLoader(info.packageName, userID)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error copying game data: ${e.message}")
+                    }
+                }
+                negativeButton(R.string.cancel)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing data copy dialog: ${e.message}")
         }
     }
 
@@ -865,7 +902,8 @@ class AppsFragment : Fragment() {
             obbProgressBar = progressBar
             obbProgressText = textView
             obbProgressDialog = AlertDialog.Builder(ctx)
-                .setTitle(R.string.app_copy_obb)
+                .setTitle(if (progress.fileName == "Copying..." || progress.totalBytes > 500_000_000L)
+                    R.string.app_copy_data else R.string.app_copy_obb)
                 .setView(layout)
                 .setCancelable(false)
                 .create()

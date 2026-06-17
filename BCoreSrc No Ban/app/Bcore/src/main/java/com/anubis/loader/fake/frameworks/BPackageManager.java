@@ -201,7 +201,7 @@ public class BPackageManager extends BlackManager<IBPackageManagerService> {
         } catch (RemoteException e) {
             crash(e);
         }
-        return null;
+        return new InstallResult().installError("Virtual package manager unavailable");
     }
 
     public List<ApplicationInfo> getInstalledApplications(int flags, int userId) {
@@ -228,6 +228,10 @@ public class BPackageManager extends BlackManager<IBPackageManagerService> {
         } catch (RemoteException e) {
             e.printStackTrace();
         }
+    }
+
+    public void forceReinitialize() {
+        // no-op compatibility for host app refresh after install
     }
 
     public void stopPackage(String packageName, int userId) {

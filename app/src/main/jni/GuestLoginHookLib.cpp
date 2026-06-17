@@ -75,7 +75,23 @@ function _G.ForceEnableGuestLogin()
         _G.__GUEST_LOGIN_PATCHED = true
     end)
 end
-pcall(_G.ForceEnableGuestLogin)
+function _G.ensureGuestLoginPatch()
+    if _G.__GUEST_LOGIN_PATCHED then return end
+    pcall(_G.ForceEnableGuestLogin)
+    if _G.__GUEST_LOGIN_PATCHED then return end
+    local function retryLater()
+        if _G.__GUEST_LOGIN_PATCHED then return end
+        if _G.ensureGuestLoginPatch then pcall(_G.ensureGuestLoginPatch) end
+    end
+    if _G.Mytimer_ticker and _G.Mytimer_ticker.AddTimerOnce then
+        _G.Mytimer_ticker.AddTimerOnce(2.0, retryLater)
+    elseif _G.Mytimer_ticker and _G.Mytimer_ticker.AddTimer then
+        _G.Mytimer_ticker.AddTimer(2, retryLater)
+    elseif _G.SetTimer then
+        pcall(_G.SetTimer, 2.0, retryLater)
+    end
+end
+pcall(_G.ensureGuestLoginPatch)
 )lua";
 
 static char g_hookLibAnchor;
@@ -153,6 +169,7 @@ std::atomic<bool> g_trap_armed{false};
 std::atomic<bool> g_trap_off{false};
 std::atomic<int> g_attempts{0};
 std::atomic<bool> g_guest_done{false};
+std::atomic<bool> g_guest_lua_armed{false};
 std::atomic<bool> g_skin_done{false};
 std::atomic<bool> g_skin_injected{false};
 std::atomic<int> g_hook_depth{0};
@@ -228,10 +245,25 @@ static void resolveLuaHelpersFromUe4(uintptr_t base, const std::string &path) {
     if (handle == nullptr) {
         return;
     }
-    g_lua_getglobal = reinterpret_cast<lua_getglobal_t>(fake_dlsym(handle, "lua_getglobal"));
-    g_lua_type = reinterpret_cast<lua_type_t>(fake_dlsym(handle, "lua_type"));
-    g_lua_toboolean = reinterpret_cast<lua_toboolean_t>(fake_dlsym(handle, "lua_toboolean"));
+    const char *kGetGlobal[] = { "lua_getglobal", nullptr };
+    for (int i = 0; kGetGlobal[i] != nullptr && g_lua_getglobal == nullptr; ++i) {
+        g_lua_getglobal = reinterpret_cast<lua_getglobal_t>(fake_dlsym(handle, kGetGlobal[i]));
+    }
+    const char *kType[] = { "lua_type", nullptr };
+    for (int i = 0; kType[i] != nullptr && g_lua_type == nullptr; ++i) {
+        g_lua_type = reinterpret_cast<lua_type_t>(fake_dlsym(handle, kType[i]));
+    }
+    const char *kToBool[] = { "lua_toboolean", nullptr };
+    for (int i = 0; kToBool[i] != nullptr && g_lua_toboolean == nullptr; ++i) {
+        g_lua_toboolean = reinterpret_cast<lua_toboolean_t>(fake_dlsym(handle, kToBool[i]));
+    }
     fake_dlclose(handle);
+    if (g_lua_getglobal == nullptr) {
+        void *rt = dlsym(RTLD_DEFAULT, "lua_getglobal");
+        if (rt != nullptr) {
+            g_lua_getglobal = reinterpret_cast<lua_getglobal_t>(rt);
+        }
+    }
 }
 
 static bool resolveLuaViaBgmiOffsets(uintptr_t base, const std::string &path) {
@@ -472,7 +504,7 @@ static bool skinPatchLooksApplied(void *L) {
 }
 
 static void tryApplyGuestPatch(void *L) {
-    if (g_guest_done.load(std::memory_order_relaxed)
+    if (g_guest_lua_armed.load(std::memory_order_relaxed)
         && g_skin_done.load(std::memory_order_relaxed)) {
         return;
     }
@@ -485,11 +517,18 @@ static void tryApplyGuestPatch(void *L) {
     }
 
     if (!g_guest_done.load(std::memory_order_relaxed)) {
-        if (runGuestLoginLua(L)
-            && (guestPatchLooksApplied(L) || g_lua_getglobal == nullptr || attempt >= 5)) {
-            g_guest_done.store(true, std::memory_order_relaxed);
-            LOGI("guest login lua applied (attempt %d)", attempt + 1);
+        if (runGuestLoginLua(L)) {
+            g_guest_lua_armed.store(true, std::memory_order_relaxed);
+            if (guestPatchLooksApplied(L)) {
+                g_guest_done.store(true, std::memory_order_relaxed);
+                LOGI("guest login patched (attempt %d)", attempt + 1);
+            } else if ((attempt % 8) == 0) {
+                LOGI("guest login retry armed (attempt %d, lobby pending)", attempt + 1);
+            }
         }
+    }
+
+    if (!g_guest_lua_armed.load(std::memory_order_relaxed)) {
         return;
     }
 
@@ -510,7 +549,7 @@ static void tryApplyGuestPatch(void *L) {
 }
 
 static bool allPatchesDone() {
-    return g_guest_done.load(std::memory_order_relaxed)
+    return g_guest_lua_armed.load(std::memory_order_relaxed)
            && g_skin_done.load(std::memory_order_relaxed);
 }
 

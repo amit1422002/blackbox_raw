@@ -1,8 +1,0 @@
-{
-  global:
-    JNI_OnLoad;
-    blackbox_install_maps_hide;
-    blackbox_fopen_proc_maps;
-  local:
-    *;
-};

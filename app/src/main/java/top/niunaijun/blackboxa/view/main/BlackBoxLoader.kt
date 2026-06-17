@@ -4,14 +4,14 @@ import android.app.Application
 import android.content.Context
 import android.util.Log
 import java.io.File
-import top.niunaijun.blackbox.BlackBoxCore
-import top.niunaijun.blackbox.app.BActivityThread
-import top.niunaijun.blackbox.app.configuration.AppLifecycleCallback
-import top.niunaijun.blackbox.app.configuration.ClientConfiguration
+import com.anubis.loader.BlackBoxCore
+import com.anubis.loader.app.BActivityThread
+import com.anubis.loader.app.configuration.AppLifecycleCallback
+import com.anubis.loader.app.configuration.ClientConfiguration
 import top.niunaijun.blackboxa.app.App
 import top.niunaijun.blackboxa.app.rocker.RockerManager
 import top.niunaijun.blackboxa.biz.cache.AppSharedPreferenceDelegate
-import top.niunaijun.blackbox.utils.StealthMode
+import com.anubis.loader.utils.StealthMode
 import top.niunaijun.blackboxa.skin.GuestLoginLifecycleCallback
 
 
@@ -187,41 +187,6 @@ class BlackBoxLoader {
                                         }
                                     }
                                 }
-
-                                override fun onStoragePermissionNeeded(
-                                        packageName: String?,
-                                        userId: Int
-                                ): Boolean {
-                                    try {
-                                        Log.w(
-                                                TAG,
-                                                "Storage permission needed for launching: $packageName"
-                                        )
-                                        
-                                        
-                                        
-                                        val intent =
-                                                android.content.Intent(
-                                                        "top.niunaijun.blackbox.REQUEST_STORAGE_PERMISSION"
-                                                )
-                                        intent.putExtra("package_name", packageName)
-                                        intent.putExtra("user_id", userId)
-                                        intent.setPackage(App.getContext().packageName)
-                                        App.getContext().sendBroadcast(intent)
-                                        
-                                        
-                                        
-                                        
-                                        
-                                        return false
-                                    } catch (e: Exception) {
-                                        Log.e(
-                                                TAG,
-                                                "Error in onStoragePermissionNeeded: ${e.message}"
-                                        )
-                                        return false
-                                    }
-                                }
                             }
                     )
         } catch (e: Exception) {
@@ -262,24 +227,6 @@ class BlackBoxLoader {
                                     }
                                 }
 
-                                override fun isUseVpnNetwork(): Boolean {
-                                    return try {
-                                        mUseVpnNetwork
-                                    } catch (e: Exception) {
-                                        Log.e(TAG, "Error checking useVpnNetwork: ${e.message}")
-                                        false
-                                    }
-                                }
-
-                                override fun isDisableFlagSecure(): Boolean {
-                                    return try {
-                                        mDisableFlagSecure
-                                    } catch (e: Exception) {
-                                        Log.e(TAG, "Error checking disableFlagSecure: ${e.message}")
-                                        false
-                                    }
-                                }
-
                                 override fun requestInstallPackage(
                                         file: File?,
                                         userId: Int
@@ -310,17 +257,6 @@ class BlackBoxLoader {
     fun doOnCreate(context: Context) {
         try {
             BlackBoxCore.get().doCreate()
-
-            
-            try {
-                BlackBoxCore.get().addServiceAvailableCallback {
-                    Log.d(TAG, "Services became available, triggering app list refresh")
-                    
-                    
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error registering service available callback: ${e.message}")
-            }
         } catch (e: Exception) {
             Log.e(TAG, "Error in doOnCreate: ${e.message}")
         }

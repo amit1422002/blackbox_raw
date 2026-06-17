@@ -3,9 +3,9 @@ package top.niunaijun.blackboxa.data
 import android.content.pm.ApplicationInfo
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
-import top.niunaijun.blackbox.BlackBoxCore
-import top.niunaijun.blackbox.entity.location.BLocation
-import top.niunaijun.blackbox.fake.frameworks.BLocationManager
+import com.anubis.loader.BlackBoxCore
+import com.anubis.loader.entity.location.BLocation
+import com.anubis.loader.fake.frameworks.BLocationManager
 import top.niunaijun.blackboxa.bean.FakeLocationBean
 
 

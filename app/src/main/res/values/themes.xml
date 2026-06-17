@@ -1,6 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <style name="Theme.BlackBox" parent="Theme.MaterialComponents.Light.NoActionBar">
+    <style name="Theme.AnubisBox" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryVariant">@color/primary_dark</item>
         <item name="colorOnPrimary">@color/white</item>
@@ -29,23 +29,23 @@
         <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
 
         <item name="actionMenuTextColor">@color/primary_text</item>
-        <item name="popupTheme">@style/Theme.BlackBox.PopupOverlay</item>
-        <item name="actionBarTheme">@style/Theme.BlackBox.ActionBar</item>
-        <item name="preferenceTheme">@style/Theme.BlackBox.Preferences</item>
-        <item name="materialAlertDialogTheme">@style/Theme.BlackBox.Dialog</item>
-        <item name="alertDialogTheme">@style/Theme.BlackBox.Dialog</item>
+        <item name="popupTheme">@style/Theme.AnubisBox.PopupOverlay</item>
+        <item name="actionBarTheme">@style/Theme.AnubisBox.ActionBar</item>
+        <item name="preferenceTheme">@style/Theme.AnubisBox.Preferences</item>
+        <item name="materialAlertDialogTheme">@style/Theme.AnubisBox.Dialog</item>
+        <item name="alertDialogTheme">@style/Theme.AnubisBox.Dialog</item>
 
         <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
 
-    <style name="Theme.BlackBox.ActionBar" parent="ThemeOverlay.MaterialComponents.ActionBar">
+    <style name="Theme.AnubisBox.ActionBar" parent="ThemeOverlay.MaterialComponents.ActionBar">
         <item name="colorControlNormal">@color/white</item>
         <item name="android:textColorPrimary">@color/white</item>
-        <item name="popupTheme">@style/Theme.BlackBox.PopupOverlay</item>
+        <item name="popupTheme">@style/Theme.AnubisBox.PopupOverlay</item>
         <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
 
-    <style name="Theme.BlackBox.PopupOverlay" parent="ThemeOverlay.MaterialComponents.Light">
+    <style name="Theme.AnubisBox.PopupOverlay" parent="ThemeOverlay.MaterialComponents.Light">
         <item name="android:colorBackground">@color/white</item>
         <item name="android:textColorPrimary">@color/primary_text</item>
         <item name="android:textColorSecondary">@color/secondary_text</item>
@@ -53,7 +53,7 @@
         <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
 
-    <style name="Theme.BlackBox.Preferences" parent="PreferenceThemeOverlay.v14.Material">
+    <style name="Theme.AnubisBox.Preferences" parent="PreferenceThemeOverlay.v14.Material">
         <item name="android:colorBackground">@color/background</item>
         <item name="android:background">@color/background</item>
         <item name="android:windowBackground">@color/background</item>
@@ -69,19 +69,19 @@
         <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
 
-    <style name="Theme.BlackBox.Dialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+    <style name="Theme.AnubisBox.Dialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
         <item name="android:background">@color/white</item>
         <item name="colorSurface">@color/white</item>
         <item name="colorOnSurface">@color/primary_text</item>
         <item name="android:textColorPrimary">@color/primary_text</item>
         <item name="android:textColorSecondary">@color/secondary_text</item>
-        <item name="buttonBarPositiveButtonStyle">@style/Theme.BlackBox.Dialog.Button</item>
-        <item name="buttonBarNegativeButtonStyle">@style/Theme.BlackBox.Dialog.Button</item>
-        <item name="buttonBarNeutralButtonStyle">@style/Theme.BlackBox.Dialog.Button</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Theme.AnubisBox.Dialog.Button</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Theme.AnubisBox.Dialog.Button</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Theme.AnubisBox.Dialog.Button</item>
         <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
 
-    <style name="Theme.BlackBox.Dialog.Button" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+    <style name="Theme.AnubisBox.Dialog.Button" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
         <item name="android:textColor">@color/primary</item>
     </style>
 
@@ -89,7 +89,7 @@
         <item name="colorControlNormal">@color/white</item>
         <item name="android:textColorPrimary">@color/white</item>
         <item name="actionMenuTextColor">@color/white</item>
-        <item name="popupTheme">@style/Theme.BlackBox.PopupOverlay</item>
+        <item name="popupTheme">@style/Theme.AnubisBox.PopupOverlay</item>
         <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
 

@@ -3,8 +3,8 @@ package top.niunaijun.blackboxa.skin;
 import android.content.Context;
 import android.util.Log;
 
-import top.niunaijun.blackbox.core.env.BEnvironment;
-import top.niunaijun.blackbox.utils.VirtualDeviceIds;
+import com.anubis.loader.core.env.BEnvironment;
+import com.anubis.loader.utils.VirtualDeviceIds;
 
 import java.io.File;
 import java.io.FileOutputStream;

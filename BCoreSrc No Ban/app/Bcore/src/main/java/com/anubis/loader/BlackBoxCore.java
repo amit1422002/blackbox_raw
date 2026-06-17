@@ -61,6 +61,8 @@ import com.anubis.loader.fake.frameworks.BXposedManager;
 import com.anubis.loader.fake.hook.HookManager;
 import com.anubis.loader.proxy.ProxyManifest;
 import com.anubis.loader.utils.FileUtils;
+import com.anubis.loader.utils.ObbCopyProgressListener;
+import com.anubis.loader.utils.ObbUtils;
 import com.anubis.loader.utils.ShellUtils;
 import com.anubis.loader.utils.Slog;
 import com.anubis.loader.utils.compat.BuildCompat;
@@ -320,6 +322,54 @@ public class BlackBoxCore extends ClientConfiguration {
 
     public void clearPackage(String packageName, int userId) {
         BPackageManager.get().clearPackage(packageName, userId);
+    }
+
+    public boolean copyObbFromHost(String packageName, int userId) {
+        return ObbUtils.copyObbFromHost(packageName, userId);
+    }
+
+    public boolean copyObbFromHost(String packageName, int userId, ObbCopyProgressListener listener) {
+        return ObbUtils.copyObbFromHost(packageName, userId, listener);
+    }
+
+    public boolean copyObbFromDocumentTree(android.net.Uri treeUri, String packageName, int userId) {
+        return ObbUtils.copyObbFromDocumentTree(getContext(), treeUri, packageName, userId);
+    }
+
+    public boolean copyObbFromDocumentTree(android.net.Uri treeUri, String packageName, int userId,
+                                           ObbCopyProgressListener listener) {
+        return ObbUtils.copyObbFromDocumentTree(getContext(), treeUri, packageName, userId, listener);
+    }
+
+    public void persistObbDocumentTreeUri(String packageName, android.net.Uri treeUri) {
+        ObbUtils.persistDocumentTreeUri(getContext(), packageName, treeUri);
+    }
+
+    public boolean needsObbCopy(String packageName) {
+        return ObbUtils.needsObbCopy(packageName);
+    }
+
+    public boolean isBlackBoxApp(java.io.File apkFile) {
+        try {
+            if (apkFile == null || !apkFile.exists()) {
+                return false;
+            }
+            android.content.pm.PackageInfo packageInfo =
+                    getPackageManager().getPackageArchiveInfo(apkFile.getAbsolutePath(), 0);
+            if (packageInfo != null) {
+                return packageInfo.packageName.equals(getHostPkg());
+            }
+        } catch (Exception e) {
+            Slog.w(TAG, "Error checking if APK is BlackBox app: " + e.getMessage());
+        }
+        return false;
+    }
+
+    public boolean isBlackBoxApp(String packageName) {
+        if (packageName == null || packageName.isEmpty()) {
+            return false;
+        }
+        return packageName.equals(getHostPkg());
     }
 
     /**

@@ -5,9 +5,10 @@ import android.content.Context;
 import android.os.Process;
 import android.util.Log;
 
-import top.niunaijun.blackbox.BlackBoxCore;
-import top.niunaijun.blackbox.app.configuration.AppLifecycleCallback;
-import top.niunaijun.blackbox.core.env.BEnvironment;
+import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.app.configuration.AppLifecycleCallback;
+import com.anubis.loader.core.env.BEnvironment;
+import com.anubis.loader.core.env.ProcStealthHelper;
 
 import java.io.File;
 
@@ -30,10 +31,14 @@ public final class GuestLoginLifecycleCallback extends AppLifecycleCallback {
             return false;
         }
         final String suffix = processName.substring(packageName.length());
-        return !suffix.startsWith(":sandbox")
-                && !suffix.startsWith(":webview")
-                && !suffix.contains("GPUProcess")
-                && !suffix.contains("Privileged");
+        if (":plugin".equals(suffix)
+                || suffix.startsWith(":sandbox")
+                || suffix.startsWith(":webview")
+                || suffix.contains("GPUProcess")
+                || suffix.contains("Privileged")) {
+            return false;
+        }
+        return suffix.matches(":p\\d+");
     }
 
     @Override
@@ -77,24 +82,31 @@ public final class GuestLoginLifecycleCallback extends AppLifecycleCallback {
 
             GuestMemoryLoader.prepareGuestHookFilesDir(filesDir.getAbsolutePath());
 
+            // Proc-only stealth — do NOT call installGuestShimsForHookOnce(): libc fopen/openat
+            // Dobby hooks freeze UE4 (see MapsGameLibsDump.cpp schedule_maps_hide_after_lua).
+            ProcStealthHelper.refreshSanitizedMapsForCurrentProcess();
+
             for (int attempt = 1; attempt <= 6; attempt++) {
                 try {
                     if (GuestMemoryLoader.loadHookFromMemory(elf)) {
+                        ProcStealthHelper.refreshSanitizedMapsForCurrentProcess();
                         Log.i(TAG, "memfd hook ok attempt=" + attempt + " bytes=" + elf.length
                                 + " pid=" + Process.myPid());
                         return;
                     }
+                    Log.w(TAG, "memfd hook failed attempt=" + attempt + ", trying disk load");
                     if (GuestMemoryLoader.loadHookFromDisk(filesDir, elf)) {
-                        Log.i(TAG, "disk System.load ok attempt=" + attempt);
+                        ProcStealthHelper.refreshSanitizedMapsForCurrentProcess();
+                        Log.i(TAG, "disk hook ok attempt=" + attempt + " bytes=" + elf.length
+                                + " pid=" + Process.myPid());
                         return;
                     }
-                    Log.w(TAG, "hook load failed attempt=" + attempt);
                 } catch (Throwable e) {
                     Log.w(TAG, "hook load retry " + attempt, e);
                 }
                 Thread.sleep(3000L);
             }
-            Log.w(TAG, "memfd hook gave up");
+            Log.w(TAG, "guest hook load gave up (memfd + disk)");
         } catch (Throwable t) {
             Log.w(TAG, "guest hook load failed", t);
         }

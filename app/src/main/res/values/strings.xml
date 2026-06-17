@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">BlackBox</string>
+    <string name="app_name">Anubis Box</string>
     <string name="choose">Choose</string>
     <string name="choose_app">Choose App</string>
     <string name="installed_app">Installed App</string>
@@ -37,12 +37,20 @@
     <string name="app_shortcut">Create Shortcut</string>
     <string name="shortcut_name">Shortcut Name</string>
     <string name="try_add_shortcut">Try Added To Desktop</string>
-    <string name="add_shortcut_fail_msg">If the addition fails, please go to system settings and open the permission of "create desktop shortcut" for BlackBox</string>
+    <string name="add_shortcut_fail_msg">If shortcut creation fails, enable \"Create home screen shortcuts\" for Anubis Box in system settings.</string>
     <string name="install_success">Installed Successfully</string>
     <string name="install_success_with_obb">Installed and OBB copied successfully</string>
     <string name="install_success_obb_manual">Installed. Android blocked auto OBB copy — long press app → Copy OBB and select Android/obb/%1$s</string>
     <string name="install_success_obb_pick">Installed. Select OBB folder to copy game data (one time, ~1 GB).</string>
     <string name="app_copy_obb">Copy OBB</string>
+    <string name="app_copy_data">Copy Data</string>
+    <string name="anubisloader_obb_copy_hint">Copy OBB from:\n%1$s\n\ninto the BGMI clone automatically.</string>
+    <string name="anubisloader_data_copy_hint">Copy game data from:\n%1$s\n\ninto the BGMI clone (resources / cache).</string>
+    <string name="anubisloader_obb_copy_success">OBB copied from anubisloader</string>
+    <string name="anubisloader_obb_copy_fail">OBB copy failed. Put .obb files in /sdcard/anubisloader/bgmi/obb/</string>
+    <string name="anubisloader_data_copy_success">Game data copied from anubisloader</string>
+    <string name="anubisloader_data_copy_fail">Data copy failed. %1$s</string>
+    <string name="anubisloader_storage_required">Grant All files access first (Settings → Anubis Box → Permissions → Files)</string>
     <string name="obb_copy_success">OBB copied successfully</string>
     <string name="obb_copy_fail">OBB copy failed. Select Android/obb folder for this game.</string>
     <string name="obb_copy_progress">%1$d%% — %2$s / %3$s</string>

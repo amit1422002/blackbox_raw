@@ -5,8 +5,8 @@ plugins {
 
 android {
 
-    compileSdkVersion = 34
-    buildToolsVersion = '34.0.0'
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    buildToolsVersion = '35.0.0'
     aidlPackagedList "android/app/IServiceConnection.aidl"
     aidlPackagedList "android/accounts/IAccountManagerResponse.aidl"
 
@@ -36,8 +36,8 @@ android {
     }
     
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     
     aaptOptions {
@@ -73,6 +73,21 @@ tasks.withType(Javadoc) {
     options.addStringOption('charSet', 'UTF-8')
 }
 
+tasks.withType(JavaCompile).configureEach {
+    doFirst {
+        def aidlDir = file("${buildDir}/generated/aidl_source_output_dir")
+        if (aidlDir.exists()) {
+            fileTree(aidlDir).matching { include '**/*.java' }.each { File javaFile ->
+                def lines = javaFile.readLines()
+                def fixed = lines.findAll { !it.startsWith(' * Using:') }
+                if (fixed.size() != lines.size()) {
+                    javaFile.text = fixed.join(System.lineSeparator()) + System.lineSeparator()
+                }
+            }
+        }
+    }
+}
+
 
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar", "*.aar"])
@@ -80,6 +95,7 @@ dependencies {
     implementation platform('com.google.firebase:firebase-bom:33.5.1')
     implementation 'com.google.firebase:firebase-database'
     implementation 'androidx.appcompat:appcompat:1.2.0'
+    implementation 'androidx.documentfile:documentfile:1.0.1'
   //  implementation 'com.squareup.okhttp3:okhttp:4.12.0'
   //  implementation 'com.squareup.okio:okio:3.9.0'
     implementation 'com.github.tiann:FreeReflection:3.2.2'

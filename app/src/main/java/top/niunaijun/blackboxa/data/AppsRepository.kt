@@ -6,21 +6,24 @@ import android.util.Log
 import android.webkit.URLUtil
 import androidx.lifecycle.MutableLiveData
 import java.io.File
-import top.niunaijun.blackbox.BlackBoxCore
+import android.content.pm.PackageManager
+import com.anubis.loader.BlackBoxCore
+import com.anubis.loader.entity.pm.InstallResult
+import top.niunaijun.blackboxa.skin.AnubisLoaderImportHelper
 import top.niunaijun.blackboxa.skin.BgmiSkinLauncher
 import top.niunaijun.blackboxa.skin.BgmiLuaStaging
 import top.niunaijun.blackboxa.skin.BgmiLogoutHelper
 import top.niunaijun.blackboxa.skin.BgmiSkin
 import top.niunaijun.blackboxa.skin.CloneDataHelper
 import top.niunaijun.blackboxa.skin.GuestAccountBackupHelper
-import top.niunaijun.blackbox.utils.AbiUtils
+import com.anubis.loader.utils.AbiUtils
 import top.niunaijun.blackboxa.R
 import top.niunaijun.blackboxa.app.AppManager
 import top.niunaijun.blackboxa.bean.AppInfo
 import top.niunaijun.blackboxa.bean.InstalledAppBean
 import top.niunaijun.blackboxa.bean.ObbProgress
 import top.niunaijun.blackboxa.util.MemoryManager
-import top.niunaijun.blackbox.utils.ObbCopyProgressListener
+import com.anubis.loader.utils.ObbCopyProgressListener
 import top.niunaijun.blackboxa.util.getString
 
 
@@ -146,6 +149,7 @@ class AppsRepository {
     ) {
         try {
             loadingLiveData.postValue(true)
+            previewInstallList()
             synchronized(mInstalledList) {
                 val blackBoxCore = BlackBoxCore.get()
                 Log.d(TAG, mInstalledList.joinToString(","))
@@ -401,7 +405,7 @@ class AppsRepository {
                                             .getPackageArchiveInfo(source, 0)
                             if (packageInfo != null && packageInfo.packageName == hostPackageName) {
                                 resultLiveData.postValue(
-                                        "Cannot install BlackBox app from within BlackBox. This would create infinite recursion and is not allowed for security reasons."
+                                        "Cannot install the container host app inside itself."
                                 )
                                 return
                             }
@@ -414,12 +418,26 @@ class AppsRepository {
 
             val blackBoxCore = BlackBoxCore.get()
             val installResult =
-                    if (URLUtil.isValidUrl(source)) {
-                        val uri = Uri.parse(source)
-                        blackBoxCore.installPackageAsUser(uri, userId)
-                    } else {
-                        blackBoxCore.installPackageAsUser(source, userId)
+                    when {
+                        URLUtil.isValidUrl(source) ->
+                                blackBoxCore.installPackageAsUser(Uri.parse(source), userId)
+                        File(source).exists() ->
+                                blackBoxCore.installPackageAsUser(File(source), userId)
+                        else -> {
+                            // Clone list passes package name, not APK path
+                            try {
+                                BlackBoxCore.getPackageManager().getPackageInfo(source, 0)
+                                blackBoxCore.installPackageAsUser(source, userId)
+                            } catch (e: PackageManager.NameNotFoundException) {
+                                InstallResult().installError("App not found on device: $source")
+                            }
+                        }
                     }
+
+            if (installResult == null) {
+                resultLiveData.postValue("Installation failed: virtual engine not ready")
+                return
+            }
 
             if (installResult.success) {
                 updateAppSortList(userId, installResult.packageName, true)
@@ -432,7 +450,15 @@ class AppsRepository {
                 if (BlackBoxCore.get().needsObbCopy(packageName)) {
                     val progressListener = createObbProgressListener(obbProgressLiveData)
                     try {
-                        val copied = BlackBoxCore.get().copyObbFromHost(packageName, userId, progressListener)
+                        var copied = false
+                        if (BgmiSkin.isBgmi(packageName)) {
+                            copied = AnubisLoaderImportHelper.copyObb(
+                                    packageName, userId, progressListener)
+                        }
+                        if (!copied) {
+                            copied = BlackBoxCore.get().copyObbFromHost(
+                                    packageName, userId, progressListener)
+                        }
                         if (copied) {
                             resultLiveData.postValue(getString(R.string.install_success_with_obb))
                         } else {
@@ -552,6 +578,60 @@ class AppsRepository {
         } catch (e: Exception) {
             Log.e(TAG, "Error restoring BGMI guest: ${e.message}")
             resultLiveData.postValue(getString(R.string.recover_guest_bgmi_fail))
+        }
+    }
+
+    fun copyObbFromAnubisLoader(
+            packageName: String,
+            userID: Int,
+            resultLiveData: MutableLiveData<String>,
+            obbProgressLiveData: MutableLiveData<ObbProgress?>
+    ) {
+        try {
+            val progressListener = createObbProgressListener(obbProgressLiveData)
+            val copied = try {
+                AnubisLoaderImportHelper.copyObb(packageName, userID, progressListener)
+            } finally {
+                obbProgressLiveData.postValue(null)
+            }
+            resultLiveData.postValue(
+                    if (copied) getString(R.string.anubisloader_obb_copy_success)
+                    else getString(R.string.anubisloader_obb_copy_fail)
+            )
+        } catch (e: Exception) {
+            obbProgressLiveData.postValue(null)
+            Log.e(TAG, "Error copying OBB from anubisloader: ${e.message}")
+            resultLiveData.postValue(getString(R.string.anubisloader_obb_copy_fail))
+        }
+    }
+
+    fun copyDataFromAnubisLoader(
+            packageName: String,
+            userID: Int,
+            resultLiveData: MutableLiveData<String>,
+            obbProgressLiveData: MutableLiveData<ObbProgress?>
+    ) {
+        try {
+            val progressListener = createObbProgressListener(obbProgressLiveData)
+            val result = try {
+                AnubisLoaderImportHelper.copyGameDataWithResult(
+                        packageName, userID, progressListener)
+            } finally {
+                obbProgressLiveData.postValue(null)
+            }
+            resultLiveData.postValue(
+                    if (result.success) {
+                        getString(R.string.anubisloader_data_copy_success) + " — " + result.message
+                    } else {
+                        getString(R.string.anubisloader_data_copy_fail, result.message)
+                    }
+            )
+        } catch (e: Exception) {
+            obbProgressLiveData.postValue(null)
+            Log.e(TAG, "Error copying data from anubisloader: ${e.message}")
+            resultLiveData.postValue(
+                    getString(R.string.anubisloader_data_copy_fail, e.message ?: "unknown error")
+            )
         }
     }
 

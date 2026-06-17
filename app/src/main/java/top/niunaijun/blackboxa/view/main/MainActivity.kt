@@ -13,7 +13,7 @@ import androidx.core.content.edit
 import androidx.viewpager2.widget.ViewPager2
 import com.afollestad.materialdialogs.MaterialDialog
 import com.afollestad.materialdialogs.input.input
-import top.niunaijun.blackbox.BlackBoxCore
+import com.anubis.loader.BlackBoxCore
 import top.niunaijun.blackboxa.R
 import top.niunaijun.blackboxa.app.App
 import top.niunaijun.blackboxa.app.AppManager

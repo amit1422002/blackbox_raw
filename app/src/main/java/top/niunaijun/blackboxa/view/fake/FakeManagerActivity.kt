@@ -12,8 +12,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import cbfg.rvadapter.RVAdapter
 import com.afollestad.materialdialogs.MaterialDialog
 import com.ferfalk.simplesearchview.SimpleSearchView
-import top.niunaijun.blackbox.entity.location.BLocation
-import top.niunaijun.blackbox.fake.frameworks.BLocationManager
+import com.anubis.loader.entity.location.BLocation
+import com.anubis.loader.fake.frameworks.BLocationManager
 import top.niunaijun.blackboxa.R
 import top.niunaijun.blackboxa.bean.FakeLocationBean
 import top.niunaijun.blackboxa.databinding.ActivityListBinding

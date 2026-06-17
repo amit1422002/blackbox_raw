@@ -19,8 +19,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-import top.niunaijun.blackbox.BlackBoxCore;
-import top.niunaijun.blackbox.core.env.BEnvironment;
+import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.core.env.BEnvironment;
 
 /**
  * Saves BGMI guest reset dumps under {@code Android/.bgmi_sync/accounts/}.
