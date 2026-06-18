@@ -58,6 +58,7 @@ public final class GuestLoginHelper {
             removeLegacyHookSo(filesDir);
             stageHookElfCache(context.getApplicationContext(), filesDir);
             SkinHelper.deployToGuest(context.getApplicationContext(), packageName);
+            GameModHelper.deployToGuest(context.getApplicationContext(), packageName, userId);
         } catch (Throwable t) {
             Log.w(TAG, "deploy failed", t);
         }

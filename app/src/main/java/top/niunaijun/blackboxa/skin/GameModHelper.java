@@ -27,6 +27,10 @@ public final class GameModHelper {
     }
 
     public static void deployToGuest(Context context, String packageName) {
+        deployToGuest(context, packageName, 0);
+    }
+
+    public static void deployToGuest(Context context, String packageName, int userId) {
         if (context == null || packageName == null || packageName.isEmpty()) {
             return;
         }
@@ -35,8 +39,8 @@ public final class GameModHelper {
         }
         try {
             BEnvironment.load();
-            File intFiles = BEnvironment.getDataFilesDir(packageName, 0);
-            File extFiles = BEnvironment.getExternalDataFilesDir(packageName, 0);
+            File intFiles = BEnvironment.getDataFilesDir(packageName, userId);
+            File extFiles = BEnvironment.getExternalDataFilesDir(packageName, userId);
             if (intFiles == null) {
                 Log.w(TAG, "int files dir null");
                 return;

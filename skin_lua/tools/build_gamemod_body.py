@@ -2,7 +2,7 @@
 """Build BGMIGameModBody.lua from jni/BRPlayerCharacterBase.lua (mod section only)."""
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 src = (ROOT / "app/src/main/jni/BRPlayerCharacterBase.lua").read_text(encoding="utf-8")
 start = src.index("local CharacterBase = require")
 end = src.index('}, "BRPlayerCharacterBase")') + len('}, "BRPlayerCharacterBase")')
@@ -70,6 +70,12 @@ _G.__BGMI_StartMatchFeatures = function(self)
             self:InitVisualAssistance()
         end
     end)
+end
+
+_G.__BGMI_InitVisualAssistance = function(ch)
+    if ch and slua.isValid(ch) and ch.InitVisualAssistance and _G.Mod_LuaESP then
+        pcall(function() ch:InitVisualAssistance() end)
+    end
 end
 
 end

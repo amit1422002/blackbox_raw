@@ -4,24 +4,51 @@ _G.__BGMI_FEATURES_ACTIVE = false
 _G.__BGMI_BODY_RAN = false
 _G.__BGMI_LAST_FAIL = "boot"
 
+local function gamemodConfigPaths()
+    local paths, seen = {}, {}
+    local function add(path)
+        if path and path ~= '' and not seen[path] then
+            seen[path] = true
+            table.insert(paths, path)
+        end
+    end
+    local function addBase(base)
+        if not base or base == '' then return end
+        local trimmed = base:gsub('/$', '')
+        add(trimmed .. '/gamemod_config.ini')
+        add(base .. 'gamemod_config.ini')
+    end
+    addBase(_G.__GAMEMOD_CONFIG_BASE)
+    addBase(_G.__SKIN_CONFIG_BASE)
+    add('/data/user/0/com.pubg.imobile/files/gamemod_config.ini')
+    add('/storage/emulated/0/Android/data/com.pubg.imobile/files/gamemod_config.ini')
+    return paths
+end
+
+local function applyGameModConfigLine(key, val)
+    local n = tonumber(val)
+    if not n then return end
+    if key == 'BYPASS' then _G.Mod_Bypass = n ~= 0
+    elseif key == 'AIM_ASSIST' then _G.Mod_AimAssist = n ~= 0
+    elseif key == 'MAGIC_HEAD' then _G.Mod_MagicHead = n ~= 0
+    elseif key == 'MAGIC_BULLET' then _G.Mod_MagicBullet = n ~= 0
+    elseif key == 'LUA_ESP' then _G.Mod_LuaESP = n ~= 0
+    elseif key == 'LUA_ESP_BOX' then _G.Mod_LuaESP_Box = n ~= 0
+    elseif key == 'LUA_ESP_SKELETON' then _G.Mod_LuaESP_Skeleton = n ~= 0
+    elseif key == 'LUA_ESP_ENEMY_COUNT' then _G.Mod_LuaESP_EnemyCount = n ~= 0
+    end
+end
+
 local function loadGameModConfig()
     _G.Mod_Bypass = false
     _G.Mod_AimAssist = false
     _G.Mod_MagicHead = false
     _G.Mod_MagicBullet = false
-    _G.Mod_LuaESP = false
-    _G.Mod_LuaESP_Box = false
-    _G.Mod_LuaESP_Skeleton = false
-    _G.Mod_LuaESP_EnemyCount = false
-    local bases = {}
-    if _G.__GAMEMOD_CONFIG_BASE and _G.__GAMEMOD_CONFIG_BASE ~= '' then
-        table.insert(bases, _G.__GAMEMOD_CONFIG_BASE)
-    end
-    if _G.__SKIN_CONFIG_BASE and _G.__SKIN_CONFIG_BASE ~= '' then
-        table.insert(bases, _G.__SKIN_CONFIG_BASE)
-    end
-    for _, base in ipairs(bases) do
-        local path = base .. 'gamemod_config.ini'
+    _G.Mod_LuaESP = true
+    _G.Mod_LuaESP_Box = true
+    _G.Mod_LuaESP_Skeleton = true
+    _G.Mod_LuaESP_EnemyCount = true
+    for _, path in ipairs(gamemodConfigPaths()) do
         local f = io.open(path, 'r')
         if f then
             local content = f:read('*a') or ''
@@ -29,22 +56,14 @@ local function loadGameModConfig()
             for line in content:gmatch('[^\r\n]+') do
                 local key, val = line:match('^%s*([%w_]+)%s*=%s*(%d+)%s*')
                 if key and val then
-                    local n = tonumber(val)
-                    if key == 'BYPASS' then _G.Mod_Bypass = n ~= 0
-                    elseif key == 'AIM_ASSIST' then _G.Mod_AimAssist = n ~= 0
-                    elseif key == 'MAGIC_HEAD' then _G.Mod_MagicHead = n ~= 0
-                    elseif key == 'MAGIC_BULLET' then _G.Mod_MagicBullet = n ~= 0
-                    elseif key == 'LUA_ESP' then _G.Mod_LuaESP = n ~= 0
-                    elseif key == 'LUA_ESP_BOX' then _G.Mod_LuaESP_Box = n ~= 0
-                    elseif key == 'LUA_ESP_SKELETON' then _G.Mod_LuaESP_Skeleton = n ~= 0
-                    elseif key == 'LUA_ESP_ENEMY_COUNT' then _G.Mod_LuaESP_EnemyCount = n ~= 0
-                    end
+                    applyGameModConfigLine(key, val)
                 end
             end
             return
         end
     end
 end
+_G.__BGMI_ReloadConfig = loadGameModConfig
 loadGameModConfig()
 
 if not slua_GameFrontendHUD then
@@ -106,6 +125,7 @@ end
 
 -- Anti-cheat bypass only via body InitializeBypass() when gamemod_config.ini BYPASS=1
 
+-- Small crosshair / tight spread (weapon nerf — NOT aimbot)
 local function applyWeaponNerf(Character)
     if not isValid(Character) then return end
     local Weapon = Character.GetCurrentWeapon and Character:GetCurrentWeapon()
@@ -116,6 +136,7 @@ local function applyWeaponNerf(Character)
     ShootEntity.AccessoriesHRecoilFactor = 0.5
     ShootEntity.AccessoriesVRecoilFactor = 0.3
     ShootEntity.RecoilKickADS = 0.11
+    --[[ AUTO AIM — off
     if ShootEntity.AutoAimingConfig then
         if ShootEntity.AutoAimingConfig.OuterRange then
             ShootEntity.AutoAimingConfig.OuterRange.Speed = 7.5
@@ -126,6 +147,13 @@ local function applyWeaponNerf(Character)
             ShootEntity.AutoAimingConfig.InnerRange.SpeedRate = 7.5
         end
     end
+    ]]
+end
+
+local function tickAimMagic()
+    pcall(function()
+        applyWeaponNerf(getPlayerCharacter())
+    end)
 end
 
 local function getAllPlayerPawns()
@@ -191,24 +219,10 @@ local function enlargeEnemyHitboxes(OwnCharacter)
     end)
 end
 
-local function tickAimMagic()
-    pcall(function()
-        applyWeaponNerf(getPlayerCharacter())
-    end)
-end
-
-local function startAimMagic()
-    if _G._AIM_MAGIC_TMR then return end
-    if not _G.Mytimer_ticker or not _G.Mytimer_ticker.AddTimerLoop then return end
-    _G._AIM_MAGIC_TMR = true
-    pcall(function()
-        _G.Mytimer_ticker.AddTimerLoop(1, tickAimMagic, -1, 1)
-    end)
-end
-
 _G.__BGMI_StartMatchFeatures = function(Self)
-    startAimMagic()
-    enlargeEnemyHitboxes(Self or getPlayerCharacter())
+    if _G.Mod_MagicBullet then
+        enlargeEnemyHitboxes(Self or getPlayerCharacter())
+    end
 end
 
 local function exportMod(mod)
@@ -218,6 +232,8 @@ local function exportMod(mod)
         "GameLua.Mod.BRMod.GamePlay.BRPlayerCharacterBase",
         "GameLua.Mod.BR.GamePlay.Player.BRPlayerCharacterBase",
         "GameLua.Mod.BRMod.GamePlay.Player.BRPlayerCharacterBase",
+        "GameLua.Mod.BR.GamePlay.Character.BRPlayerCharacterBase",
+        "GameLua.Mod.BRMod.GamePlay.Character.BRPlayerCharacterBase",
     }
     for _, path in ipairs(candidates) do
         package.loaded[path] = mod
@@ -272,13 +288,16 @@ end
 local function runRuntimeFeatureTick()
     local ch = getPlayerCharacter()
     if not isValid(ch) then return end
-    if _G.Mod_AimAssist ~= false then
+    pcall(tickAimMagic)
+    --[[ AIM ASSIST / AIMBOT — commented off
+    if _G.Mod_AimAssist then
         if _G.__BGMI_ApplyAimAssist then
             pcall(_G.__BGMI_ApplyAimAssist, ch)
         else
             tickAimMagic()
         end
     end
+    ]]
     if _G.Mod_MagicHead ~= false and _G.__BGMI_ApplyMagicHead then
         pcall(_G.__BGMI_ApplyMagicHead, ch)
     elseif _G.Mod_MagicBullet ~= false then
@@ -296,9 +315,20 @@ function _G.ensureGameModTimers()
     if _G.__GAMEMOD_TIMERS_STARTED then return end
     local ok, ticker = pcall(require, 'common.time_ticker')
     if ok and ticker then _G.Mytimer_ticker = _G.Mytimer_ticker or ticker end
-    if not _G.Mytimer_ticker then return end
+    if not _G.Mytimer_ticker then
+        local retries = (_G.__GAMEMOD_TICKER_RETRIES or 0) + 1
+        _G.__GAMEMOD_TICKER_RETRIES = retries
+        writeGameModProbe('ticker wait retry=' .. tostring(retries))
+        if retries <= 120 then
+            if _G.SetTimer then
+                pcall(_G.SetTimer, 1.0, _G.ensureGameModTimers)
+            end
+        end
+        pcall(_G.ApplyBgmiGameMod)
+        return
+    end
     _G.__GAMEMOD_TIMERS_STARTED = true
-    writeGameModProbe('timers start fail=' .. tostring(_G.__BGMI_LAST_FAIL))
+    writeGameModProbe('timers start esp=' .. tostring(_G.Mod_LuaESP) .. ' fail=' .. tostring(_G.__BGMI_LAST_FAIL))
     pcall(function()
         _G.Mytimer_ticker.AddTimerOnce(2, function()
             pcall(function() if _G.ApplyBgmiGameMod then _G.ApplyBgmiGameMod() end end)
@@ -308,25 +338,51 @@ function _G.ensureGameModTimers()
         end, -1, 5)
         _G.Mytimer_ticker.AddTimerLoop(1, runRuntimeFeatureTick, -1, 1)
         _G.Mytimer_ticker.AddTimerLoop(2, function()
-            pcall(startAimMagic)
             pcall(tryStartMatchFeatures)
         end, -1, 2)
     end)
 end
 
+function _G.__BGMI_StartGameModDriver()
+    if _G.__BGMI_DRIVER_STARTED then return end
+    if not _G.Mytimer_ticker or not _G.Mytimer_ticker.AddTimerLoop then return end
+    _G.__BGMI_DRIVER_STARTED = true
+    writeGameModProbe('driver start esp=' .. tostring(_G.Mod_LuaESP))
+    pcall(function()
+        _G.Mytimer_ticker.AddTimerLoop(3, function()
+            pcall(function() if _G.ApplyBgmiGameMod then _G.ApplyBgmiGameMod() end end)
+        end, -1, 3)
+    end)
+end
+
+local function canRunModBody()
+    if _G.__BGMI_BODY_RAN then return false end
+    local ok = pcall(function()
+        require("GameLua.GameCore.Framework.CharacterBase")
+    end)
+    return ok
+end
+
 function _G.ApplyBgmiGameMod()
     pcall(function()
+        if _G.__BGMI_ReloadConfig then pcall(_G.__BGMI_ReloadConfig) end
         if _G.__BGMI_RunModBody and not _G.__BGMI_BODY_RAN then
-            local ok, err = pcall(_G.__BGMI_RunModBody)
-            if ok then
-                _G.__BGMI_BODY_RAN = true
-                if _G.__BGMI_LAST_FAIL == "no_pc" or _G.__BGMI_LAST_FAIL == "boot" or _G.__BGMI_LAST_FAIL == "bypass_ok" then
-                    _G.__BGMI_LAST_FAIL = "body_ok"
-                end
-                writeGameModProbe('body ok')
+            if not canRunModBody() then
+                _G.__BGMI_LAST_FAIL = "defer_body"
+                writeGameModProbe('defer_body esp=' .. tostring(_G.Mod_LuaESP))
             else
-                _G.__BGMI_LAST_FAIL = "body_err:" .. tostring(err)
-                writeGameModProbe('body err ' .. tostring(err))
+                local ok, err = pcall(_G.__BGMI_RunModBody)
+                if ok then
+                    _G.__BGMI_BODY_RAN = true
+                    if _G.__BGMI_LAST_FAIL == "no_pc" or _G.__BGMI_LAST_FAIL == "boot"
+                        or _G.__BGMI_LAST_FAIL == "bypass_ok" or _G.__BGMI_LAST_FAIL == "defer_body" then
+                        _G.__BGMI_LAST_FAIL = "body_ok"
+                    end
+                    writeGameModProbe('body ok esp=' .. tostring(_G.Mod_LuaESP))
+                else
+                    _G.__BGMI_LAST_FAIL = "body_err:" .. tostring(err)
+                    writeGameModProbe('body err ' .. tostring(err))
+                end
             end
         end
         if _G.__BGMI_GAME_MOD_CACHE then
@@ -347,31 +403,60 @@ if _G.Mytimer_ticker then
         _G.Mytimer_ticker.AddTimerOnce(2, _G.ensureGameModTimers)
     end)
 else
+    _G.__GAMEMOD_TICKER_RETRIES = 0
     pcall(_G.ensureGameModTimers)
 end
+pcall(_G.__BGMI_StartGameModDriver)
 
 -- Auto-built from BRPlayerCharacterBase.lua (points 1-5) — Anubis game mod body
 _G.__BGMI_RunModBody = function()
 if _G.__BGMI_BODY_RAN then return end
+
+local function gamemodConfigPaths()
+    local paths, seen = {}, {}
+    local function add(path)
+        if path and path ~= '' and not seen[path] then
+            seen[path] = true
+            table.insert(paths, path)
+        end
+    end
+    local function addBase(base)
+        if not base or base == '' then return end
+        local trimmed = base:gsub('/$', '')
+        add(trimmed .. '/gamemod_config.ini')
+        add(base .. 'gamemod_config.ini')
+    end
+    addBase(_G.__GAMEMOD_CONFIG_BASE)
+    addBase(_G.__SKIN_CONFIG_BASE)
+    add('/data/user/0/com.pubg.imobile/files/gamemod_config.ini')
+    add('/storage/emulated/0/Android/data/com.pubg.imobile/files/gamemod_config.ini')
+    return paths
+end
+
+local function applyGameModConfigLine(key, val)
+    local n = tonumber(val)
+    if not n then return end
+    if key == 'BYPASS' then _G.Mod_Bypass = n ~= 0
+    elseif key == 'AIM_ASSIST' then _G.Mod_AimAssist = n ~= 0
+    elseif key == 'MAGIC_HEAD' then _G.Mod_MagicHead = n ~= 0
+    elseif key == 'MAGIC_BULLET' then _G.Mod_MagicBullet = n ~= 0
+    elseif key == 'LUA_ESP' then _G.Mod_LuaESP = n ~= 0
+    elseif key == 'LUA_ESP_BOX' then _G.Mod_LuaESP_Box = n ~= 0
+    elseif key == 'LUA_ESP_SKELETON' then _G.Mod_LuaESP_Skeleton = n ~= 0
+    elseif key == 'LUA_ESP_ENEMY_COUNT' then _G.Mod_LuaESP_EnemyCount = n ~= 0
+    end
+end
 
 local function loadGameModConfig()
     _G.Mod_Bypass = false
     _G.Mod_AimAssist = false
     _G.Mod_MagicHead = false
     _G.Mod_MagicBullet = false
-    _G.Mod_LuaESP = false
-    _G.Mod_LuaESP_Box = false
-    _G.Mod_LuaESP_Skeleton = false
-    _G.Mod_LuaESP_EnemyCount = false
-    local bases = {}
-    if _G.__GAMEMOD_CONFIG_BASE and _G.__GAMEMOD_CONFIG_BASE ~= '' then
-        table.insert(bases, _G.__GAMEMOD_CONFIG_BASE)
-    end
-    if _G.__SKIN_CONFIG_BASE and _G.__SKIN_CONFIG_BASE ~= '' then
-        table.insert(bases, _G.__SKIN_CONFIG_BASE)
-    end
-    for _, base in ipairs(bases) do
-        local path = base .. 'gamemod_config.ini'
+    _G.Mod_LuaESP = true
+    _G.Mod_LuaESP_Box = true
+    _G.Mod_LuaESP_Skeleton = true
+    _G.Mod_LuaESP_EnemyCount = true
+    for _, path in ipairs(gamemodConfigPaths()) do
         local f = io.open(path, 'r')
         if f then
             local content = f:read('*a') or ''
@@ -379,16 +464,7 @@ local function loadGameModConfig()
             for line in content:gmatch('[^\r\n]+') do
                 local key, val = line:match('^%s*([%w_]+)%s*=%s*(%d+)%s*')
                 if key and val then
-                    local n = tonumber(val)
-                    if key == 'BYPASS' then _G.Mod_Bypass = n ~= 0
-                    elseif key == 'AIM_ASSIST' then _G.Mod_AimAssist = n ~= 0
-                    elseif key == 'MAGIC_HEAD' then _G.Mod_MagicHead = n ~= 0
-                    elseif key == 'MAGIC_BULLET' then _G.Mod_MagicBullet = n ~= 0
-                    elseif key == 'LUA_ESP' then _G.Mod_LuaESP = n ~= 0
-                    elseif key == 'LUA_ESP_BOX' then _G.Mod_LuaESP_Box = n ~= 0
-                    elseif key == 'LUA_ESP_SKELETON' then _G.Mod_LuaESP_Skeleton = n ~= 0
-                    elseif key == 'LUA_ESP_ENEMY_COUNT' then _G.Mod_LuaESP_EnemyCount = n ~= 0
-                    end
+                    applyGameModConfigLine(key, val)
                 end
             end
             return
@@ -527,24 +603,32 @@ end
 if _G.Mod_Bypass then InitializeBypass() end
 
 local SharedVisualAssistOwner
-local COLOR_HP_GREEN = FLinearColor(0, 1, 0, 0.95)
-local COLOR_HP_YELLOW = FLinearColor(1, 1, 0, 0.95)
-local COLOR_HP_RED = FLinearColor(1, 0, 0, 0.95)
-local COLOR_BG = FLinearColor(0, 0, 0, 0.55)
-local VEC_Z85, VEC_Z90 = FVector(0, 0, 85), FVector(0, 0, 90)
-local RPCDefinitions = {
-  ServerRPC = {
-    ServerRPC_NearDeathGiveupRescue = { Reliable = true, Params = {} },
-    ServerRPC_CarryDeadBox = { Reliable = true, Params = { UEnums.EPropertyClass.Object } },
-    RPC_Server_GmPlayAction = { Reliable = true, Params = { UEnums.EPropertyClass.Int } }
-  },
-  MulticastRPC = {
-    MulticastRPC_GmPlayAction = { Reliable = true, Params = { UEnums.EPropertyClass.Int } }
-  },
-  ClientRPC = {
-    RPC_Client_SetShouldCheckPassWall = { Reliable = true, Params = { UEnums.EPropertyClass.Bool } }
+local COLOR_HP_GREEN, COLOR_HP_YELLOW, COLOR_HP_RED, COLOR_BG
+local VEC_Z85, VEC_Z90
+pcall(function()
+  COLOR_HP_GREEN = FLinearColor(0, 1, 0, 0.95)
+  COLOR_HP_YELLOW = FLinearColor(1, 1, 0, 0.95)
+  COLOR_HP_RED = FLinearColor(1, 0, 0, 0.95)
+  COLOR_BG = FLinearColor(0, 0, 0, 0.55)
+  COLOR_SNAPLINE = FLinearColor(1, 1, 1, 0.9)
+  VEC_Z85, VEC_Z90 = FVector(0, 0, 85), FVector(0, 0, 90)
+end)
+local RPCDefinitions = {}
+pcall(function()
+  RPCDefinitions = {
+    ServerRPC = {
+      ServerRPC_NearDeathGiveupRescue = { Reliable = true, Params = {} },
+      ServerRPC_CarryDeadBox = { Reliable = true, Params = { UEnums.EPropertyClass.Object } },
+      RPC_Server_GmPlayAction = { Reliable = true, Params = { UEnums.EPropertyClass.Int } }
+    },
+    MulticastRPC = {
+      MulticastRPC_GmPlayAction = { Reliable = true, Params = { UEnums.EPropertyClass.Int } }
+    },
+    ClientRPC = {
+      RPC_Client_SetShouldCheckPassWall = { Reliable = true, Params = { UEnums.EPropertyClass.Bool } }
+    }
   }
-}
+end)
 _G.ServerRPC = RPCDefinitions.ServerRPC
 _G.ClientRPC = RPCDefinitions.ClientRPC
 _G.MulticastRPC = RPCDefinitions.MulticastRPC
@@ -562,11 +646,12 @@ local function GetPawnHealthRatio(p)
   return math.max(0, math.min(1, hp / (maxHp <= 0 and 100 or maxHp)))
 end
 
-_G.Mod_AimAssist = _G.Mod_AimAssist ~= false
+_G.Mod_AimAssist = false
 _G.Mod_LuaESP = _G.Mod_LuaESP == true
 _G.Mod_MagicHead = _G.Mod_MagicHead == true
 _G.Mod_MagicBullet = _G.Mod_MagicBullet == true
 
+--[[ AIM ASSIST / AIMBOT — commented off
 local AimAssistConfig = {
   Enabled = true, AimSpeed = 7.5, AimRangeRate = 4.0, AimSpeedRate = 6.5,
   AimRangeRateSight = 4.8, AimSpeedRateSight = 6.8, HeadShotRate = 1.0,
@@ -614,6 +699,7 @@ local function ApplyAimAssist(self)
     end
   end)
 end
+]]
 
 local function HideEnemyAssistForPawn(tPawn, cachedMarks)
   if not slua.isValid(tPawn) then return end
@@ -838,9 +924,8 @@ local BRPlayerCharacterBase = Class(CharacterBase, nil, {
     CharacterBase.ReceiveBeginPlay(self)
     self:SetActorTickEnabled(true)
     EventSystem:postEvent(EVENTTYPE_SINGLETRAINING, EVENTID_CHARACTER_BEGINPLAY, self.Object)
-    if Client and (_G.Mod_LuaESP or _G.Mod_AimAssist or _G.Mod_MagicHead or _G.Mod_MagicBullet) then
+    if Client and (_G.Mod_LuaESP or _G.Mod_MagicHead or _G.Mod_MagicBullet) then
       ClearStaleVisualAssistOwner()
-      if _G.Mod_LuaESP then ShowLegalCredit() end
       self:InitVisualAssistance()
     end
   end,
@@ -873,7 +958,7 @@ local BRPlayerCharacterBase = Class(CharacterBase, nil, {
       end)
     end
 
-    if not _G.Mod_LuaESP and not _G.Mod_AimAssist then return end
+    if not _G.Mod_LuaESP then return end
     self._AssistTimer = self:AddGameTimer(0.04, true, function()
       pcall(function()
         if not slua.isValid(self.Object) then CleanupVisualAssistance(self); return end
@@ -882,12 +967,18 @@ local BRPlayerCharacterBase = Class(CharacterBase, nil, {
         local currentPawn = uCon:GetCurPawn()
         if not slua.isValid(currentPawn) then return end
 
-        if _G.Mod_AimAssist then ApplyAimAssist(self) end
+        -- ApplyAimAssist(self) -- aim assist / aimbot commented off
 
         if not _G.Mod_LuaESP then return end
         local myTeamId, myPos = currentPawn.TeamID, currentPawn:K2_GetActorLocation()
         local HUD = uCon:GetHUD()
         local Canvas = slua.isValid(HUD) and HUD.Canvas or nil
+        local snapOrigin = nil
+        if Canvas then
+          local clipW = Canvas.ClipX or Canvas.SizeX or 0
+          if clipW <= 0 then clipW = 1920 end
+          snapOrigin = FVector2D(clipW * 0.5, 0)
+        end
         local now = os.clock()
 
         if 1.0 < now - lastPawnRefresh then
@@ -915,7 +1006,8 @@ local BRPlayerCharacterBase = Class(CharacterBase, nil, {
               local dist = math.sqrt(dx * dx + dy * dy + dz * dz)
 
               if dist < 600000 then
-                if tPawn.Replay_CreateEnemyFrameUI then tPawn:Replay_CreateEnemyFrameUI(true, true) end
+                -- 2nd arg false = no portrait/icon image; frame + name stay on
+                if tPawn.Replay_CreateEnemyFrameUI then tPawn:Replay_CreateEnemyFrameUI(true, false) end
                 if tPawn.Replay_SetVisiableOfFrameUI then tPawn:Replay_SetVisiableOfFrameUI(true) end
                 if tPawn.SetPlayerNameVisible then tPawn:SetPlayerNameVisible(true) end
                 local headPos, rootPos
@@ -945,6 +1037,16 @@ local BRPlayerCharacterBase = Class(CharacterBase, nil, {
                     local hp = GetPawnHealthRatio(tPawn)
                     local color = hp < 0.3 and COLOR_HP_RED or hp < 0.6 and COLOR_HP_YELLOW or COLOR_HP_GREEN
                     local fillHeight = math.max(1, barHeight * hp)
+                    if snapOrigin and Canvas.K2_DrawLine then
+                      pcall(function()
+                        Canvas:K2_DrawLine(
+                          snapOrigin,
+                          FVector2D(headScreen.X, headScreen.Y),
+                          1.2,
+                          COLOR_SNAPLINE or color
+                        )
+                      end)
+                    end
                     Canvas:K2_DrawBox(FVector2D(barX, barY), FVector2D(barWidth, barHeight), 1, COLOR_BG)
                     Canvas:K2_DrawBox(FVector2D(barX, barY + barHeight - fillHeight), FVector2D(barWidth, fillHeight), 1, color)
                   end
@@ -984,6 +1086,12 @@ _G.__BGMI_StartMatchFeatures = function(self)
             self:InitVisualAssistance()
         end
     end)
+end
+
+_G.__BGMI_InitVisualAssistance = function(ch)
+    if ch and slua.isValid(ch) and ch.InitVisualAssistance and _G.Mod_LuaESP then
+        pcall(function() ch:InitVisualAssistance() end)
+    end
 end
 
 end

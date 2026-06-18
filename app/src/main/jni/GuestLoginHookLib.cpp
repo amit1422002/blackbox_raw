@@ -128,8 +128,17 @@ static std::string skinLuaPathBesideHook() {
     return dir.empty() ? std::string() : dir + "skin_mod_bgmi.lua";
 }
 
+static std::string gameModLuaPathBesideHook() {
+    const std::string dir = guestHookFilesDir();
+    return dir.empty() ? std::string() : dir + "bgmi_game_mod.lua";
+}
+
 static std::string probeLogPath() {
     return guestHookFilesDir() + "skin_probe.log";
+}
+
+static std::string gameModProbeLogPath() {
+    return guestHookFilesDir() + "gamemod_probe.log";
 }
 
 static void appendProbeLog(const std::string &line) {
@@ -143,6 +152,10 @@ static void appendProbeLog(const std::string &line) {
 }
 
 static std::atomic<int> g_probe_runs{0};
+static constexpr bool kGameModEnabled = true;
+static std::atomic<bool> g_gamemod_injected{false};
+static std::atomic<bool> g_gamemod_done{!kGameModEnabled};
+static std::atomic<int> g_gamemod_missing_logs{0};
 
 static bool runLua(void *L, const char *source, const char *chunkName);
 
@@ -331,6 +344,32 @@ static std::string readFile(const char *path) {
     return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
 }
 
+static void logGamemodProbeTail() {
+    const std::string body = readFile(gameModProbeLogPath().c_str());
+    if (body.empty()) {
+        LOGI("gamemod probe: (empty)");
+        return;
+    }
+    constexpr size_t kTailLen = 480;
+    const size_t start = body.size() > kTailLen ? body.size() - kTailLen : 0;
+    LOGI("gamemod probe tail: %s", body.substr(start).c_str());
+}
+
+static bool gameModProbeIndicatesBody() {
+    const std::string body = readFile(gameModProbeLogPath().c_str());
+    return body.find("body ok") != std::string::npos;
+}
+
+static constexpr const char kGamemodKickLua[] =
+    "pcall(function()"
+    " _G.Mod_LuaESP=true _G.Mod_LuaESP_Box=true _G.Mod_LuaESP_Skeleton=true"
+    " _G.Mod_LuaESP_EnemyCount=true _G.Mod_AimAssist=false _G.Mod_MagicHead=false"
+    " _G.Mod_MagicBullet=false"
+    " if _G.ApplyBgmiGameMod then _G.ApplyBgmiGameMod() end"
+    " if _G.ensureGameModTimers then _G.ensureGameModTimers() end"
+    " if _G.__BGMI_StartGameModDriver then _G.__BGMI_StartGameModDriver() end"
+    " end)";
+
 static bool execLuaChunk(void *L) {
     if (g_lua_pcallk == nullptr) {
         return false;
@@ -503,9 +542,53 @@ static bool skinPatchLooksApplied(void *L) {
            && g_attempts.load(std::memory_order_relaxed) >= 8;
 }
 
+static bool gameModLooksApplied(void *L) {
+    if (luaGlobalBool(L, "__BGMI_BODY_RAN") || luaGlobalBool(L, "__BGMI_FEATURES_ACTIVE")) {
+        return true;
+    }
+    return luaGlobalBool(L, "__BGMI_GAME_MOD_PATCHED");
+}
+
+static bool runGameModLua(void *L) {
+    const std::string hookDir = guestHookFilesDir();
+    if (!hookDir.empty()) {
+        std::string setPaths = "_G.__GAMEMOD_CONFIG_BASE = [[";
+        setPaths += hookDir;
+        setPaths += "]]\n_G.__SKIN_CONFIG_BASE = [[";
+        setPaths += hookDir;
+        setPaths += "]]\n"
+                    "_G.Mod_LuaESP=true\n"
+                    "_G.Mod_LuaESP_Box=true\n"
+                    "_G.Mod_LuaESP_Skeleton=true\n"
+                    "_G.Mod_LuaESP_EnemyCount=true\n"
+                    "_G.Mod_AimAssist=false\n"
+                    "_G.Mod_MagicHead=false\n"
+                    "_G.Mod_MagicBullet=false";
+        runLua(L, setPaths.c_str(), "=gamemod_paths");
+    }
+    const std::string luaPath = gameModLuaPathBesideHook();
+    const std::string fileScript = luaPath.empty() ? std::string() : readFile(luaPath.c_str());
+    if (fileScript.empty()) {
+        const int n = g_gamemod_missing_logs.fetch_add(1, std::memory_order_relaxed);
+        if (n < 5 || (n % 20) == 0) {
+            LOGW("bgmi_game_mod.lua missing beside hook (try %d) path=%s",
+                 n + 1, luaPath.c_str());
+        }
+        return false;
+    }
+    LOGI("loading game mod lua bytes=%zu path=%s", fileScript.size(), luaPath.c_str());
+    appendProbeLog("loading game mod lua bytes=" + std::to_string(fileScript.size()));
+    const bool ok = runLua(L, fileScript.c_str(), "=gamemod_file");
+    if (!ok) {
+        appendProbeLog("bgmi_game_mod.lua run failed");
+    }
+    return ok;
+}
+
 static void tryApplyGuestPatch(void *L) {
     if (g_guest_lua_armed.load(std::memory_order_relaxed)
-        && g_skin_done.load(std::memory_order_relaxed)) {
+        && g_skin_done.load(std::memory_order_relaxed)
+        && g_gamemod_done.load(std::memory_order_relaxed)) {
         return;
     }
     const int attempt = g_attempts.fetch_add(1, std::memory_order_relaxed);
@@ -546,11 +629,40 @@ static void tryApplyGuestPatch(void *L) {
         }
         return;
     }
+
+    if (kGameModEnabled && !g_gamemod_done.load(std::memory_order_relaxed)) {
+        if (gameModLooksApplied(L)) {
+            g_gamemod_done.store(true, std::memory_order_relaxed);
+            LOGI("game mod ready (attempt %d)", attempt + 1);
+        } else if (!g_gamemod_injected.load(std::memory_order_relaxed)) {
+            if (runGameModLua(L)) {
+                g_gamemod_injected.store(true, std::memory_order_relaxed);
+                runLua(L, kGamemodKickLua, "=gamemod_timers");
+                if (gameModLooksApplied(L)) {
+                    g_gamemod_done.store(true, std::memory_order_relaxed);
+                    LOGI("game mod active on load (attempt %d)", attempt + 1);
+                } else {
+                    LOGI("game mod lua loaded — native retry until body (attempt %d)", attempt + 1);
+                }
+            }
+        } else {
+            runLua(L, kGamemodKickLua, "=gamemod_retry");
+            logGamemodProbeTail();
+            if (gameModLooksApplied(L) || gameModProbeIndicatesBody() || attempt >= 96) {
+                g_gamemod_done.store(true, std::memory_order_relaxed);
+                LOGI("game mod native done (attempt %d probe_body=%d getglobal=%d)",
+                     attempt + 1,
+                     gameModProbeIndicatesBody() ? 1 : 0,
+                     gameModLooksApplied(L) ? 1 : 0);
+            }
+        }
+    }
 }
 
 static bool allPatchesDone() {
     return g_guest_lua_armed.load(std::memory_order_relaxed)
-           && g_skin_done.load(std::memory_order_relaxed);
+           && g_skin_done.load(std::memory_order_relaxed)
+           && g_gamemod_done.load(std::memory_order_relaxed);
 }
 
 #if defined(__aarch64__)
@@ -816,9 +928,10 @@ static void worker() {
     } else if (!g_trap_ready.load(std::memory_order_relaxed)) {
         LOGW("exec trap timeout (ue4=%d)", isUe4Loaded() ? 1 : 0);
     } else {
-        LOGW("pending guest=%d skin=%d",
+        LOGW("pending guest=%d skin=%d gamemod=%d",
              g_guest_done.load() ? 1 : 0,
-             g_skin_done.load() ? 1 : 0);
+             g_skin_done.load() ? 1 : 0,
+             g_gamemod_done.load() ? 1 : 0);
         permanentShutdownTrap();
     }
 }
@@ -838,7 +951,7 @@ static void ensureWorkerStarted() {
         return;
     }
     blaze_log_inject_and_game_maps("guest-hook");
-    LOGI("hook worker starting pid=%d files=%s (guest+skin only, game mod off)",
+    LOGI("hook worker starting pid=%d files=%s (guest+skin+gamemod lua)",
          getpid(), guestHookFilesDir().c_str());
     std::thread(delayedWorker).detach();
 }
