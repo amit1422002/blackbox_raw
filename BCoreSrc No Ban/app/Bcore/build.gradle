@@ -15,6 +15,14 @@ android {
         targetSdkVersion 36
         versionCode 1
         versionName "1.0"
+
+        def gsiClientId = project.findProperty('GSI_CLIENT_ID')
+                ?: '559655882155-e723mtlhsapv81pf2i1656neejmbdlp1.apps.googleusercontent.com'
+        def gsiRedirectUri = project.findProperty('GSI_REDIRECT_URI')
+                ?: 'https://cloneplus-56227.firebaseapp.com/__/auth/handler'
+        buildConfigField 'String', 'GSI_CLIENT_ID', "\"${gsiClientId}\""
+        buildConfigField 'String', 'GSI_REDIRECT_URI', "\"${gsiRedirectUri}\""
+
         consumerProguardFiles 'consumer-rules.pro'
         ndk {
          //   abiFilters "armeabi-v7a", "arm64-v8a"
@@ -47,6 +55,7 @@ android {
     
     buildFeatures {
         aidl true
+        buildConfig true
     }
     
     testOptions {

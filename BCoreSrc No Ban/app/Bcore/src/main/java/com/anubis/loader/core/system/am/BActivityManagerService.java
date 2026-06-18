@@ -33,11 +33,11 @@ import static android.content.pm.PackageManager.GET_META_DATA;
 
 /**
  * Created by Milk on 3/31/21.
- * * ∧＿∧
- * (`･ω･∥
- * 丶　つ０
- * しーＪ
- * 此处无Bug
+ * * Γêº∩╝┐Γêº
+ * (`∩╜Ñ╧ë∩╜ÑΓêÑ
+ * Σ╕╢πÇÇπüñ∩╝É
+ * πüùπâ╝∩╝¬
+ * µ¡ñσñäµùáBug
  */
 public class BActivityManagerService extends IBActivityManagerService.Stub implements ISystemService {
     public static final String TAG = "BActivityManagerService";
@@ -284,70 +284,6 @@ public class BActivityManagerService extends IBActivityManagerService.Stub imple
     }
 
     @Override
-    public void beginOAuthSession(String guestPkg) throws RemoteException {
-        UserSpace userSpace = getOrCreateSpaceLocked(BUserHandle.USER_SYSTEM);
-        synchronized (userSpace.mStack) {
-            userSpace.mStack.beginOAuthSession(guestPkg);
-        }
-    }
-
-    @Override
-    public void endOAuthSession() throws RemoteException {
-        UserSpace userSpace = getOrCreateSpaceLocked(BUserHandle.USER_SYSTEM);
-        synchronized (userSpace.mStack) {
-            userSpace.mStack.endOAuthSession();
-        }
-    }
-
-    @Override
-    public boolean isOAuthSessionActive() throws RemoteException {
-        UserSpace userSpace = getOrCreateSpaceLocked(BUserHandle.USER_SYSTEM);
-        synchronized (userSpace.mStack) {
-            return userSpace.mStack.isOAuthSessionActive();
-        }
-    }
-
-    @Override
-    public String getOAuthGuestPackage() throws RemoteException {
-        UserSpace userSpace = getOrCreateSpaceLocked(BUserHandle.USER_SYSTEM);
-        synchronized (userSpace.mStack) {
-            return userSpace.mStack.getOAuthGuestPackage();
-        }
-    }
-
-    @Override
-    public void setOAuthSignInCallingPackage(String callingPkg) throws RemoteException {
-        UserSpace userSpace = getOrCreateSpaceLocked(BUserHandle.USER_SYSTEM);
-        synchronized (userSpace.mStack) {
-            userSpace.mStack.setOAuthSignInCallingPackage(callingPkg);
-        }
-    }
-
-    @Override
-    public String getOAuthSignInCallingPackage() throws RemoteException {
-        UserSpace userSpace = getOrCreateSpaceLocked(BUserHandle.USER_SYSTEM);
-        synchronized (userSpace.mStack) {
-            return userSpace.mStack.getOAuthSignInCallingPackage();
-        }
-    }
-
-    @Override
-    public void setOAuthSelectedAccount(String email) throws RemoteException {
-        UserSpace userSpace = getOrCreateSpaceLocked(BUserHandle.USER_SYSTEM);
-        synchronized (userSpace.mStack) {
-            userSpace.mStack.setOAuthSelectedAccount(email);
-        }
-    }
-
-    @Override
-    public String getOAuthSelectedAccount() throws RemoteException {
-        UserSpace userSpace = getOrCreateSpaceLocked(BUserHandle.USER_SYSTEM);
-        synchronized (userSpace.mStack) {
-            return userSpace.mStack.getOAuthSelectedAccount();
-        }
-    }
-
-    @Override
     public void onStartCommand(Intent intent, int userId) throws RemoteException {
         UserSpace userSpace = getOrCreateSpaceLocked(userId);
         synchronized (userSpace.mActiveServices) {
@@ -454,5 +390,10 @@ public class BActivityManagerService extends IBActivityManagerService.Stub imple
     @Override
     public void systemReady() {
         mBroadcastManager.startup();
+    }
+
+    @Override
+    public String getPackageNameByPid(int pid) throws RemoteException {
+        return BProcessManagerService.get().resolvePackageNameByPid(pid);
     }
 }

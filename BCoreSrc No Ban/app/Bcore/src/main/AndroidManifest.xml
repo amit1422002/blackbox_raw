@@ -391,22 +391,16 @@
 
 
         <activity
-            android:name=".proxy.GoogleOAuthProxyActivity"
-            android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:name=".gms.GoogleSignInActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
 
         <activity
-            android:name=".proxy.GoogleAccountPickerActivity"
-            android:exported="false"
-            android:theme="@android:style/Theme.DeviceDefault.Dialog" />
-
-        <activity
-            android:name=".proxy.PlayStoreAccountPickerActivity"
-            android:excludeFromRecents="true"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:taskAffinity="com.anubis.loader.playstore_picker"
-            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+            android:name=".gms.MicroGLoginBridgeActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
 
         <activity
             android:name=".proxy.ProxyActivity$P0"

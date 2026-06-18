@@ -5,7 +5,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
-import android.content.pm.ApplicationInfo;
 import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
@@ -35,7 +34,6 @@ import com.anubis.loader.core.system.BProcessManagerService;
 import com.anubis.loader.core.system.ProcessRecord;
 import com.anubis.loader.core.system.pm.BPackageManagerService;
 import com.anubis.loader.core.system.pm.PackageManagerCompat;
-import com.anubis.loader.core.GmsCore;
 import com.anubis.loader.proxy.ProxyActivity;
 import com.anubis.loader.proxy.ProxyManifest;
 import com.anubis.loader.proxy.record.ProxyActivityRecord;
@@ -45,24 +43,14 @@ import com.anubis.loader.utils.compat.ActivityManagerCompat;
 
 import static android.content.pm.PackageManager.GET_ACTIVITIES;
 
-/**
- * Created by Milk on 4/5/21.
- * * ∧＿∧
- * (`･ω･∥
- * 丶　つ０
- * しーＪ
- * 此处无Bug
- */
+
+@SuppressWarnings({"deprecation", "unchecked"})
 public class ActivityStack {
     public static final String TAG = "ActivityStack";
 
     private final ActivityManager mAms;
     private final Map<Integer, TaskRecord> mTasks = new LinkedHashMap<>();
     private final Set<ActivityRecord> mLaunchingActivities = new HashSet<>();
-  /** Shared across all virtual processes — static GmsCore flags are per-process only. */
-    private volatile String mOAuthGuestPkg;
-    private volatile String mOAuthSignInCallingPackage;
-    private volatile String mOAuthSelectedAccount;
 
     public static final int LAUNCH_TIME_OUT = 0;
     private final Handler mHandler = new Handler(Looper.getMainLooper()) {
@@ -110,88 +98,15 @@ public class ActivityStack {
             synchronizeTasks();
         }
 
-        ActivityRecord callerRecord = findActivityRecordByToken(userId, resultTo);
-        ResolveInfo resolveInfo = null;
-        if (GmsCore.isGoogleOAuthProxy(intent)) {
-            resolveInfo = GmsCore.resolveActivityOnHost(intent, GET_ACTIVITIES);
-            if (resolveInfo != null && resolveInfo.activityInfo != null) {
-                ActivityInfo guestInfo = new ActivityInfo(resolveInfo.activityInfo);
-                String guestPkg = null;
-                if (callerRecord != null && callerRecord.info != null) {
-                    ActivityInfo callerAi = callerRecord.info;
-                    guestPkg = callerAi.packageName;
-                    guestInfo.packageName = callerAi.packageName;
-                    guestInfo.processName = callerAi.processName;
-                    guestInfo.applicationInfo = callerAi.applicationInfo;
-                    guestInfo.taskAffinity = callerAi.taskAffinity;
-                } else if (GmsCore.isPlayStoreAccountPicker(intent)) {
-                    guestPkg = intent.getStringExtra(
-                            com.anubis.loader.utils.PlayStoreSignInHelper.EXTRA_TARGET_PACKAGE);
-                    if (guestPkg != null) {
-                        ApplicationInfo appInfo = BlackBoxCore.getBPackageManager()
-                                .getApplicationInfo(guestPkg, 0, userId);
-                        if (appInfo != null) {
-                            guestInfo.packageName = guestPkg;
-                            guestInfo.processName = appInfo.processName;
-                            guestInfo.applicationInfo = appInfo;
-                            guestInfo.taskAffinity = guestPkg;
-                        }
-                    }
-                }
-                resolveInfo.activityInfo = guestInfo;
-                Log.d(TAG, "host proxy resolved on host -> guest process "
-                        + guestInfo.packageName + " guestPkg=" + guestPkg);
-            } else {
-                Log.w(TAG, "host proxy resolve failed: " + intent.getComponent());
-            }
-        }
-        if (GmsCore.isGoogleOAuthProxy(intent) && resultTo == null) {
-            ActivityRecord topRecord = getTopActivityRecord();
-            if (topRecord != null) {
-                resultTo = topRecord.token;
-                Log.d(TAG, "OAuth proxy: pinned resultTo to top activity " + topRecord.component);
-            }
-        }
-        if (GmsCore.isGoogleOAuthProxy(intent) && resultTo != null) {
-            Bundle oauthRelay = intent.getExtras() != null ? new Bundle(intent.getExtras()) : new Bundle();
-            oauthRelay.putBinder(GmsCore.EXTRA_OAUTH_RESULT_TO, resultTo);
-            if (resultWho != null) {
-                oauthRelay.putString(GmsCore.EXTRA_OAUTH_RESULT_WHO, resultWho);
-            }
-            oauthRelay.putInt(GmsCore.EXTRA_OAUTH_REQUEST_CODE, requestCode);
-            intent.replaceExtras(oauthRelay);
-        }
-        if (GmsCore.isPlayStoreAccountPicker(intent)) {
-            String playGuest = intent.getStringExtra(
-                    com.anubis.loader.utils.PlayStoreSignInHelper.EXTRA_TARGET_PACKAGE);
-            GmsCore.beginPlayStoreAuthSession(playGuest);
-        } else if (GmsCore.isGoogleOAuthProxy(intent)
-                || GmsCore.isOAuthInternalGmsLaunch(intent)
-                || intent.hasExtra(GmsCore.EXTRA_GMS_TARGET + "_guest_pkg")) {
-            String oauthGuest = GmsCore.getOAuthGuestPackage(intent);
-            if (oauthGuest == null && callerRecord != null && callerRecord.info != null
-                    && GmsCore.shouldUseHostGoogle(callerRecord.info.packageName)) {
-                oauthGuest = callerRecord.info.packageName;
-            }
-            if (oauthGuest != null) {
-                beginOAuthSession(oauthGuest);
-            }
-        }
-        GmsCore.rewriteGoogleAccountIntent(intent);
-        if (resolveInfo == null) {
-            resolveInfo = BPackageManagerService.get().resolveActivity(intent, GET_ACTIVITIES, resolvedType, userId);
-        }
+        ResolveInfo resolveInfo = BPackageManagerService.get().resolveActivity(intent, GET_ACTIVITIES, resolvedType, userId);
         if (resolveInfo == null || resolveInfo.activityInfo == null) {
-            if (GmsCore.isGoogleOAuthProxy(intent)) {
-                Log.w(TAG, "OAuth proxy resolve failed, cannot launch GMS sign-in");
-            }
             return 0;
         }
         Log.d(TAG, "startActivityLocked : " + resolveInfo.activityInfo);
         ActivityInfo activityInfo = resolveInfo.activityInfo;
 
         ActivityRecord sourceRecord = findActivityRecordByToken(userId, resultTo);
-        if (sourceRecord == null && !GmsCore.isGoogleOAuthProxy(intent)) {
+        if (sourceRecord == null) {
             resultTo = null;
         }
         TaskRecord sourceTask = null;
@@ -222,11 +137,11 @@ public class ActivityStack {
                 break;
         }
 
-        // 如果还没有task则新启动一个task
+        
         if (taskRecord == null || taskRecord.needNewTask()) {
             return startActivityInNewTaskLocked(userId, intent, activityInfo, resultTo, launchModeFlags);
         }
-        // 移至前台
+        
         mAms.moveTaskToFront(taskRecord.id, 0);
 
         boolean notStartToFront = false;
@@ -248,7 +163,7 @@ public class ActivityStack {
 
         if (clearTop) {
             if (targetActivityRecord != null) {
-                // 目标栈上面所有activity出栈
+                
                 synchronized (targetActivityRecord.task.activities) {
                     for (int i = targetActivityRecord.task.activities.size() - 1; i >= 0; i--) {
                         ActivityRecord next = targetActivityRecord.task.activities.get(i);
@@ -259,7 +174,7 @@ public class ActivityStack {
                             if (singleTop) {
                                 newIntentRecord = targetActivityRecord;
                             } else {
-                                // clearTop并且不是singleTop，目标也finish，重建。
+                                
                                 targetActivityRecord.finished = true;
                             }
                             break;
@@ -276,7 +191,7 @@ public class ActivityStack {
                 synchronized (mLaunchingActivities) {
                     for (ActivityRecord launchingActivity : mLaunchingActivities) {
                         if (!launchingActivity.finished && launchingActivity.component.equals(intent.getComponent())) {
-                            // todo update onNewIntent from intent
+                            
                             ignore = true;
                         }
                     }
@@ -290,9 +205,9 @@ public class ActivityStack {
             } else {
                 ActivityRecord record = findActivityRecordByComponentName(userId, ComponentUtils.toComponentName(activityInfo));
                 if (record != null) {
-                    // 需要调用目标onNewIntent
+                    
                     newIntentRecord = record;
-                    // 目标栈上面所有activity出栈
+                    
                     synchronized (taskRecord.activities) {
                         for (int i = taskRecord.activities.size() - 1; i >= 0; i--) {
                             ActivityRecord next = taskRecord.activities.get(i);
@@ -311,17 +226,17 @@ public class ActivityStack {
             newIntentRecord = topActivityRecord;
         }
 
-        // clearTask finish All
+        
         if (clearTask && newTask) {
             for (ActivityRecord activity : taskRecord.activities) {
                 activity.finished = true;
             }
+            finishAllActivity(userId);
         }
-
-        finishAllActivity(userId);
+        
 
         if (newIntentRecord != null) {
-            // 通知onNewIntent
+            
             deliverNewIntentLocked(newIntentRecord, intent);
             return 0;
         } else if (ignore) {
@@ -419,15 +334,8 @@ public class ActivityStack {
                                                    int userId, ProxyActivityRecord target,
                                                    ActivityInfo activityInfo) {
         Intent shadow = new Intent();
-        if (GmsCore.isGoogleOAuthProxy(intent)) {
-            shadow.setComponent(new ComponentName(BlackBoxCore.getHostPkg(), ProxyManifest.TransparentProxyActivity(vpid)));
-            ProxyActivityRecord.saveStub(shadow, intent, target.mActivityInfo, target.mActivityRecord, target.mUserId);
-            Slog.d(TAG, "OAuth proxy stub -> TransparentProxy P" + vpid);
-            return shadow;
-        }
         TypedArray typedArray = null;
         try {
-
             Resources resources = PackageManagerCompat.getResources(BlackBoxCore.getContext(), activityInfo.applicationInfo);
             int id;
             if (activityInfo.theme != 0) {
@@ -597,63 +505,6 @@ public class ActivityStack {
             }
             activityRecord.finished = true;
             Log.d(TAG, "onFinishActivity : " + activityRecord.component.toString());
-            maybeEndOAuthSession(activityRecord);
-        }
-    }
-
-    public void beginOAuthSession(String guestPkg) {
-        if (guestPkg == null) {
-            return;
-        }
-        mOAuthGuestPkg = guestPkg;
-        GmsCore.activateOAuthSession(guestPkg);
-        com.anubis.loader.utils.OAuthHostAccountStore.persistFromHost();
-        Log.d(TAG, "beginOAuthSession guest=" + guestPkg);
-    }
-
-    public void endOAuthSession() {
-        if (mOAuthGuestPkg != null) {
-            Log.d(TAG, "endOAuthSession guest=" + mOAuthGuestPkg);
-        }
-        mOAuthGuestPkg = null;
-        mOAuthSignInCallingPackage = null;
-        mOAuthSelectedAccount = null;
-    }
-
-    public boolean isOAuthSessionActive() {
-        return mOAuthGuestPkg != null;
-    }
-
-    public String getOAuthGuestPackage() {
-        return mOAuthGuestPkg;
-    }
-
-    public void setOAuthSignInCallingPackage(String callingPkg) {
-        mOAuthSignInCallingPackage = callingPkg;
-        Log.d(TAG, "setOAuthSignInCallingPackage -> " + callingPkg);
-    }
-
-    public String getOAuthSignInCallingPackage() {
-        return mOAuthSignInCallingPackage;
-    }
-
-    public void setOAuthSelectedAccount(String email) {
-        mOAuthSelectedAccount = email;
-        Log.d(TAG, "setOAuthSelectedAccount -> " + email);
-    }
-
-    public String getOAuthSelectedAccount() {
-        return mOAuthSelectedAccount;
-    }
-
-    private void maybeEndOAuthSession(ActivityRecord record) {
-        if (record == null || record.component == null || !isOAuthSessionActive()) {
-            return;
-        }
-        String cls = record.component.getClassName();
-        if (GmsCore.isGoogleOAuthProxyClass(cls)
-                && !GmsCore.isPlayStoreAccountPickerClass(cls)) {
-            endOAuthSession();
         }
     }
 
@@ -662,38 +513,11 @@ public class ActivityStack {
             synchronizeTasks();
             ActivityRecord activityRecordByToken = findActivityRecordByToken(userId, token);
             if (activityRecordByToken != null) {
-                if (isOAuthSessionActive()
-                        && activityRecordByToken.info != null
-                        && GmsCore.isGoogleAppOrService(activityRecordByToken.info.packageName)) {
-                    String calling = GmsCore.getOAuthSignInCallingPackage();
-                    if (calling != null) {
-                        Log.d(TAG, "getCallingPackage oauth gms activity -> " + calling);
-                        return calling;
-                    }
-                    String guest = getOAuthGuestPackage();
-                    if (guest != null) {
-                        Log.d(TAG, "getCallingPackage oauth gms activity -> " + guest);
-                        return guest;
-                    }
-                }
                 ActivityRecord resultTo = findActivityRecordByToken(userId, activityRecordByToken.resultTo);
                 if (resultTo != null) {
-                    String oauthGuest = resolveOAuthGuestPackage(resultTo);
-                    if (oauthGuest != null) {
-                        Log.d(TAG, "getCallingPackage oauth guest -> " + oauthGuest);
-                        return oauthGuest;
-                    }
-                    if (resultTo.info != null && resultTo.info.packageName != null) {
-                        return resultTo.info.packageName;
-                    }
+                    return resultTo.info.packageName;
                 }
             }
-            String oauthGuest = getOAuthGuestPackage();
-            if (oauthGuest != null && isOAuthSessionActive()) {
-                Log.d(TAG, "getCallingPackage oauth fallback -> " + oauthGuest);
-                return oauthGuest;
-            }
-            Log.d(TAG, "getCallingPackage default host");
             return BlackBoxCore.getHostPkg();
         }
     }
@@ -701,37 +525,9 @@ public class ActivityStack {
     public String getLaunchedFromPackage(IBinder token, int userId) {
         String calling = getCallingPackage(token, userId);
         if (calling != null && !calling.equals(BlackBoxCore.getHostPkg())) {
-            Log.d(TAG, "getLaunchedFromPackage oauth -> " + calling);
             return calling;
         }
-        if (isOAuthSessionActive()) {
-            String guest = getOAuthGuestPackage();
-            if (guest != null) {
-                Log.d(TAG, "getLaunchedFromPackage session -> " + guest);
-                return guest;
-            }
-        }
         return BlackBoxCore.getHostPkg();
-    }
-
-    private static String resolveOAuthGuestPackage(ActivityRecord record) {
-        if (record == null) {
-            return null;
-        }
-        if (GmsCore.isGoogleOAuthProxy(record.intent)
-                || GmsCore.isGoogleOAuthProxyClass(
-                record.component != null ? record.component.getClassName() : null)) {
-            String guest = GmsCore.getOAuthGuestPackage(record.intent);
-            if (guest != null) {
-                return guest;
-            }
-        }
-        if (record.info != null
-                && record.info.packageName != null
-                && GmsCore.shouldUseHostGoogle(record.info.packageName)) {
-            return record.info.packageName;
-        }
-        return null;
     }
 
     public ComponentName getCallingActivity(IBinder token, int userId) {
@@ -748,6 +544,7 @@ public class ActivityStack {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private void synchronizeTasks() {
         List<ActivityManager.RecentTaskInfo> recentTasks = mAms.getRecentTasks(100, 0);
         Map<Integer, TaskRecord> newTacks = new LinkedHashMap<>();

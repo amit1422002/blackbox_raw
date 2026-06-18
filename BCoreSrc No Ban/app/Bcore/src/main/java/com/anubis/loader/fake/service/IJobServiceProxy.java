@@ -56,8 +56,25 @@ public class IJobServiceProxy extends BinderInvocationStub {
     public static class Cancel extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            args[0] = BlackBoxCore.getBJobManager()
-                    .cancel(BActivityThread.getAppConfig().processName, (Integer) args[0]);
+            if (args == null || args.length == 0 || args[0] == null) {
+                return 0;
+            }
+            int jobId;
+            if (args[0] instanceof Integer) {
+                jobId = (Integer) args[0];
+            } else if (args[0] instanceof Number) {
+                jobId = ((Number) args[0]).intValue();
+            } else {
+                return method.invoke(who, args);
+            }
+            try {
+                if (BActivityThread.getAppConfig() != null) {
+                    jobId = BlackBoxCore.getBJobManager()
+                            .cancel(BActivityThread.getAppConfig().processName, jobId);
+                }
+            } catch (Throwable ignored) {
+            }
+            args[0] = jobId;
             return method.invoke(who, args);
         }
     }
@@ -66,7 +83,12 @@ public class IJobServiceProxy extends BinderInvocationStub {
     public static class CancelAll extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            BlackBoxCore.getBJobManager().cancelAll(BActivityThread.getAppConfig().processName);
+            try {
+                if (BActivityThread.getAppConfig() != null) {
+                    BlackBoxCore.getBJobManager().cancelAll(BActivityThread.getAppConfig().processName);
+                }
+            } catch (Throwable ignored) {
+            }
             return method.invoke(who, args);
         }
     }

@@ -11,7 +11,9 @@ import android.os.RemoteException;
 import android.util.Log;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -290,8 +292,138 @@ public class BProcessManagerService implements ISystemService {
                 if (processRecord.pid == pid)
                     return processRecord;
             }
-            return null;
         }
+        syncProcessPids();
+        synchronized (mPidsSelfLocked) {
+            for (ProcessRecord processRecord : mPidsSelfLocked) {
+                if (processRecord.pid == pid)
+                    return processRecord;
+            }
+        }
+        return null;
+    }
+
+  /**
+   * Resolve the virtual app package for a host Android pid (used by microG UID checks).
+   * Guest processes delegate to the BlackBox server where {@link #mPidsSelfLocked} lives.
+   */
+    public String getPackageNameByPid(int pid) {
+        if (pid <= 0) return null;
+        if (!BlackBoxCore.get().isServerProcess()) {
+            try {
+                String pkg = BlackBoxCore.getBActivityManager().getPackageNameByPid(pid);
+                if (pkg != null) return pkg;
+            } catch (Throwable t) {
+                Slog.w(TAG, "getPackageNameByPid IPC pid=" + pid, t);
+            }
+        }
+        return resolvePackageNameByPid(pid);
+    }
+
+    /** Server-side pid → virtual package (syncs pids, reads /proc, fake proc dir). */
+    public String resolvePackageNameByPid(int pid) {
+        if (pid <= 0) return null;
+        syncProcessPids();
+        ProcessRecord record = findProcessByPid(pid);
+        if (record != null) return record.getPackageName();
+
+        ActivityManager am = (ActivityManager) BlackBoxCore.getContext().getSystemService(Context.ACTIVITY_SERVICE);
+        if (am != null) {
+            List<ActivityManager.RunningAppProcessInfo> running = am.getRunningAppProcesses();
+            if (running != null) {
+                for (ActivityManager.RunningAppProcessInfo info : running) {
+                    if (info.pid != pid) continue;
+                    int bpid = parseBPid(info.processName);
+                    if (bpid < 0) continue;
+                    synchronized (mPidsSelfLocked) {
+                        for (ProcessRecord r : mPidsSelfLocked) {
+                            if (r.bpid == bpid) return r.getPackageName();
+                        }
+                    }
+                    String virtualProcess = readVirtualProcCmdline(bpid);
+                    if (virtualProcess != null) {
+                        int colon = virtualProcess.indexOf(':');
+                        return colon > 0 ? virtualProcess.substring(0, colon) : virtualProcess;
+                    }
+                }
+            }
+        }
+
+        String stubProcess = readLinuxProcCmdline(pid);
+        if (stubProcess == null) {
+            stubProcess = getProcessNameSafe(BlackBoxCore.getContext(), pid);
+        }
+        if (stubProcess == null) return null;
+        int bpid = parseBPid(stubProcess);
+        if (bpid < 0) return null;
+        synchronized (mPidsSelfLocked) {
+            for (ProcessRecord r : mPidsSelfLocked) {
+                if (r.bpid == bpid) return r.getPackageName();
+            }
+        }
+        String virtualProcess = readVirtualProcCmdline(bpid);
+        if (virtualProcess == null) return null;
+        int colon = virtualProcess.indexOf(':');
+        return colon > 0 ? virtualProcess.substring(0, colon) : virtualProcess;
+    }
+
+    private static String readLinuxProcCmdline(int pid) {
+        try {
+            byte[] buf = new byte[256];
+            try (FileInputStream in = new FileInputStream("/proc/" + pid + "/cmdline")) {
+                int n = in.read(buf);
+                if (n <= 0) return null;
+                int end = 0;
+                while (end < n && buf[end] != 0) end++;
+                return new String(buf, 0, end, StandardCharsets.UTF_8);
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static String readVirtualProcCmdline(int bpid) {
+        try {
+            BEnvironment.load();
+            File cmd = new File(BEnvironment.getProcDir(bpid), "cmdline");
+            if (!cmd.isFile()) return null;
+            byte[] buf = FileUtils.toByteArray(cmd);
+            if (buf == null || buf.length == 0) return null;
+            int end = 0;
+            while (end < buf.length && buf[end] != 0) end++;
+            return new String(buf, 0, end, StandardCharsets.UTF_8);
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private void syncProcessPids() {
+        ActivityManager am = (ActivityManager) BlackBoxCore.getContext().getSystemService(Context.ACTIVITY_SERVICE);
+        List<ActivityManager.RunningAppProcessInfo> running = am != null ? am.getRunningAppProcesses() : null;
+        if (running == null) return;
+        synchronized (mPidsSelfLocked) {
+            for (ProcessRecord r : mPidsSelfLocked) {
+                String expected = ProxyManifest.getProcessName(r.bpid);
+                for (ActivityManager.RunningAppProcessInfo info : running) {
+                    if (expected.equals(info.processName)) {
+                        r.pid = info.pid;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    private static String getProcessNameSafe(Context context, int pid) {
+        try {
+            ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+            if (am == null) return null;
+            for (ActivityManager.RunningAppProcessInfo info : am.getRunningAppProcesses()) {
+                if (info.pid == pid) return info.processName;
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
     }
 
     private static String getProcessName(Context context, int pid) {

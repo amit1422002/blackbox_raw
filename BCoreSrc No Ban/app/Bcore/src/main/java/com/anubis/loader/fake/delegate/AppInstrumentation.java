@@ -15,8 +15,6 @@ import black.android.app.BRActivity;
 import black.android.app.BRActivityThread;
 import com.anubis.loader.BlackBoxCore;
 import com.anubis.loader.app.BActivityThread;
-import com.anubis.loader.core.GmsCore;
-import com.anubis.loader.utils.GmsOAuthLaunchContext;
 import com.anubis.loader.fake.hook.HookManager;
 import com.anubis.loader.fake.hook.IInjectHook;
 import com.anubis.loader.fake.service.HCallbackProxy;
@@ -115,56 +113,7 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
             activity.getTheme().applyStyle(info.theme, true);
         }
         ActivityManagerCompat.setActivityOrientation(activity, info.screenOrientation);
-        patchOAuthActivityIdentity(activity);
         HookManager.get().checkEnv(IActivityClientProxy.class);
-    }
-
-    private void patchOAuthActivityIdentity(Activity activity) {
-        String guest = GmsOAuthLaunchContext.guestForGmsHooks();
-        if (guest == null) {
-            guest = GmsCore.getActiveOAuthGuestPackage();
-        }
-        if (guest == null) {
-            return;
-        }
-        String pkg = activity.getPackageName();
-        if (pkg == null || !GmsCore.isGoogleAppOrService(pkg)) {
-            return;
-        }
-        String cls = activity.getClass().getName().toLowerCase();
-        if (!cls.contains("signin") && !cls.contains("addaccount")
-                && !cls.contains("minutemaid") && !cls.contains("accountintro")) {
-            return;
-        }
-        String identity = GmsCore.getOAuthSignInCallingPackage();
-        if (identity == null) {
-            identity = guest;
-        }
-        setActivityStringField(activity, "mReferrer", identity);
-        setActivityStringField(activity, "mCallingPackage", identity);
-        setActivityStringField(activity, "mLaunchedFromPackage", identity);
-        String selected = GmsCore.getOAuthSelectedAccount();
-        if (selected != null && !selected.isEmpty()) {
-            Intent launchIntent = activity.getIntent();
-            GmsCore.patchSignInConfigurationInteractive(launchIntent, selected);
-            GmsCore.patchPendingSignInConfigurationInteractive(selected);
-        }
-        Slog.d(TAG, "OAuth GMS identity -> " + identity + " (" + activity.getClass().getName() + ")");
-    }
-
-    private static boolean isOAuthSignInActivity(Activity activity) {
-        String cls = activity.getClass().getName().toLowerCase();
-        return cls.contains("signin") || cls.contains("addaccount")
-                || cls.contains("minutemaid") || cls.contains("accountintro");
-    }
-
-    private static void setActivityStringField(Activity activity, String fieldName, String value) {
-        try {
-            Field field = Activity.class.getDeclaredField(fieldName);
-            field.setAccessible(true);
-            field.set(activity, value);
-        } catch (Throwable ignored) {
-        }
     }
 
     @Override
@@ -193,14 +142,6 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
     }
 
     public Activity newActivity(ClassLoader cl, String className, Intent intent) throws InstantiationException, IllegalAccessException, ClassNotFoundException {
-        try {
-            return super.newActivity(cl, className, intent);
-        } catch (ClassNotFoundException e) {
-            if (GmsCore.isOAuthHelperClass(className)) {
-                ClassLoader hostCl = BlackBoxCore.getContext().getClassLoader();
-                return mBaseInstrumentation.newActivity(hostCl, className, intent);
-            }
-            throw e;
-        }
+        return super.newActivity(cl, className, intent);
     }
 }

@@ -10,6 +10,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ProviderInfo;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
+import android.os.Binder;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -28,7 +29,8 @@ import black.android.app.ContextImpl;
 import com.anubis.loader.core.GmsCore;
 import com.anubis.loader.BlackBoxCore;
 import com.anubis.loader.app.BActivityThread;
-import com.anubis.loader.core.system.pm.BPackageManagerService;
+import com.anubis.loader.core.system.BProcessManagerService;
+import com.anubis.loader.core.system.ProcessRecord;
 import com.anubis.loader.core.system.user.BUserHandle;
 import com.anubis.loader.core.env.AppSystemEnv;
 import com.anubis.loader.proxy.ProxyManifest;
@@ -39,8 +41,6 @@ import com.anubis.loader.fake.hook.ProxyMethod;
 import com.anubis.loader.fake.service.base.PkgMethodProxy;
 import com.anubis.loader.fake.service.base.ValueMethodProxy;
 import com.anubis.loader.fake.service.pm.VirtualPackageInstaller;
-import com.anubis.loader.utils.GmsOAuthLaunchContext;
-import com.anubis.loader.utils.GmsOAuthSignatureSpoof;
 import com.anubis.loader.utils.MethodParameterUtils;
 import com.anubis.loader.utils.Reflector;
 import com.anubis.loader.utils.Slog;
@@ -50,11 +50,11 @@ import org.lsposed.lsparanoid.Obfuscate;
 
 /**
  * Created by Milk on 3/30/21.
- * * ∧＿∧
- * (`･ω･∥
- * 丶　つ０
- * しーＪ
- * 此处无Bug
+ * * Γêº∩╝┐Γêº
+ * (`∩╜Ñ╧ë∩╜ÑΓêÑ
+ * Σ╕╢πÇÇπüñ∩╝É
+ * πüùπâ╝∩╝¬
+ * µ¡ñσñäµùáBug
  */
 @Obfuscate
 public class IPackageManagerProxy extends BinderInvocationStub {
@@ -123,19 +123,6 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             Intent intent = (Intent) args[0];
             String resolvedType = (String) args[1];
             int flags = MethodParameterUtils.toInt(args[2]);
-            String guestPkg = BActivityThread.getAppPackageName();
-            String targetPkg = GmsCore.getIntentPackage(intent);
-            if (GmsCore.shouldUseHostGoogle(guestPkg)
-                    && !GmsCore.isOAuthInternalGmsLaunch(intent)
-                    && !GmsCore.isOAuthSessionActive()
-                    && GmsCore.isGoogleIntent(intent)
-                    && targetPkg != null
-                    && GmsCore.isGoogleAppOrService(targetPkg)) {
-                Object hostResolve = method.invoke(who, args);
-                if (hostResolve != null) {
-                    return hostResolve;
-                }
-            }
             ResolveInfo resolveInfo = BlackBoxCore.getBPackageManager().resolveIntent(intent, resolvedType, flags, BActivityThread.getUserId());
             if (resolveInfo != null) {
                 return resolveInfo;
@@ -172,7 +159,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             String packageName = (String) args[0];
-            // API 33+: getPackageInfo(String, long versionCode, int flags) — arg[1] is versionCode, not flags.
+            // API 33+: getPackageInfo(String, long versionCode, int flags) ΓÇö arg[1] is versionCode, not flags.
             if (args.length >= 3 && args[1] instanceof Long) {
                 return method.invoke(who, args);
             }
@@ -204,12 +191,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                     result = (PackageInfo) method.invoke(who, args);
                 }
             }
-            try {
-                return GmsOAuthSignatureSpoof.maybeSpoofSignatures(packageName, flags, result);
-            } catch (Throwable t) {
-                Slog.w(TAG, "signature spoof failed for " + packageName, t);
-                return result;
-            }
+            return result;
         }
     }
 
@@ -217,18 +199,17 @@ public class IPackageManagerProxy extends BinderInvocationStub {
     public static class GetPackageUid extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            String packageName = args[0] instanceof String ? (String) args[0] : null;
-            if (packageName != null && packageName.equals(GmsOAuthSignatureSpoof.BGMI_PKG)
-                    && (GmsCore.isOAuthSignatureSpoofActive()
-                    || GmsOAuthLaunchContext.isActiveForGmsHooks())) {
-                int appId = BPackageManagerService.get().getAppId(packageName);
-                if (appId > 0) {
-                    int guestUid = BUserHandle.getUid(BActivityThread.getUserId(), appId);
-                    Slog.d(TAG, "OAuth getPackageUid " + packageName + " -> guest uid " + guestUid);
-                    return guestUid;
+            MethodParameterUtils.replaceFirstAppPkg(args);
+            String pkg = (String) args[0];
+            if (pkg != null) {
+                try {
+                    if (BlackBoxCore.getBPackageManager().getApplicationInfo(
+                            pkg, 0, BActivityThread.getUserId()) != null) {
+                        return BlackBoxCore.getHostUid();
+                    }
+                } catch (Throwable ignored) {
                 }
             }
-            MethodParameterUtils.replaceFirstAppPkg(args);
             return method.invoke(who, args);
         }
     }
@@ -237,19 +218,6 @@ public class IPackageManagerProxy extends BinderInvocationStub {
     public static class HasSigningCertificate extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            String packageName = (String) args[0];
-            byte[] certificate = (byte[]) args[1];
-            int type = MethodParameterUtils.toInt(args[2]);
-            if (packageName != null
-                    && (GmsCore.isOAuthSignatureSpoofActive()
-                    || GmsOAuthLaunchContext.isActiveForGmsHooks())) {
-                Slog.d(TAG, "OAuth hasSigningCertificate query " + packageName + " type=" + type);
-                boolean spoofed = GmsOAuthSignatureSpoof.matchesSigningCertificate(
-                        packageName, certificate, type);
-                if (spoofed) {
-                    return true;
-                }
-            }
             return method.invoke(who, args);
         }
     }
@@ -259,8 +227,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             ComponentName componentName = (ComponentName) args[0];
-            if (ProxyManifest.isHostProxyComponent(componentName) && shouldHideHostFromGuest()
-                    && !GmsCore.isOAuthHelperClass(componentName.getClassName())) {
+            if (ProxyManifest.isHostProxyComponent(componentName) && shouldHideHostFromGuest()) {
                 return null;
             }
             if (ProxyManifest.isHostProxyComponent(componentName)) {
@@ -282,8 +249,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             ComponentName componentName = (ComponentName) args[0];
-            if (ProxyManifest.isHostProxyComponent(componentName) && shouldHideHostFromGuest()
-                    && !GmsCore.isOAuthHelperClass(componentName.getClassName())) {
+            if (ProxyManifest.isHostProxyComponent(componentName) && shouldHideHostFromGuest()) {
                 return null;
             }
             if (ProxyManifest.isHostProxyComponent(componentName)) {
@@ -305,8 +271,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             ComponentName componentName = (ComponentName) args[0];
-            if (ProxyManifest.isHostProxyComponent(componentName) && shouldHideHostFromGuest()
-                    && !GmsCore.isOAuthHelperClass(componentName.getClassName())) {
+            if (ProxyManifest.isHostProxyComponent(componentName) && shouldHideHostFromGuest()) {
                 return null;
             }
             if (ProxyManifest.isHostProxyComponent(componentName)) {
@@ -329,8 +294,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             ComponentName componentName = (ComponentName) args[0];
-            if (ProxyManifest.isHostProxyComponent(componentName) && shouldHideHostFromGuest()
-                    && !GmsCore.isOAuthHelperClass(componentName.getClassName())) {
+            if (ProxyManifest.isHostProxyComponent(componentName) && shouldHideHostFromGuest()) {
                 return null;
             }
             if (ProxyManifest.isHostProxyComponent(componentName)) {
@@ -496,12 +460,24 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             int uid = (Integer) args[0];
+            int callingPid = Binder.getCallingPid();
+            String callerPkg = BProcessManagerService.get().getPackageNameByPid(callingPid);
+
+            if (callerPkg != null && !GmsCore.isGoogleAppOrService(callerPkg)) {
+                int hostUid = BlackBoxCore.getHostUid();
+                if (uid == hostUid) {
+                    Slog.d(TAG, "GetPackagesForUid(hostUid) -> [" + callerPkg + "] pid=" + callingPid);
+                    return new String[]{callerPkg};
+                }
+            }
+
             if (uid == BlackBoxCore.getHostUid()) {
                 args[0] = BActivityThread.getBUid();
                 uid = (int) args[0];
             }
             String[] packagesForUid = BlackBoxCore.getBPackageManager().getPackagesForUid(uid);
-            Slog.d(TAG, args[0] + " , " + BActivityThread.getAppProcessName() + " GetPackagesForUid: " + Arrays.toString(packagesForUid));
+            Slog.d(TAG, uid + " , " + BActivityThread.getAppProcessName() + " GetPackagesForUid: "
+                    + Arrays.toString(packagesForUid) + " caller=" + callerPkg + " pid=" + callingPid);
             return packagesForUid;
         }
     }

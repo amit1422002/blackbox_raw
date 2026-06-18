@@ -1,6 +1,7 @@
 package com.anubis.loader.core;
 
 import android.content.Context;
+import android.os.Binder;
 import android.os.Build;
 import android.os.Process;
 import android.util.Log;
@@ -215,14 +216,22 @@ public class NativeCore {
             return origCallingUid;
 
         if (origCallingUid == BlackBoxCore.getHostUid()) {
-            if (BActivityThread.getAppPackageName().equals("com.google.android.gms")) {
-                return Process.ROOT_UID;
-            }
+            String appPackageName = BActivityThread.getAppPackageName();
 
-            if (BActivityThread.getAppPackageName().equals("com.google.android.webview")) {
+            if ("com.google.android.webview".equals(appPackageName)) {
                 return Process.myUid();
             }
-            return BActivityThread.getCallingBUid();
+
+            try {
+                int callingBUid = BActivityThread.getCallingBUid();
+                if (callingBUid > 0 && callingBUid < Process.LAST_APPLICATION_UID) {
+                    return callingBUid;
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Error getting calling BUid: " + e.getMessage());
+            }
+
+            return BlackBoxCore.getHostUid();
         }
         return origCallingUid;
     }

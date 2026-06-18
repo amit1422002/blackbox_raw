@@ -662,9 +662,14 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
                 }
             }
             if (packages.isEmpty()) {
-                ProcessRecord processByPid = BProcessManagerService.get().findProcessByPid(getCallingPid());
-                if (processByPid != null) {
-                    packages.add(processByPid.getPackageName());
+                String callerPkg = BProcessManagerService.get().getPackageNameByPid(getCallingPid());
+                if (callerPkg != null) {
+                    packages.add(callerPkg);
+                } else {
+                    ProcessRecord processByPid = BProcessManagerService.get().findProcessByPid(getCallingPid());
+                    if (processByPid != null) {
+                        packages.add(processByPid.getPackageName());
+                    }
                 }
             }
             return packages.toArray(new String[]{});

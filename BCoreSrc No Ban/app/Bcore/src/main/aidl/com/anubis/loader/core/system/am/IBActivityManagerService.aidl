@@ -60,12 +60,6 @@ interface IBActivityManagerService {
     String getPackageForIntentSender(in IBinder target, int userId);
     int getUidForIntentSender(in IBinder target, int userId);
 
-    void beginOAuthSession(String guestPkg);
-    void endOAuthSession();
-    boolean isOAuthSessionActive();
-    String getOAuthGuestPackage();
-    void setOAuthSignInCallingPackage(String callingPkg);
-    String getOAuthSignInCallingPackage();
-    void setOAuthSelectedAccount(String email);
-    String getOAuthSelectedAccount();
+    /** Resolve virtual package for a host Android pid (microG UID checks). */
+    String getPackageNameByPid(int pid);
 }

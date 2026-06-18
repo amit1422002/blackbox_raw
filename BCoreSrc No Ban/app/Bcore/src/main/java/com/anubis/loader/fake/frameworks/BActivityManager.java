@@ -300,68 +300,9 @@ public class BActivityManager extends BlackManager<IBActivityManagerService> {
         return -1;
     }
 
-    public void beginOAuthSession(String guestPkg) {
+    public String getPackageNameByPid(int pid) {
         try {
-            getService().beginOAuthSession(guestPkg);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void endOAuthSession() {
-        try {
-            getService().endOAuthSession();
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public boolean isOAuthSessionActive() {
-        try {
-            return getService().isOAuthSessionActive();
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    public String getOAuthGuestPackage() {
-        try {
-            return getService().getOAuthGuestPackage();
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    public void setOAuthSignInCallingPackage(String callingPkg) {
-        try {
-            getService().setOAuthSignInCallingPackage(callingPkg);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public String getOAuthSignInCallingPackage() {
-        try {
-            return getService().getOAuthSignInCallingPackage();
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    public void setOAuthSelectedAccount(String email) {
-        try {
-            getService().setOAuthSelectedAccount(email);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public String getOAuthSelectedAccount() {
-        try {
-            return getService().getOAuthSelectedAccount();
+            return getService().getPackageNameByPid(pid);
         } catch (RemoteException e) {
             e.printStackTrace();
         }

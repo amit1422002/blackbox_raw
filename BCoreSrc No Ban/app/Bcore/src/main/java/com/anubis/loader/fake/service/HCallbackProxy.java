@@ -33,12 +33,11 @@ import black.android.app.servertransaction.LaunchActivityItemContext;
 import black.android.os.BRHandler;
 import com.anubis.loader.BlackBoxCore;
 import com.anubis.loader.app.BActivityThread;
-import com.anubis.loader.core.GmsCore;
 import com.anubis.loader.fake.hook.IInjectHook;
+import com.anubis.loader.gms.MicroGLoginRedirect;
+import com.anubis.loader.gms.PlayStoreAuthHelper;
 import com.anubis.loader.proxy.ProxyManifest;
-import com.anubis.loader.core.GmsCore;
 import com.anubis.loader.proxy.record.ProxyActivityRecord;
-import com.anubis.loader.utils.GmsOAuthLaunchContext;
 import com.anubis.loader.utils.Slog;
 
 import java.lang.reflect.Field;
@@ -84,7 +83,6 @@ public class HCallbackProxy implements IInjectHook, Handler.Callback {
                             getH().sendMessageAtFrontOfQueue(Message.obtain(msg));
                             return true;
                         }
-                        handleExternalOAuthResult(msg.obj);
                     }
                 } else {
                     if (msg.what == BRActivityThreadH.get().LAUNCH_ACTIVITY()) {
@@ -233,8 +231,9 @@ public class HCallbackProxy implements IInjectHook, Handler.Callback {
                 .onActivityCreated(taskId, token, stubRecord.mActivityRecord);
 
             LaunchActivityItemContext launchActivityItemContext = BRLaunchActivityItem.get(r);
-            
-            patchOAuthLaunchReferrer(r, activityInfo);
+
+            PlayStoreAuthHelper.redirectIfAuthenticated(stubRecord.mTarget);
+            MicroGLoginRedirect.redirectIfNeeded(stubRecord.mTarget, activityInfo);
 
             if (BuildCompat.isPie()) {
                 launchActivityItemContext._set_mIntent(stubRecord.mTarget);
@@ -272,41 +271,6 @@ public class HCallbackProxy implements IInjectHook, Handler.Callback {
     }
 }
 
-    private static void patchOAuthLaunchReferrer(Object clientRecord, android.content.pm.ActivityInfo info) {
-        if (info == null || clientRecord == null) {
-            return;
-        }
-        String guest = GmsOAuthLaunchContext.guestForGmsHooks();
-        if (guest == null) {
-            guest = GmsCore.getActiveOAuthGuestPackage();
-        }
-        if (guest == null) {
-            return;
-        }
-        if (info.packageName == null || !GmsCore.isGoogleAppOrService(info.packageName)) {
-            return;
-        }
-        String actName = info.name == null ? "" : info.name.toLowerCase();
-        if (!actName.contains("signin") && !actName.contains("addaccount")
-                && !actName.contains("minutemaid") && !actName.contains("accountintro")) {
-            return;
-        }
-        setStringField(clientRecord, "referrer", guest);
-        setStringField(clientRecord, "mReferrer", guest);
-        setStringField(clientRecord, "launchedFromPackage", guest);
-        setStringField(clientRecord, "mLaunchedFromPackage", guest);
-        Slog.d(TAG, "OAuth launch referrer -> " + guest + " (" + info.name + ")");
-    }
-
-    private static void setStringField(Object target, String name, String value) {
-        try {
-            Field field = target.getClass().getDeclaredField(name);
-            field.setAccessible(true);
-            field.set(target, value);
-        } catch (Throwable ignored) {
-        }
-    }
-
     private boolean handleCreateService(Object data) {
         if (BActivityThread.getAppConfig() != null) {
             String appPackageName = BActivityThread.getAppPackageName();
@@ -323,51 +287,6 @@ public class HCallbackProxy implements IInjectHook, Handler.Callback {
             }
         }
         return false;
-    }
-
-    private void handleExternalOAuthResult(Object clientTransaction) {
-        try {
-            IBinder token = BRClientTransaction.get(clientTransaction).mActivityToken();
-            List<Object> callbacks = BRClientTransaction.get(clientTransaction).mActivityCallbacks();
-            if (token == null || callbacks == null || callbacks.isEmpty()) {
-                return;
-            }
-            for (int i = callbacks.size() - 1; i >= 0; i--) {
-                Object item = callbacks.get(i);
-                if (item == null || !item.getClass().getName().contains("ActivityResultItem")) {
-                    continue;
-                }
-                Field listField = item.getClass().getDeclaredField("mResultInfoList");
-                listField.setAccessible(true);
-                List<?> infos = (List<?>) listField.get(item);
-                if (infos == null) {
-                    continue;
-                }
-                for (Object info : infos) {
-                    relayResultInfo(token, info);
-                }
-            }
-        } catch (Throwable t) {
-            Slog.w(TAG, "handleExternalOAuthResult failed", t);
-        }
-    }
-
-    private boolean relayResultInfo(IBinder token, Object resultInfo) {
-        try {
-            Class<?> infoClass = resultInfo.getClass();
-            Field requestCodeField = infoClass.getDeclaredField("mRequestCode");
-            Field resultCodeField = infoClass.getDeclaredField("mResultCode");
-            Field dataField = infoClass.getDeclaredField("mData");
-            requestCodeField.setAccessible(true);
-            resultCodeField.setAccessible(true);
-            dataField.setAccessible(true);
-            int requestCode = requestCodeField.getInt(resultInfo);
-            int resultCode = resultCodeField.getInt(resultInfo);
-            Intent data = (Intent) dataField.get(resultInfo);
-            return GmsCore.tryRelayExternalOAuthResult(token, requestCode, resultCode, data);
-        } catch (Throwable ignored) {
-            return false;
-        }
     }
 
     private void checkActivityClient() {

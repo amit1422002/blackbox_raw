@@ -1,16 +1,16 @@
 -- Merging decision tree log ---
 manifest
-ADDED from N:\rvadapter-stub\src\main\AndroidManifest.xml:1:1-81
-INJECTED from N:\rvadapter-stub\src\main\AndroidManifest.xml:1:1-81
+ADDED from Z:\rvadapter-stub\src\main\AndroidManifest.xml:1:1-81
+INJECTED from Z:\rvadapter-stub\src\main\AndroidManifest.xml:1:1-81
 	package
-		INJECTED from N:\rvadapter-stub\src\main\AndroidManifest.xml
+		INJECTED from Z:\rvadapter-stub\src\main\AndroidManifest.xml
 	xmlns:android
-		ADDED from N:\rvadapter-stub\src\main\AndroidManifest.xml:1:11-69
+		ADDED from Z:\rvadapter-stub\src\main\AndroidManifest.xml:1:11-69
 uses-sdk
-INJECTED from N:\rvadapter-stub\src\main\AndroidManifest.xml reason: use-sdk injection requested
-INJECTED from N:\rvadapter-stub\src\main\AndroidManifest.xml
-INJECTED from N:\rvadapter-stub\src\main\AndroidManifest.xml
+INJECTED from Z:\rvadapter-stub\src\main\AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from Z:\rvadapter-stub\src\main\AndroidManifest.xml
+INJECTED from Z:\rvadapter-stub\src\main\AndroidManifest.xml
 	android:targetSdkVersion
-		INJECTED from N:\rvadapter-stub\src\main\AndroidManifest.xml
+		INJECTED from Z:\rvadapter-stub\src\main\AndroidManifest.xml
 	android:minSdkVersion
-		INJECTED from N:\rvadapter-stub\src\main\AndroidManifest.xml
+		INJECTED from Z:\rvadapter-stub\src\main\AndroidManifest.xml
