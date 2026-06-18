@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.IEmpty;
 import com.anubis.loader.core.system.BProcessManagerService;
 import com.anubis.loader.core.system.ProcessRecord;
@@ -63,7 +63,7 @@ public class ActiveServices {
             @Override
             public void run() {
                 try {
-                    BlackBoxCore.getContext().startService(stubServiceIntent);
+                    AnubisCore.getContext().startService(stubServiceIntent);
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }
@@ -203,7 +203,7 @@ public class ActiveServices {
 
     private Intent createStubServiceIntent(Intent targetIntent, ServiceInfo serviceInfo, ProcessRecord processRecord, RunningServiceRecord runningServiceRecord) {
         Intent stub = new Intent();
-        ComponentName stubComp = new ComponentName(BlackBoxCore.getHostPkg(), ProxyManifest.getProxyService(processRecord.bpid));
+        ComponentName stubComp = new ComponentName(AnubisCore.getHostPkg(), ProxyManifest.getProxyService(processRecord.bpid));
         stub.setComponent(stubComp);
         stub.setAction(UUID.randomUUID().toString());
         ProxyServiceRecord.saveStub(stub, targetIntent, serviceInfo, runningServiceRecord, processRecord.userId, runningServiceRecord.mStartId.get());
@@ -231,7 +231,7 @@ public class ActiveServices {
 
     public RunningServiceInfo getRunningServiceInfo(String callerPackage, int userId) {
         ActivityManager manager = (ActivityManager)
-                BlackBoxCore.getContext().getSystemService(Context.ACTIVITY_SERVICE);
+                AnubisCore.getContext().getSystemService(Context.ACTIVITY_SERVICE);
         List<ActivityManager.RunningServiceInfo> runningServices = manager.getRunningServices(Integer.MAX_VALUE);
         Map<Integer, ActivityManager.RunningServiceInfo> serviceInfoMap = new HashMap<>();
         for (ActivityManager.RunningServiceInfo runningService : runningServices) {

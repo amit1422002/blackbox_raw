@@ -5,10 +5,10 @@ import android.os.Parcelable.Creator;
 
 import java.util.List;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BConstructor;
-import top.niunaijun.blackreflection.annotation.BMethod;
-import top.niunaijun.blackreflection.annotation.BStaticField;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BConstructor;
+import com.anubis.reflection.annotation.BMethod;
+import com.anubis.reflection.annotation.BStaticField;
 
 @BClassName("android.content.pm.ParceledListSlice")
 public interface ParceledListSlice {

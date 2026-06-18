@@ -52,10 +52,10 @@ JNIEnv *ensureEnvCreated() {
 /*
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_top_niunaijun_blackbox_BlackBoxCore_BthreadMain(JNIEnv *env, jobject thiz) {
+Java_com_anubis_loader_AnubisCore_BthreadMain(JNIEnv *env, jobject thiz) {
     LOGE("Native BthreadMain called");
-    const char* key = "blackbox_license_activated";
-    if (strcmp(key, "blackbox_license_activated") == 0) {
+    const char* key = "anubis_license_activated";
+    if (strcmp(key, "anubis_license_activated") == 0) {
         return JNI_TRUE;
     } else {
         abort(); // crash

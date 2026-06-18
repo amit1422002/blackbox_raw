@@ -9,12 +9,12 @@ import android.os.Bundle;
 
 import androidx.annotation.Nullable;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.R;
 import com.anubis.loader.utils.Slog;
 
 /**
- * Created by BlackBox on 2022/2/24.
+ * Created by Anubis on 2022/2/24.
  */
 public class LauncherActivity extends Activity {
     public static final String TAG = "SplashScreen";
@@ -37,13 +37,13 @@ public class LauncherActivity extends Activity {
 
     public static void launch(Intent intent, int userId) {
         Intent splash = new Intent();
-        splash.setClass(BlackBoxCore.getContext(), LauncherActivity.class);
+        splash.setClass(AnubisCore.getContext(), LauncherActivity.class);
         splash.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
         splash.putExtra(LauncherActivity.KEY_INTENT, intent);
         splash.putExtra(LauncherActivity.KEY_PKG, intent.getPackage());
         splash.putExtra(LauncherActivity.KEY_USER_ID, userId);
-        BlackBoxCore.getContext().startActivity(splash);
+        AnubisCore.getContext().startActivity(splash);
     }
 
     @Override
@@ -70,7 +70,7 @@ public class LauncherActivity extends Activity {
             return;
         }
 
-        PackageInfo packageInfo = BlackBoxCore.getBPackageManager().getPackageInfo(packageName, 0, userId);
+        PackageInfo packageInfo = AnubisCore.getBPackageManager().getPackageInfo(packageName, 0, userId);
         if (packageInfo == null) {
             Slog.e(TAG, packageName + " not installed!");
             finish();
@@ -78,7 +78,7 @@ public class LauncherActivity extends Activity {
         }
         Drawable drawable;
         try {
-            drawable = packageInfo.applicationInfo.loadIcon(BlackBoxCore.getPackageManager());
+            drawable = packageInfo.applicationInfo.loadIcon(AnubisCore.getPackageManager());
         } catch (Throwable t) {
             Slog.e(TAG, "loadIcon failed", t);
             drawable = null;
@@ -90,7 +90,7 @@ public class LauncherActivity extends Activity {
         final Intent startCopy = launchIntent;
         new Thread(() -> {
             try {
-                BlackBoxCore.getBActivityManager().startActivity(startCopy, userId);
+                AnubisCore.getBActivityManager().startActivity(startCopy, userId);
             } catch (Throwable t) {
                 Slog.e(TAG, "startActivity failed", t);
             }

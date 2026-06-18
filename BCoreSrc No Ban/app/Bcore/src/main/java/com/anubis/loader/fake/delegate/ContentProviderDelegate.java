@@ -19,7 +19,7 @@ import black.android.providers.BRSettingsNameValueCache;
 import black.android.providers.BRSettingsNameValueCacheOreo;
 import black.android.providers.BRSettingsSecure;
 import black.android.providers.BRSettingsSystem;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.fake.service.context.providers.ContentProviderStub;
 import com.anubis.loader.fake.service.context.providers.SystemProviderStub;
 import com.anubis.loader.utils.compat.BuildCompat;
@@ -51,10 +51,10 @@ public class ContentProviderDelegate {
             case "media":
             case "telephony":
             case "settings":
-                bContentProvider = new SystemProviderStub().wrapper(iInterface, BlackBoxCore.getHostPkg());
+                bContentProvider = new SystemProviderStub().wrapper(iInterface, AnubisCore.getHostPkg());
                 break;
             default:
-                bContentProvider = new ContentProviderStub().wrapper(iInterface, BlackBoxCore.getHostPkg());
+                bContentProvider = new ContentProviderStub().wrapper(iInterface, AnubisCore.getHostPkg());
                 break;
         }
         if (BuildCompat.isOreo()) {
@@ -67,8 +67,8 @@ public class ContentProviderDelegate {
     public static void init() {
         clearSettingProvider();
 
-        BlackBoxCore.getContext().getContentResolver().call(Uri.parse("content://settings"), "", null, null);
-        Object activityThread = BlackBoxCore.mainThread();
+        AnubisCore.getContext().getContentResolver().call(Uri.parse("content://settings"), "", null, null);
+        Object activityThread = AnubisCore.mainThread();
         ArrayMap<Object, Object> map = (ArrayMap<Object, Object>) BRActivityThread.get(activityThread).mProviderMap();
 
         for (Object value : map.values()) {
@@ -80,7 +80,7 @@ public class ContentProviderDelegate {
             if (!sInjected.contains(providerName)) {
                 sInjected.add(providerName);
                 final IInterface iInterface = BRActivityThreadProviderClientRecordP.get(value).mProvider();
-                BRActivityThreadProviderClientRecordP.get(value)._set_mProvider(new ContentProviderStub().wrapper(iInterface, BlackBoxCore.getHostPkg()));
+                BRActivityThreadProviderClientRecordP.get(value)._set_mProvider(new ContentProviderStub().wrapper(iInterface, AnubisCore.getHostPkg()));
                 BRActivityThreadProviderClientRecordP.get(value)._set_mNames(new String[]{providerName});
             }
         }

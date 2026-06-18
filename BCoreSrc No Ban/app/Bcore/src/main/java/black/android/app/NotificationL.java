@@ -3,8 +3,8 @@ package black.android.app;
 import android.app.Notification;
 import android.content.Context;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BStaticMethod;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BStaticMethod;
 
 @BClassName("android.app.Notification")
 public interface NotificationL {

@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Created by BlackBox on 2022/2/25.
+ * Created by Anubis on 2022/2/25.
  */
 public class RunningAppProcessInfo implements Parcelable {
     public List<ActivityManager.RunningAppProcessInfo> mAppProcessInfoList;

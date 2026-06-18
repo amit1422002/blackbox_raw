@@ -2,8 +2,8 @@ package black.android.app;
 
 import android.os.IBinder;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BConstructor;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BConstructor;
 
 @BClassName("android.app.PendingIntent")
 public interface PendingIntentO {

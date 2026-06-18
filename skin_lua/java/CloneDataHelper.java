@@ -3,7 +3,7 @@ package com.blazehealth.tracker.utils;
 import android.content.Context;
 import android.util.Log;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.env.BEnvironment;
 
 import java.io.File;
@@ -53,7 +53,7 @@ public final class CloneDataHelper {
         if (userId != 0) {
             Log.w(TAG, "copyAndroidDataToClone: only user 0 supported, got " + userId);
         }
-        return ObbCopyHelper.copyAndroidDataToBlackBox(packageName, listener);
+        return ObbCopyHelper.copyAndroidDataToAnubis(packageName, listener);
     }
 
     /**
@@ -65,7 +65,7 @@ public final class CloneDataHelper {
         }
         try {
             try {
-                BlackBoxCore.get().stopPackage(packageName, userId);
+                AnubisCore.get().stopPackage(packageName, userId);
             } catch (Throwable ignored) {
             }
 
@@ -125,7 +125,7 @@ public final class CloneDataHelper {
                     GuestAccountBackupHelper.captureBeforeReset(context, packageName, userId);
 
             try {
-                BlackBoxCore.get().stopPackage(packageName, userId);
+                AnubisCore.get().stopPackage(packageName, userId);
             } catch (Throwable ignored) {
             }
 

@@ -6,7 +6,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.Process;
 import android.text.TextUtils;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.utils.FileUtils;
@@ -53,7 +53,7 @@ public class IOCore {
 
   public String redirectPath(String path) {
     if (TextUtils.isEmpty(path)) return path;
-    if (path.contains("/blackbox/") || path.contains("/.vfs")) {
+    if (path.contains("/anubis/") || path.contains("/.vfs")) {
       return path;
     }
 
@@ -98,14 +98,14 @@ public class IOCore {
     int userId = BActivityThread.getUserId();
 
     try {
-      int systemUserId = BlackBoxCore.getHostUserId();
+      int systemUserId = AnubisCore.getHostUserId();
       String virtualData = BEnvironment.getDataDir(packageName, userId).getAbsolutePath();
       String virtualLib = BEnvironment.getAppLibDir(packageName).getAbsolutePath();
       String virtualDe = BEnvironment.getDeDataDir(packageName, userId).getAbsolutePath();
 
       addPackageDataRedirects(rule, packageName, systemUserId, virtualData, virtualDe, virtualLib);
 
-      if (BlackBoxCore.getContext().getExternalCacheDir() != null
+      if (AnubisCore.getContext().getExternalCacheDir() != null
           && context.getExternalCacheDir() != null) {
         File external = BEnvironment.getExternalUserDir(BActivityThread.getUserId());
         // sdcard
@@ -143,7 +143,7 @@ public class IOCore {
           rule.put(legacyPath + "/", userPath + "/");
         }
       }
-      if (BlackBoxCore.get().isHideRoot()) {
+      if (AnubisCore.get().isHideRoot()) {
         hideRoot(rule);
       }
       proc(rule);

@@ -5,12 +5,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.RemoteException;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.entity.am.PendingResultData;
 import com.anubis.loader.proxy.record.ProxyBroadcastRecord;
 
 /**
- * Created by BlackBox on 2022/2/25.
+ * Created by Anubis on 2022/2/25.
  */
 public class ProxyBroadcastReceiver extends BroadcastReceiver {
     public static final String TAG = "ProxyBroadcastReceiver";
@@ -24,7 +24,7 @@ public class ProxyBroadcastReceiver extends BroadcastReceiver {
         }
         PendingResult pendingResult = goAsync();
         try {
-            BlackBoxCore.getBActivityManager().scheduleBroadcastReceiver(record.mIntent, new PendingResultData(pendingResult), record.mUserId);
+            AnubisCore.getBActivityManager().scheduleBroadcastReceiver(record.mIntent, new PendingResultData(pendingResult), record.mUserId);
         } catch (RemoteException e) {
             pendingResult.finish();
         }

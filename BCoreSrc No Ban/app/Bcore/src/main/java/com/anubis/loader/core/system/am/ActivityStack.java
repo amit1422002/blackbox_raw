@@ -29,7 +29,7 @@ import java.util.UUID;
 import black.android.app.BRActivityManagerNative;
 import black.android.app.BRIActivityManager;
 import black.com.android.internal.BRRstyleable;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.system.BProcessManagerService;
 import com.anubis.loader.core.system.ProcessRecord;
 import com.anubis.loader.core.system.pm.BPackageManagerService;
@@ -70,7 +70,7 @@ public class ActivityStack {
     };
 
     public ActivityStack() {
-        mAms = (ActivityManager) BlackBoxCore.getContext().getSystemService(Context.ACTIVITY_SERVICE);
+        mAms = (ActivityManager) AnubisCore.getContext().getSystemService(Context.ACTIVITY_SERVICE);
     }
 
     public boolean containsFlag(Intent intent, int flag) {
@@ -286,7 +286,7 @@ public class ActivityStack {
         shadow.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         shadow.addFlags(launchMode);
 
-        BlackBoxCore.getContext().startActivity(shadow);
+        AnubisCore.getContext().startActivity(shadow);
         return 0;
     }
 
@@ -312,7 +312,7 @@ public class ActivityStack {
             flags &= ~ActivityManagerCompat.START_FLAG_NATIVE_DEBUGGING;
             flags &= ~ActivityManagerCompat.START_FLAG_TRACK_ALLOCATION;
 
-            BRIActivityManager.get(BRActivityManagerNative.get().getDefault()).startActivity(appThread, BlackBoxCore.getHostPkg(), intent,
+            BRIActivityManager.get(BRActivityManagerNative.get().getDefault()).startActivity(appThread, AnubisCore.getHostPkg(), intent,
                     resolvedType, resultTo, resultWho, requestCode, flags, null, options);
         } catch (Throwable e) {
             e.printStackTrace();
@@ -336,7 +336,7 @@ public class ActivityStack {
         Intent shadow = new Intent();
         TypedArray typedArray = null;
         try {
-            Resources resources = PackageManagerCompat.getResources(BlackBoxCore.getContext(), activityInfo.applicationInfo);
+            Resources resources = PackageManagerCompat.getResources(AnubisCore.getContext(), activityInfo.applicationInfo);
             int id;
             if (activityInfo.theme != 0) {
                 id = activityInfo.theme;
@@ -347,14 +347,14 @@ public class ActivityStack {
             typedArray = resources.newTheme().obtainStyledAttributes(id, BRRstyleable.get().Window());
             boolean windowIsTranslucent = typedArray.getBoolean(BRRstyleable.get().Window_windowIsTranslucent(), false);
             if (windowIsTranslucent) {
-                shadow.setComponent(new ComponentName(BlackBoxCore.getHostPkg(), ProxyManifest.TransparentProxyActivity(vpid)));
+                shadow.setComponent(new ComponentName(AnubisCore.getHostPkg(), ProxyManifest.TransparentProxyActivity(vpid)));
             } else {
-                shadow.setComponent(new ComponentName(BlackBoxCore.getHostPkg(), ProxyManifest.getProxyActivity(vpid)));
+                shadow.setComponent(new ComponentName(AnubisCore.getHostPkg(), ProxyManifest.getProxyActivity(vpid)));
             }
             Slog.d(TAG, activityInfo + ", windowIsTranslucent: " + windowIsTranslucent);
         } catch (Throwable e) {
             e.printStackTrace();
-            shadow.setComponent(new ComponentName(BlackBoxCore.getHostPkg(), ProxyManifest.getProxyActivity(vpid)));
+            shadow.setComponent(new ComponentName(AnubisCore.getHostPkg(), ProxyManifest.getProxyActivity(vpid)));
         } finally {
             if (typedArray != null) {
                 typedArray.recycle();
@@ -518,16 +518,16 @@ public class ActivityStack {
                     return resultTo.info.packageName;
                 }
             }
-            return BlackBoxCore.getHostPkg();
+            return AnubisCore.getHostPkg();
         }
     }
 
     public String getLaunchedFromPackage(IBinder token, int userId) {
         String calling = getCallingPackage(token, userId);
-        if (calling != null && !calling.equals(BlackBoxCore.getHostPkg())) {
+        if (calling != null && !calling.equals(AnubisCore.getHostPkg())) {
             return calling;
         }
-        return BlackBoxCore.getHostPkg();
+        return AnubisCore.getHostPkg();
     }
 
     public ComponentName getCallingActivity(IBinder token, int userId) {
@@ -540,7 +540,7 @@ public class ActivityStack {
                     return resultTo.component;
                 }
             }
-            return new ComponentName(BlackBoxCore.getHostPkg(), ProxyActivity.P0.class.getName());
+            return new ComponentName(AnubisCore.getHostPkg(), ProxyActivity.P0.class.getName());
         }
     }
 

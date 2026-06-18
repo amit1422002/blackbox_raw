@@ -21,7 +21,7 @@ import com.ayan.box.adapter.AppAdapter;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -52,10 +52,10 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAppClick(AppAdapter.AppItem app) {
                 if (app.isInstalled()) {
-                    BlackBoxCore.get().launchApk(app.getPackageName(), 0);
+                    AnubisCore.get().launchApk(app.getPackageName(), 0);
                     Toast.makeText(MainActivity.this, "Launching 🚀 " + app.getAppName(), Toast.LENGTH_SHORT).show();
                 } else {
-                    BlackBoxCore.get().installPackageAsUser(app.getPackageName(), 0);
+                    AnubisCore.get().installPackageAsUser(app.getPackageName(), 0);
                     Toast.makeText(MainActivity.this, "Installed ✅ " + app.getAppName(), Toast.LENGTH_SHORT).show();
                 }
                 refreshList();
@@ -63,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onUninstallClick(AppAdapter.AppItem app) {
-                BlackBoxCore.get().uninstallPackageAsUser(app.getPackageName(), 0);
+                AnubisCore.get().uninstallPackageAsUser(app.getPackageName(), 0);
                 Toast.makeText(MainActivity.this, "Removed ❌ " + app.getAppName(), Toast.LENGTH_SHORT).show();
                 refreshList();
             }
@@ -87,7 +87,7 @@ public class MainActivity extends AppCompatActivity {
                 String name = appInfo.loadLabel(pm).toString();
                 String packageName = appInfo.packageName;
                 Drawable icon = appInfo.loadIcon(pm);
-                boolean installed = BlackBoxCore.get().isInstalled(packageName, 0);
+                boolean installed = AnubisCore.get().isInstalled(packageName, 0);
 
                 appList.add(new AppAdapter.AppItem(name, packageName, icon, installed));
             }
@@ -98,7 +98,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void refreshList() {
         for (AppAdapter.AppItem item : appList) {
-            item.setInstalled(BlackBoxCore.get().isInstalled(item.getPackageName(), 0));
+            item.setInstalled(AnubisCore.get().isInstalled(item.getPackageName(), 0));
         }
         adapter.notifyDataSetChanged();
     }
@@ -150,7 +150,7 @@ public class MainActivity extends AppCompatActivity {
     androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this, R.style.CustomDialog);
 
     builder.setTitle("Ayan Container")
-            .setMessage("Made by @rayansyed77\n Obb Dir Is blackbox/android/obb")
+            .setMessage("Made by @rayansyed77\n Obb Dir Is anubis/android/obb")
             .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
             .setCancelable(false);
 

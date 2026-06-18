@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import black.android.content.pm.BRUserInfo;
 import black.android.os.BRIUserManagerStub;
 import black.android.os.BRServiceManager;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.core.GmsCore;
 import com.anubis.loader.fake.hook.BinderInvocationStub;
@@ -54,7 +54,7 @@ public class IUserManagerProxy extends BinderInvocationStub {
                 return new Bundle();
             }
             if (args.length > 0 && args[0] instanceof String) {
-                args[0] = BlackBoxCore.getHostPkg();
+                args[0] = AnubisCore.getHostPkg();
             }
             try {
                 return method.invoke(who, args);
@@ -149,9 +149,9 @@ public class IUserManagerProxy extends BinderInvocationStub {
     public static class GetProfileParent extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            // Guest was detecting "BlackBox" profile parent user name from UserManager binder.
-            Object blackBox = BRUserInfo.get()._new(BActivityThread.getUserId(), "Primary", BRUserInfo.get().FLAG_PRIMARY());
-            return blackBox;
+            // Guest was detecting "Anubis" profile parent user name from UserManager binder.
+            Object anubisUser = BRUserInfo.get()._new(BActivityThread.getUserId(), "Primary", BRUserInfo.get().FLAG_PRIMARY());
+            return anubisUser;
         }
     }
 

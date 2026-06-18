@@ -5,7 +5,7 @@ import java.util.List;
 
 import black.com.android.internal.net.BRVpnConfig;
 import black.com.android.internal.net.VpnConfigContext;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.fake.hook.MethodHook;
 import com.anubis.loader.fake.hook.ProxyMethod;
@@ -13,7 +13,7 @@ import com.anubis.loader.proxy.ProxyVpnService;
 import com.anubis.loader.utils.MethodParameterUtils;
 
 /**
- * Created by BlackBox on 2022/2/26.
+ * Created by Anubis on 2022/2/26.
  */
 public class VpnCommonProxy {
     @ProxyMethod("setVpnPackageAuthorization")
@@ -53,7 +53,7 @@ public class VpnCommonProxy {
             if (applications == null)
                 return;
             if (applications.contains(BActivityThread.getAppPackageName())) {
-                applications.add(BlackBoxCore.getHostPkg());
+                applications.add(AnubisCore.getHostPkg());
             }
         }
     }

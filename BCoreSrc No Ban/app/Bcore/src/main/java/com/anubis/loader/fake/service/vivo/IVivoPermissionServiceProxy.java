@@ -7,7 +7,7 @@ import java.lang.reflect.Method;
 import black.android.os.BRServiceManager;
 import black.model.vivo.BRIVivoPermissionServiceStub;
 import black.model.vivo.IVivoPermissionServiceContext;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.fake.hook.BinderInvocationStub;
 import com.anubis.loader.fake.hook.MethodHook;
 import com.anubis.loader.fake.hook.ProxyMethod;
@@ -46,7 +46,7 @@ public class IVivoPermissionServiceProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             int uid = (int)args[2];
             if (uid == Process.myUid()){
-                args[2] = BlackBoxCore.getHostUid();
+                args[2] = AnubisCore.getHostUid();
             }
             return method.invoke(who, args);
         }
@@ -118,7 +118,7 @@ public class IVivoPermissionServiceProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             if (args[1] instanceof String) {
-                args[1] = BlackBoxCore.getHostPkg();
+                args[1] = AnubisCore.getHostPkg();
             }
             MethodParameterUtils.replaceLastUserId(args);
             return method.invoke(who, args);

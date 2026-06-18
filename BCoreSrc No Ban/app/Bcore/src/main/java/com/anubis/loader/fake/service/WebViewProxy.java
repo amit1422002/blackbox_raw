@@ -4,7 +4,7 @@ import android.content.Context;
 import android.os.Process;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.fake.hook.ClassInvocationStub;
 import com.anubis.loader.utils.Slog;
 
@@ -36,7 +36,7 @@ public class WebViewProxy extends ClassInvocationStub {
     @Override
     public boolean isBadEnv() {
         try {
-            Context ctx = BlackBoxCore.get() != null ? BlackBoxCore.get().getContext() : null;
+            Context ctx = AnubisCore.get() != null ? AnubisCore.get().getContext() : null;
             if (ctx == null) {
                 Slog.w(TAG, "isBadEnv: context is null");
                 return true;
@@ -70,7 +70,7 @@ public class WebViewProxy extends ClassInvocationStub {
         try {
             int uid = Process.myUid();
             int pid = Process.myPid();
-            // Guest was detecting "blackbox_u*_p*" WebView data directory suffix.
+            // Guest was detecting "anubis_u*_p*" WebView data directory suffix.
             return "app_" + uid + "_" + pid;
         } catch (Throwable t) {
             return null;

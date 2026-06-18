@@ -7,7 +7,7 @@ import android.net.Uri;
 import java.io.File;
 import java.util.List;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.utils.compat.BuildCompat;
 
@@ -26,7 +26,7 @@ public class FileProviderHandler {
             File file = convertFile(context, uri);
             if (file == null)
                 return null;
-            return BlackBoxCore.getBStorageManager().getUriForFile(file.getAbsolutePath());
+            return AnubisCore.getBStorageManager().getUriForFile(file.getAbsolutePath());
         }
         return uri;
     }

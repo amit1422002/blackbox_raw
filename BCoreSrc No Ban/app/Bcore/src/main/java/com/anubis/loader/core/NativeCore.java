@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 
 /**
@@ -24,7 +24,7 @@ import com.anubis.loader.app.BActivityThread;
  * Notes:
  *  - This uses simple path-to-path redirections via addIORule() implemented in native layer.
  *  - For profile files that are system-owned (permission denied), we create a benign copy
- *    under the BlackBox app's private storage and redirect the game's access to it.
+ *    under the Anubis app's private storage and redirect the game's access to it.
  *
  * Keep expanding addIORule() targets when you find new probe paths in logs.
  */
@@ -68,8 +68,8 @@ public class NativeCore {
 
 
         initNative(apiLevel,
-                top.niunaijun.jnihook.jni.JniHook.class,
-                top.niunaijun.jnihook.MethodUtils.class);
+                com.anubis.jnihook.jni.JniHook.class,
+                com.anubis.jnihook.MethodUtils.class);
 
 
                 applyGuestHostDataRedirect();
@@ -83,9 +83,9 @@ public class NativeCore {
         try {
             String guestPkg = BActivityThread.getAppPackageName();
             if (guestPkg == null || guestPkg.isEmpty()) return;
-            Context ctx = BlackBoxCore.getContext();
+            Context ctx = AnubisCore.getContext();
             if (ctx == null) return;
-            String hostPkg = BlackBoxCore.getHostPkg();
+            String hostPkg = AnubisCore.getHostPkg();
             String guestData =
                     com.anubis.loader.core.env.BEnvironment
                             .getDataDir(guestPkg, BActivityThread.getUserId())
@@ -215,7 +215,7 @@ public class NativeCore {
         if (origCallingUid > Process.LAST_APPLICATION_UID)
             return origCallingUid;
 
-        if (origCallingUid == BlackBoxCore.getHostUid()) {
+        if (origCallingUid == AnubisCore.getHostUid()) {
             String appPackageName = BActivityThread.getAppPackageName();
 
             if ("com.google.android.webview".equals(appPackageName)) {
@@ -231,7 +231,7 @@ public class NativeCore {
                 Log.w(TAG, "Error getting calling BUid: " + e.getMessage());
             }
 
-            return BlackBoxCore.getHostUid();
+            return AnubisCore.getHostUid();
         }
         return origCallingUid;
     }

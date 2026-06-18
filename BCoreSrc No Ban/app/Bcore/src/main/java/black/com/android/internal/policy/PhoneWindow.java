@@ -2,8 +2,8 @@ package black.com.android.internal.policy;
 
 import android.os.IInterface;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BStaticField;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BStaticField;
 
 @BClassName("com.android.internal.policy.PhoneWindow$WindowManagerHolder")
 public interface PhoneWindow {

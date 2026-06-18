@@ -1,0 +1,69 @@
+package com.anubis.app
+
+import android.annotation.SuppressLint
+import android.app.Application
+import android.content.Context
+import android.util.Log
+import androidx.appcompat.app.AppCompatDelegate
+import com.anubis.loader.AnubisCore
+
+
+class App : Application() {
+
+    companion object {
+
+        @SuppressLint("StaticFieldLeak")
+        @Volatile
+        private lateinit var mContext: Context
+
+        @JvmStatic
+        fun getContext(): Context {
+            return mContext
+        }
+    }
+
+    override fun attachBaseContext(base: Context?) {
+        try {
+            super.attachBaseContext(base)
+
+            try {
+                AnubisCore.get().onBeforeMainApplicationAttach(this, base)
+            } catch (e: Exception) {
+                Log.e("App", "Error in onBeforeMainApplicationAttach: ${e.message}")
+            }
+
+            mContext = base!!
+
+            try {
+                AppManager.doAttachBaseContext(base)
+            } catch (e: Exception) {
+                Log.e("App", "Error in doAttachBaseContext: ${e.message}")
+            }
+
+            try {
+
+                AnubisCore.get().onAfterMainApplicationAttach(this, base)
+
+            } catch (e: Exception) {
+
+                Log.e("App", "Error in onAfterMainApplicationAttach: ${e.message}")
+
+            }
+        } catch (e: Exception) {
+            Log.e("App", "Critical error in attachBaseContext: ${e.message}")
+            if (base != null) {
+                mContext = base
+            }
+        }
+    }
+
+    override fun onCreate() {
+        try {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+            super.onCreate()
+            AppManager.doOnCreate(mContext)
+        } catch (e: Exception) {
+            Log.e("App", "Error in onCreate: ${e.message}")
+        }
+    }
+}

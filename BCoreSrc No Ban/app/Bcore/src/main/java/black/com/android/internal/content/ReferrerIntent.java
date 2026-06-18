@@ -2,8 +2,8 @@ package black.com.android.internal.content;
 
 import android.content.Intent;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BConstructor;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BConstructor;
 
 @BClassName("com.android.internal.content.ReferrerIntent")
 public interface ReferrerIntent {

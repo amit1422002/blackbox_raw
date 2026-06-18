@@ -1,7 +1,7 @@
 package com.anubis.loader.fake.hook;
 
 import java.lang.reflect.Method;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import black.android.content.BRAttributionSource;
 import com.anubis.loader.utils.compat.BuildCompat;
 import com.anubis.loader.utils.compat.ContextCompat;
@@ -27,9 +27,9 @@ public class ReplacePackageNameMethodHook extends MethodHook {
             int i2 = this.packageNameIndex;
             if (i2 >= 0 && i2 < args.length && args[i2] != null) {
                 if (args[i2] instanceof String) {
-                    args[i2] = BlackBoxCore.getHostPkg();
+                    args[i2] = AnubisCore.getHostPkg();
                 } else if (BuildCompat.isS() && (realClass = BRAttributionSource.getRealClass()) != null && realClass.isInstance(args[this.packageNameIndex])) {
-                    ContextCompat.fixAttributionSourceState(args[this.packageNameIndex], BlackBoxCore.getHostUid());
+                    ContextCompat.fixAttributionSourceState(args[this.packageNameIndex], AnubisCore.getHostUid());
                 }
             }
         }

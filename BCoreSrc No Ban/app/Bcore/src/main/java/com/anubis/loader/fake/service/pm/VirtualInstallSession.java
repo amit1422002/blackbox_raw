@@ -5,7 +5,7 @@ import android.content.IntentSender;
 import android.content.pm.PackageInstaller;
 import android.os.ParcelFileDescriptor;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.entity.pm.InstallResult;
 import com.anubis.loader.utils.FileUtils;
 import com.anubis.loader.utils.Slog;
@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Virtual PackageInstaller session — buffers APK writes and installs into BlackBox on commit.
+ * Virtual PackageInstaller session — buffers APK writes and installs into Anubis on commit.
  */
 public final class VirtualInstallSession {
     public static final String TAG = "VirtualPkgInstaller";
@@ -48,7 +48,7 @@ public final class VirtualInstallSession {
 
     public static int createSession(Object sessionParams, String installerPackageName, int userId) {
         int sessionId = sNextSessionId.incrementAndGet();
-        File stagingDir = new File(BlackBoxCore.getContext().getCacheDir(),
+        File stagingDir = new File(AnubisCore.getContext().getCacheDir(),
                 "virtual_install_" + sessionId);
         FileUtils.mkdirs(stagingDir);
         SessionState state = new SessionState(sessionId, stagingDir, userId);
@@ -178,7 +178,7 @@ public final class VirtualInstallSession {
                 return;
             }
             Slog.d(TAG, "commit session " + mState.sessionId + " apk=" + apk.getAbsolutePath());
-            InstallResult result = BlackBoxCore.get().installPackageAsUser(apk, mState.userId);
+            InstallResult result = AnubisCore.get().installPackageAsUser(apk, mState.userId);
             String installedPkg = result.packageName != null ? result.packageName : mState.targetPackageName;
             sendResult(statusReceiver, result.success, installedPkg, result.msg);
             sSessions.remove(mState.sessionId);
@@ -229,7 +229,7 @@ public final class VirtualInstallSession {
             intent.putExtra(PackageInstaller.EXTRA_STATUS_MESSAGE, message);
         }
         try {
-            statusReceiver.sendIntent(BlackBoxCore.getContext(), 0, intent, null, null);
+            statusReceiver.sendIntent(AnubisCore.getContext(), 0, intent, null, null);
         } catch (Exception e) {
             Slog.w(TAG, "sendResult failed", e);
         }

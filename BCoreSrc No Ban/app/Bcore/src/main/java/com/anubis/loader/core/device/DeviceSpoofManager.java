@@ -3,7 +3,7 @@ package com.anubis.loader.core.device;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.entity.DeviceSpoofConfig;
@@ -123,7 +123,7 @@ public final class DeviceSpoofManager {
 
     /** Legacy default when spoof disabled. */
     public static String legacyTelephonyId() {
-        return Md5Utils.md5(BlackBoxCore.getHostPkg());
+        return Md5Utils.md5(AnubisCore.getHostPkg());
     }
 
     public static DeviceSpoofConfig newRandomConfig() {
@@ -140,7 +140,7 @@ public final class DeviceSpoofManager {
     public static boolean shouldSpoofCurrentProcess() {
         String pkg = BActivityThread.getAppPackageName();
         if (TextUtils.isEmpty(pkg)) return false;
-        String host = BlackBoxCore.getHostPkg();
+        String host = AnubisCore.getHostPkg();
         return host == null || !host.equals(pkg);
     }
 

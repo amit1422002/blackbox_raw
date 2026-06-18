@@ -25,14 +25,14 @@ static void ensure_maps_hide_installed() {
             bb = dlopen("libanubis.so", RTLD_NOW);
         }
         if (bb != nullptr) {
-            install = reinterpret_cast<install_fn>(dlsym(bb, "blackbox_install_maps_hide"));
+            install = reinterpret_cast<install_fn>(dlsym(bb, "anubis_install_maps_hide"));
         }
         if (install != nullptr) {
             install();
-            __android_log_print(ANDROID_LOG_INFO, kMapsTag, "maps hide via libblackbox ok");
+            __android_log_print(ANDROID_LOG_INFO, kMapsTag, "maps hide via libanubis ok");
         } else {
             __android_log_print(ANDROID_LOG_WARN, kMapsTag,
-                                "maps hide unavailable (libblackbox missing or symbol stripped)");
+                                "maps hide unavailable (libanubis missing or symbol stripped)");
         }
     });
 }
@@ -41,7 +41,8 @@ static bool lineHasGameSo(const char *line) {
     if (line == nullptr || line[0] == '\0') {
         return false;
     }
-    if (strstr(line, "guestloginhook") != nullptr || strstr(line, "blackbox") != nullptr) {
+    if (strstr(line, "guestloginhook") != nullptr || strstr(line, "blackbox") != nullptr
+            || strstr(line, "anubis") != nullptr) {
         return true;
     }
     if (strstr(line, "com.pubg.imobile") != nullptr && strstr(line, ".so") != nullptr) {

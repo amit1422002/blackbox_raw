@@ -1,7 +1,7 @@
 package black.libcore.io;
 
 
-import top.niunaijun.blackreflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BClassName;
 
 @BClassName("libcore.io.Os")
 public interface Os {

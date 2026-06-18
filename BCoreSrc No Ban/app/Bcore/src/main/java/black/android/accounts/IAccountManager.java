@@ -3,8 +3,8 @@ package black.android.accounts;
 import android.os.IBinder;
 import android.os.IInterface;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BStaticMethod;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BStaticMethod;
 
 @BClassName("android.accounts.IAccountManager")
 public interface IAccountManager {

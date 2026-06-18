@@ -4,7 +4,7 @@ import android.app.Application;
 import android.content.Context;
 import android.util.Log;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.configuration.ClientConfiguration;
 import com.anubis.loader.license.BcoreEmbedConfig;
 import org.lsposed.lsparanoid.Obfuscate;
@@ -12,7 +12,7 @@ import org.lsposed.lsparanoid.Obfuscate;
 /**
  * Minimal host bootstrap — same lifecycle order as {@code com.pubgm.BoxApplication}: install hooks before
  * {@code super.attachBaseContext} so {@code :black} and {@link com.anubis.loader.core.system.SystemCallProvider} see
- * {@link BlackBoxCore#getContext()} ready.
+ * {@link AnubisCore#getContext()} ready.
  * <p>
  * Note: Replacing {@code public} with {@code private} on SDK types does not hide the engine from APK analysis or runtime
  * checks; bytecode still exposes package/type names unless R8 obfuscation + careful keep rules apply.
@@ -24,11 +24,11 @@ public class BoxApplication extends Application {
 
     private static final Object LOCK = new Object();
 
-    /** After {@link BlackBoxCore#doAttachBaseContext(Context, ClientConfiguration)} completed without fatal error. */
-    private static volatile boolean sBlackBoxAttached;
+    /** After {@link AnubisCore#doAttachBaseContext(Context, ClientConfiguration)} completed without fatal error. */
+    private static volatile boolean sAnubisAttached;
 
-    /** After {@link BlackBoxCore#doCreate()} completed. */
-    private static volatile boolean sBlackBoxCreated;
+    /** After {@link AnubisCore#doCreate()} completed. */
+    private static volatile boolean sAnubisCreated;
 
     /** Retained — host code may probe the running {@link Application}. */
     static BoxApplication gApp;
@@ -56,10 +56,10 @@ public class BoxApplication extends Application {
     @Override
     protected void attachBaseContext(Context base) {
         synchronized (LOCK) {
-            if (!sBlackBoxAttached) {
+            if (!sAnubisAttached) {
                 try {
-                    BlackBoxCore.get().doAttachBaseContext(base, buildConfig(base));
-                    sBlackBoxAttached = true;
+                    AnubisCore.get().doAttachBaseContext(base, buildConfig(base));
+                    sAnubisAttached = true;
                 } catch (IllegalStateException e) {
                     Log.e(TAG, "BCore license / gate failed during attachBaseContext", e);
                 } catch (Exception e) {
@@ -77,11 +77,11 @@ public class BoxApplication extends Application {
         gApp = this;
 
         synchronized (LOCK) {
-            if (sBlackBoxAttached && !sBlackBoxCreated) {
+            if (sAnubisAttached && !sAnubisCreated) {
                 try {
-                    BlackBoxCore.get().doCreate();
-                    sBlackBoxCreated = true;
-                    Log.i(TAG, "BlackBox ready (attached + created)");
+                    AnubisCore.get().doCreate();
+                    sAnubisCreated = true;
+                    Log.i(TAG, "Anubis ready (attached + created)");
                 } catch (Exception e) {
                     Log.e(TAG, "doCreate failed", e);
                 }

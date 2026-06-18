@@ -11,7 +11,7 @@ import java.io.InputStreamReader;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.entity.pm.InstalledModule;
 import com.anubis.loader.utils.CloseUtils;
 
@@ -27,7 +27,7 @@ public class XposedParserCompat {
 
     public static InstalledModule parseModule(ApplicationInfo applicationInfo) {
         try {
-            PackageManager packageManager = BlackBoxCore.getPackageManager();
+            PackageManager packageManager = AnubisCore.getPackageManager();
             InstalledModule module = new InstalledModule();
             module.packageName = applicationInfo.packageName;
             module.enable = false;

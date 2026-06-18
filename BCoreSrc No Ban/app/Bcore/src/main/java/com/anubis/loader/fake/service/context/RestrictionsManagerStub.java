@@ -8,7 +8,7 @@ import java.lang.reflect.Method;
 
 import black.android.content.BRIRestrictionsManagerStub;
 import black.android.os.BRServiceManager;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.core.GmsCore;
 import com.anubis.loader.fake.hook.BinderInvocationStub;
@@ -53,7 +53,7 @@ public class RestrictionsManagerStub extends BinderInvocationStub {
                 return new Bundle();
             }
             if (args.length > 0 && args[0] instanceof String) {
-                args[0] = BlackBoxCore.getHostPkg();
+                args[0] = AnubisCore.getHostPkg();
             }
             try {
                 return method.invoke(who, args);

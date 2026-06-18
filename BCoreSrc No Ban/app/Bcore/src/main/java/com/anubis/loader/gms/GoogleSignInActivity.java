@@ -23,7 +23,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.fake.frameworks.BAccountManager;
 
 import java.util.UUID;
@@ -64,7 +64,7 @@ public class GoogleSignInActivity extends Activity {
             Log.i(TAG, "microG installed — redirect to MicroGLoginBridgeActivity");
             Intent bridge = new Intent();
             bridge.setComponent(new ComponentName(
-                    BlackBoxCore.getHostPkg(),
+                    AnubisCore.getHostPkg(),
                     MicroGLoginBridgeActivity.class.getName()));
             if (getIntent() != null && getIntent().getExtras() != null) {
                 bridge.putExtras(getIntent().getExtras());
@@ -88,7 +88,7 @@ public class GoogleSignInActivity extends Activity {
     // ΓöÇΓöÇ Host bridge ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     private void doHostBridge() {
-        Context hostCtx = BlackBoxCore.getContext();
+        Context hostCtx = AnubisCore.getContext();
         if (hostCtx == null) hostCtx = getApplicationContext();
         Account[] accts;
         try { accts = AccountManager.get(hostCtx).getAccountsByType(GOOGLE_TYPE); }
@@ -106,7 +106,7 @@ public class GoogleSignInActivity extends Activity {
 
     private void bridgeAccount(Account acct) {
         showProgress("Signing in\u2026");
-        Context hostCtx = BlackBoxCore.getContext();
+        Context hostCtx = AnubisCore.getContext();
         if (hostCtx == null) hostCtx = getApplicationContext();
         final Context host = hostCtx;
         new Thread(()->{

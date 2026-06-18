@@ -8,7 +8,7 @@ import java.lang.reflect.Method;
 
 import black.android.app.job.BRIJobSchedulerStub;
 import black.android.os.BRServiceManager;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.fake.hook.BinderInvocationStub;
 import com.anubis.loader.fake.hook.MethodHook;
@@ -45,7 +45,7 @@ public class IJobServiceProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             JobInfo jobInfo = (JobInfo) args[0];
-            JobInfo proxyJobInfo = BlackBoxCore.getBJobManager()
+            JobInfo proxyJobInfo = AnubisCore.getBJobManager()
                     .schedule(jobInfo);
             args[0] = proxyJobInfo;
             return method.invoke(who, args);
@@ -69,7 +69,7 @@ public class IJobServiceProxy extends BinderInvocationStub {
             }
             try {
                 if (BActivityThread.getAppConfig() != null) {
-                    jobId = BlackBoxCore.getBJobManager()
+                    jobId = AnubisCore.getBJobManager()
                             .cancel(BActivityThread.getAppConfig().processName, jobId);
                 }
             } catch (Throwable ignored) {
@@ -85,7 +85,7 @@ public class IJobServiceProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             try {
                 if (BActivityThread.getAppConfig() != null) {
-                    BlackBoxCore.getBJobManager().cancelAll(BActivityThread.getAppConfig().processName);
+                    AnubisCore.getBJobManager().cancelAll(BActivityThread.getAppConfig().processName);
                 }
             } catch (Throwable ignored) {
             }
@@ -99,7 +99,7 @@ public class IJobServiceProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             JobInfo jobInfo = (JobInfo) args[0];
-            JobInfo proxyJobInfo = BlackBoxCore.getBJobManager()
+            JobInfo proxyJobInfo = AnubisCore.getBJobManager()
                     .schedule(jobInfo);
             args[0] = proxyJobInfo;
             return method.invoke(who, args);

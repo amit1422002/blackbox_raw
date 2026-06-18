@@ -8,7 +8,7 @@ import com.anubis.loader.fake.hook.BinderInvocationStub;
 import com.anubis.loader.fake.service.base.ValueMethodProxy;
 
 /**
- * Created by BlackBox on 2022/3/1.
+ * Created by Anubis on 2022/3/1.
  */
 public class IPowerManagerProxy extends BinderInvocationStub {
     public IPowerManagerProxy() {

@@ -26,7 +26,7 @@ import black.android.content.pm.BRApplicationInfoN;
 import black.android.content.pm.BRPackageParserSigningDetails;
 import black.android.content.pm.BRSigningInfo;
 import black.android.content.res.BRAssetManager;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.env.AppSystemEnv;
 import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.entity.pm.InstallOption;
@@ -199,7 +199,7 @@ public class PackageManagerCompat {
         }
         PackageInfo base = null;
         try {
-            base = BlackBoxCore.getContext().getPackageManager().getPackageInfo(p.packageName, flags);
+            base = AnubisCore.getContext().getPackageManager().getPackageInfo(p.packageName, flags);
         } catch (PackageManager.NameNotFoundException ignored) {
         }
         if ((flags & PackageManager.GET_SIGNATURES) != 0) {
@@ -292,13 +292,13 @@ public class PackageManagerCompat {
         }
         ApplicationInfo baseApplication;
         try {
-            baseApplication = BlackBoxCore.getPackageManager().getApplicationInfo(BlackBoxCore.getHostPkg(), flags);
+            baseApplication = AnubisCore.getPackageManager().getApplicationInfo(AnubisCore.getHostPkg(), flags);
         } catch (Exception e) {
             return null;
         }
         String sourceDir = p.baseCodePath;
         if (p.applicationInfo == null) {
-            p.applicationInfo = BlackBoxCore.getPackageManager()
+            p.applicationInfo = AnubisCore.getPackageManager()
                     .getPackageArchiveInfo(sourceDir, 0).applicationInfo;
         }
         ApplicationInfo ai = new ApplicationInfo(p.applicationInfo);
@@ -368,7 +368,7 @@ public class PackageManagerCompat {
             sharedLibraryFileList.add(APACHE_LEGACY_JAR);
         }
 //        if (BXposedManagerService.get().isXPEnable()) {
-//            ApplicationInfo base = BlackBoxCore.getContext().getApplicationInfo();
+//            ApplicationInfo base = AnubisCore.getContext().getApplicationInfo();
 //            sharedLibraryFileList.add(base.sourceDir);
 //        }
 //        sharedLibraryFileList.add(BEnvironment.JUNIT_JAR.getAbsolutePath());

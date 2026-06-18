@@ -2,8 +2,8 @@ package black.android.widget;
 
 import android.os.IInterface;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BStaticField;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BStaticField;
 
 @BClassName("android.widget.Toast")
 public interface Toast {

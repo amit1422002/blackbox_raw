@@ -2,8 +2,8 @@ package black.android.location;
 
 import android.util.ArrayMap;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BField;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BField;
 
 @BClassName("android.location.LocationManager")
 public interface LocationManagerQ {

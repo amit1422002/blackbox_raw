@@ -14,7 +14,7 @@ import android.os.RemoteException;
 import java.util.Collections;
 import java.util.List;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.core.system.ServiceManager;
 import com.anubis.loader.core.system.pm.IBPackageManagerService;
@@ -43,7 +43,7 @@ public class BPackageManager extends BlackManager<IBPackageManagerService> {
     }
 
     public Intent getLaunchIntentForPackage(String packageName, int userId) {
-        Context host = BlackBoxCore.getContext();
+        Context host = AnubisCore.getContext();
         if (host == null) {
             return null;
         }

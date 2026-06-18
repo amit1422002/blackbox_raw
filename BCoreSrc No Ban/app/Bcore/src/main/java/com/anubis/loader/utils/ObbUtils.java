@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.env.BEnvironment;
 
 public final class ObbUtils {
@@ -66,7 +66,7 @@ public final class ObbUtils {
             Slog.w(TAG, "No host OBB files found for " + packageName);
         }
 
-        Context context = BlackBoxCore.getContext();
+        Context context = AnubisCore.getContext();
         Uri savedUri = ObbUriStore.get(context, packageName);
         if (savedUri != null) {
             refreshUriPermission(context, savedUri);
@@ -177,12 +177,12 @@ public final class ObbUtils {
     }
 
     public static boolean hasSavedObbUri(String packageName) {
-        Context context = BlackBoxCore.getContext();
+        Context context = AnubisCore.getContext();
         return ObbUriStore.get(context, packageName) != null;
     }
 
     public static boolean hasGlobalObbUri() {
-        Context context = BlackBoxCore.getContext();
+        Context context = AnubisCore.getContext();
         return ObbUriStore.getGlobal(context) != null;
     }
 
@@ -220,7 +220,7 @@ public final class ObbUtils {
             names.add(String.format(Locale.US, "patch.%d.%s.obb", versionCode, packageName));
         }
 
-        int hostUserId = BlackBoxCore.getHostUserId();
+        int hostUserId = AnubisCore.getHostUserId();
         File[] roots = new File[] {
                 new File(Environment.getExternalStorageDirectory(), "Android/obb/" + packageName),
                 new File("/storage/emulated/" + hostUserId + "/Android/obb/" + packageName),
@@ -276,7 +276,7 @@ public final class ObbUtils {
 
     private static long resolveHostVersionCode(String packageName) {
         try {
-            PackageManager pm = BlackBoxCore.getContext().getPackageManager();
+            PackageManager pm = AnubisCore.getContext().getPackageManager();
             PackageInfo info = pm.getPackageInfo(packageName, 0);
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
                 return info.getLongVersionCode();

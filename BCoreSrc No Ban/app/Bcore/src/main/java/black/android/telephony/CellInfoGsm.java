@@ -3,9 +3,9 @@ package black.android.telephony;
 import android.telephony.CellIdentityGsm;
 import android.telephony.CellSignalStrengthGsm;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BConstructor;
-import top.niunaijun.blackreflection.annotation.BField;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BConstructor;
+import com.anubis.reflection.annotation.BField;
 
 @BClassName("android.telephony.CellInfoGsm")
 public interface CellInfoGsm {

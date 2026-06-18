@@ -13,7 +13,7 @@ import com.anubis.loader.core.system.ServiceManager;
 import com.anubis.loader.core.system.accounts.IBAccountManagerService;
 
 /**
- * Created by BlackBox on 2022/3/3.
+ * Created by Anubis on 2022/3/3.
  */
 public class BAccountManager extends BlackManager<IBAccountManagerService> {
     private static final BAccountManager sBAccountManager = new BAccountManager();

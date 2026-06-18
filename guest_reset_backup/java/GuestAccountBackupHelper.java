@@ -4,7 +4,7 @@ import android.content.Context;
 import android.os.Environment;
 import android.util.Log;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.env.BEnvironment;
 
 import java.io.BufferedReader;
@@ -188,7 +188,7 @@ public final class GuestAccountBackupHelper {
         }
         try {
             try {
-                BlackBoxCore.get().stopPackage(packageName, userId);
+                AnubisCore.get().stopPackage(packageName, userId);
             } catch (Throwable ignored) {
             }
 

@@ -7,9 +7,9 @@ import android.os.IInterface;
 
 import java.util.HashMap;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BField;
-import top.niunaijun.blackreflection.annotation.BMethod;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BField;
+import com.anubis.reflection.annotation.BMethod;
 
 @BClassName("android.location.LocationManager")
 public interface LocationManager {

@@ -6,7 +6,7 @@ import android.os.Build;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.utils.compat.BuildCompat;
 
 /**
@@ -36,7 +36,7 @@ public class AppSystemEnv {
 
         // google Gboard
         sSystemPackages.add("com.google.android.inputmethod.latin");
-        // sSystemPackages.add(BlackBoxCore.getHostPkg());
+        // sSystemPackages.add(AnubisCore.getHostPkg());
 
         // 华为
         sSystemPackages.add("com.huawei.webview");
@@ -65,9 +65,9 @@ public class AppSystemEnv {
     }
 
     public static boolean isBlackPackage(String packageName) {
-        if (BlackBoxCore.get().isHideRoot() && sSuPackages.contains(packageName)) {
+        if (AnubisCore.get().isHideRoot() && sSuPackages.contains(packageName)) {
             return true;
-        } else if (BlackBoxCore.get().isHideXposed() && sXposedPackages.contains(packageName)) {
+        } else if (AnubisCore.get().isHideXposed() && sXposedPackages.contains(packageName)) {
             return true;
         }
         return false;

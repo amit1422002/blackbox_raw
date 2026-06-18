@@ -9,7 +9,7 @@ import android.provider.Settings;
 
 import java.io.File;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.core.GmsCore;
 import com.anubis.loader.core.env.BEnvironment;
@@ -26,14 +26,14 @@ public final class MicroGCompat {
 
     private MicroGCompat() {}
 
-    /** ClassLoader for the installed virtual microG GMS APK (not the host BlackBox APK). */
+    /** ClassLoader for the installed virtual microG GMS APK (not the host Anubis APK). */
     public static ClassLoader getGmsClassLoader() {
         int userId = BActivityThread.getUserId();
         if (sGmsClassLoader != null) return sGmsClassLoader;
         synchronized (MicroGCompat.class) {
             if (sGmsClassLoader != null) return sGmsClassLoader;
             try {
-                PackageInfo pi = BlackBoxCore.getBPackageManager()
+                PackageInfo pi = AnubisCore.getBPackageManager()
                         .getPackageInfo(GmsCore.GMS_PKG, 0, userId);
                 if (pi != null && pi.applicationInfo != null && pi.applicationInfo.sourceDir != null) {
                     ApplicationInfo ai = pi.applicationInfo;
@@ -61,7 +61,7 @@ public final class MicroGCompat {
         int userId = BActivityThread.getUserId();
         ApplicationInfo appInfo = null;
         try {
-            PackageInfo pi = BlackBoxCore.getBPackageManager().getPackageInfo(
+            PackageInfo pi = AnubisCore.getBPackageManager().getPackageInfo(
                     GmsCore.GMS_PKG, PackageManager.GET_META_DATA, userId);
             appInfo = pi.applicationInfo;
         } catch (Throwable t) {
@@ -69,7 +69,7 @@ public final class MicroGCompat {
         }
         final ApplicationInfo gmsAppInfo = appInfo;
         final ClassLoader gmsLoader = getGmsClassLoader();
-        return new ContextWrapper(BlackBoxCore.getContext()) {
+        return new ContextWrapper(AnubisCore.getContext()) {
             @Override
             public String getPackageName() {
                 return GmsCore.GMS_PKG;
@@ -94,7 +94,7 @@ public final class MicroGCompat {
 
     public static boolean isMicroGInstalled(int userId) {
         try {
-            return BlackBoxCore.get().isInstalled(GmsCore.GMS_PKG, userId);
+            return AnubisCore.get().isInstalled(GmsCore.GMS_PKG, userId);
         } catch (Throwable t) {
             return false;
         }
@@ -123,7 +123,7 @@ public final class MicroGCompat {
                 if (sHostAndroidId == null) {
                     try {
                         sHostAndroidId = Settings.Secure.getString(
-                                BlackBoxCore.getContext().getContentResolver(),
+                                AnubisCore.getContext().getContentResolver(),
                                 Settings.Secure.ANDROID_ID);
                     } catch (Throwable t) {
                         Slog.w(TAG, "Failed to read host android_id", t);

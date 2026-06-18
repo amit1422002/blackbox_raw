@@ -1,9 +1,9 @@
 package black.android.webkit;
 
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BStaticField;
-import top.niunaijun.blackreflection.annotation.BStaticMethod;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BStaticField;
+import com.anubis.reflection.annotation.BStaticMethod;
 
 @BClassName("android.webkit.WebViewFactory")
 public interface WebViewFactory {

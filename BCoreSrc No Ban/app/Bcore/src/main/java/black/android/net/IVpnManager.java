@@ -3,11 +3,11 @@ package black.android.net;
 import android.os.IBinder;
 import android.os.IInterface;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BStaticMethod;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BStaticMethod;
 
 /**
- * Created by BlackBox on 2022/2/26.
+ * Created by Anubis on 2022/2/26.
  */
 @BClassName("android.net.IVpnManager")
 public interface IVpnManager {

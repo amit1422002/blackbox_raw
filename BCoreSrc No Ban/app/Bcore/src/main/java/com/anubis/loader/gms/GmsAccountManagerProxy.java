@@ -19,7 +19,7 @@ import java.util.Map;
 
 import black.android.accounts.BRIAccountManagerStub;
 import black.android.os.BRServiceManager;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.core.GmsCore;
 import com.anubis.loader.fake.frameworks.BAccountManager;
@@ -54,7 +54,7 @@ public class GmsAccountManagerProxy extends BinderInvocationStub {
     public static boolean useMicroGAuth() {
         try {
             int userId = BActivityThread.getUserId();
-            return BlackBoxCore.get().isInstalled(GmsCore.GMS_PKG, userId);
+            return AnubisCore.get().isInstalled(GmsCore.GMS_PKG, userId);
         } catch (Throwable t) {
             return false;
         }
@@ -122,7 +122,7 @@ public class GmsAccountManagerProxy extends BinderInvocationStub {
                 try{resp.onResult(r);}catch(Throwable ignored){}
                 return 0;
             }
-            Context ctx = BlackBoxCore.getContext();
+            Context ctx = AnubisCore.getContext();
             if (ctx == null) { try{resp.onError(1,"no context");}catch(Throwable ignored){} return 0; }
             Log.d(TAG, "getAuthToken needs sign-in type=" + tt + " account=" + acct.name);
             registerGsiReceiver(ctx, tt);
@@ -177,14 +177,14 @@ public class GmsAccountManagerProxy extends BinderInvocationStub {
     @ProxyMethod("removeAccountAsUser")
     public static class removeAccountAsUser extends MethodHook {
         @Override protected Object hook(Object who, Method m, Object[] a) throws Throwable {
-            Account acct=(Account)a[1]; if(isGA(acct))GoogleSignInHelper.clearCachedToken(BlackBoxCore.getContext());
+            Account acct=(Account)a[1]; if(isGA(acct))GoogleSignInHelper.clearCachedToken(AnubisCore.getContext());
             BAccountManager.get().removeAccountAsUser((IAccountManagerResponse)a[0],acct,b(a,2)); return 0;
         }
     }
     @ProxyMethod("removeAccountExplicitly")
     public static class removeAccountExplicitly extends MethodHook {
         @Override protected Object hook(Object who, Method m, Object[] a) throws Throwable {
-            Account acct=(Account)a[0]; if(isGA(acct))GoogleSignInHelper.clearCachedToken(BlackBoxCore.getContext());
+            Account acct=(Account)a[0]; if(isGA(acct))GoogleSignInHelper.clearCachedToken(AnubisCore.getContext());
             return BAccountManager.get().removeAccountExplicitly(acct);
         }
     }
@@ -270,7 +270,7 @@ public class GmsAccountManagerProxy extends BinderInvocationStub {
                 }
             }
 
-            Context ctx = BlackBoxCore.getContext();
+            Context ctx = AnubisCore.getContext();
             if (ctx == null) { try{resp.onError(1,"no context");}catch(Throwable ignored){} return 0; }
 
             Log.d(TAG, "handleGoogleAddAccount KEY_INTENT tokenType=" + tokenType);
@@ -298,7 +298,7 @@ public class GmsAccountManagerProxy extends BinderInvocationStub {
         String activity = useMicroGAuth()
                 ? "com.anubis.loader.gms.MicroGLoginBridgeActivity"
                 : "com.anubis.loader.gms.GoogleSignInActivity";
-        intent.setComponent(new ComponentName(BlackBoxCore.getHostPkg(), activity));
+        intent.setComponent(new ComponentName(AnubisCore.getHostPkg(), activity));
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         if (!TextUtils.isEmpty(tokenType))
             intent.putExtra(GoogleSignInHelper.EXTRA_AUTH_TOKEN_TYPE, tokenType);
@@ -362,20 +362,20 @@ public class GmsAccountManagerProxy extends BinderInvocationStub {
 
     public static boolean hasGoogleAccount() {
         if (existing() != null) return true;
-        Context c=BlackBoxCore.getContext();
+        Context c=AnubisCore.getContext();
         return c!=null&&!TextUtils.isEmpty(GoogleSignInHelper.getCachedIdToken(c));
     }
 
     static Account existing() {
         try { Account[] a=BAccountManager.get().getAccountsAsUser(GOOGLE_TYPE); if(a!=null&&a.length>0) return a[0]; } catch (Throwable ignored) {}
-        Context c=BlackBoxCore.getContext();
+        Context c=AnubisCore.getContext();
         if (c!=null) { String e=GoogleSignInHelper.getEmail(c); if(!TextUtils.isEmpty(e)) return new Account(e,GOOGLE_TYPE); }
         return null;
     }
 
     static void populateData(Account acct) {
         if (!isGA(acct)) return;
-        Context c=BlackBoxCore.getContext(); if(c==null) return;
+        Context c=AnubisCore.getContext(); if(c==null) return;
         PlayStoreAuthHelper.ensureGmsVisibility(acct);
         String email=GoogleSignInHelper.getEmail(c); if(TextUtils.isEmpty(email)) email=acct.name;
         String gaia=GoogleSignInHelper.getGaiaId(c);
@@ -397,7 +397,7 @@ public class GmsAccountManagerProxy extends BinderInvocationStub {
                 if(!TextUtils.isEmpty(t)){try{BAccountManager.get().setAuthToken(acct,tt,t);}catch(Throwable ignored){} return t;} } catch (Throwable ignored) {}
         }
         if (GoogleSignInHelper.isIdTokenRequest(tt)) {
-            Context c=BlackBoxCore.getContext();
+            Context c=AnubisCore.getContext();
             if(c!=null) return GoogleSignInHelper.getCachedIdToken(c);
         }
         String[] aliases = new String[] {
@@ -421,7 +421,7 @@ public class GmsAccountManagerProxy extends BinderInvocationStub {
         if (!TextUtils.isEmpty(tt) && tt.contains("googleplay")) {
             return null;
         }
-        Context c = BlackBoxCore.getContext();
+        Context c = AnubisCore.getContext();
         if (c != null) {
             String cached = GoogleSignInHelper.getCachedIdToken(c);
             if (!TextUtils.isEmpty(cached) && !TextUtils.isEmpty(tt)) {
@@ -434,7 +434,7 @@ public class GmsAccountManagerProxy extends BinderInvocationStub {
 
     static String synth(Account acct, String key) {
         if (!isGA(acct)||TextUtils.isEmpty(key)) return null;
-        Context c=BlackBoxCore.getContext(); String l=key.toLowerCase();
+        Context c=AnubisCore.getContext(); String l=key.toLowerCase();
         if (l.startsWith("scopes:")) return "oauth2:https://www.googleapis.com/auth/googleplay";
         if ("services".equals(l)) return "mail,androidmarket,ac2dm,oauth2";
         if (l.equals("enabled_capabilities")||l.equals("disabled_capabilities")||l.equals("failed_capabilities")) return "";

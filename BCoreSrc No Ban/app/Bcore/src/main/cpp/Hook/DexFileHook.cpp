@@ -8,7 +8,7 @@
 HOOK_JNI(jobject, openDexFileNative, JNIEnv *env, jobject obj,jstring sourceName, jstring outputName, jint flags,jobject loader, jobject elements) {
     const char *sourceNameC = env->GetStringUTFChars(sourceName, JNI_FALSE);
     // Guest was not involved; avoid logging dex paths that fingerprint the loader.
-    if(strstr(sourceNameC,"/blackbox/") != nullptr){
+    if(strstr(sourceNameC,"/anubis/") != nullptr){
 //        const char *file_ext = strrchr(sourceNameC,'.');
 //        if(strcmp(file_ext,".dex") == 0 || strcmp(file_ext,".apk") == 0 || strcmp(file_ext,".jar") == 0){
 //

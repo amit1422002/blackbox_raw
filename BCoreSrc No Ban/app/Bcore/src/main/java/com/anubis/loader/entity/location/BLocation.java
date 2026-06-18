@@ -22,7 +22,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 /*
- * created by BlackBoxing at 2022/03/05
+ * created by Anubis at 2022/03/05
  * */
 public class BLocation implements Parcelable {
 

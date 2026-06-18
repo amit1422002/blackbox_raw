@@ -5,7 +5,7 @@ import android.content.pm.ApplicationInfo;
 import android.os.Build;
 import android.util.Log;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.env.BEnvironment;
 
 import java.io.ByteArrayOutputStream;
@@ -64,7 +64,7 @@ public final class GuestLoginHelper {
         if (staged != null) {
             return staged;
         }
-        Context host = BlackBoxCore.getContext();
+        Context host = AnubisCore.getContext();
         if (host != null) {
             return readHookLibraryBytes(host);
         }

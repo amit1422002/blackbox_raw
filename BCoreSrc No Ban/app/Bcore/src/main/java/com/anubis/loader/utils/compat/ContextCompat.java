@@ -9,9 +9,9 @@ import black.android.content.AttributionSourceStateContext;
 import black.android.content.BRAttributionSource;
 import black.android.content.BRAttributionSourceState;
 import black.android.content.BRContentResolver;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
-import top.niunaijun.blackreflection.BlackReflection;
+import com.anubis.reflection.BlackReflection;
 
 /**
  * Created by Milk on 3/31/21.
@@ -30,7 +30,7 @@ public class ContextCompat {
             mAttributionSourceState = BRAttributionSource.get(obj).mAttributionSourceState();
 
             AttributionSourceStateContext attributionSourceStateContext = BRAttributionSourceState.get(mAttributionSourceState);
-            attributionSourceStateContext._set_packageName(BlackBoxCore.getHostPkg());
+            attributionSourceStateContext._set_packageName(AnubisCore.getHostPkg());
             attributionSourceStateContext._set_uid(uid);
             fixAttributionSourceState(BRAttributionSource.get(obj).getNext(), uid);
         }
@@ -41,7 +41,7 @@ public class ContextCompat {
             return;
         }
         AttributionSourceStateContext attributionSourceStateContext = (AttributionSourceStateContext) BlackReflection.create(AttributionSourceStateContext.class,BRAttributionSource.get(obj).mAttributionSourceState(), false);
-        attributionSourceStateContext._set_packageName(BlackBoxCore.getHostPkg());
+        attributionSourceStateContext._set_packageName(AnubisCore.getHostPkg());
         attributionSourceStateContext._set_uid(Integer.valueOf(uid));
         attributionSourceStateContext._set_pid(Integer.valueOf(pid));
         fixAttributionSourceState(BRAttributionSource.get(obj).getNext(), uid,pid);
@@ -64,9 +64,9 @@ public class ContextCompat {
                 e.printStackTrace();
             }
 
-            BRContextImpl.get(context)._set_mBasePackageName(BlackBoxCore.getHostPkg());
-            BRContextImplKitkat.get(context)._set_mOpPackageName(BlackBoxCore.getHostPkg());
-            BRContentResolver.get(context.getContentResolver())._set_mPackageName(BlackBoxCore.getHostPkg());
+            BRContextImpl.get(context)._set_mBasePackageName(AnubisCore.getHostPkg());
+            BRContextImplKitkat.get(context)._set_mOpPackageName(AnubisCore.getHostPkg());
+            BRContentResolver.get(context.getContentResolver())._set_mPackageName(AnubisCore.getHostPkg());
 
             if (BuildCompat.isS()) {
                 fixAttributionSourceState(BRContextImpl.get(context).getAttributionSource(), BActivityThread.getBUid());

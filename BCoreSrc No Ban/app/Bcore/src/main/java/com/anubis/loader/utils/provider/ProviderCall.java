@@ -7,7 +7,7 @@ import android.os.Parcelable;
 
 import java.io.Serializable;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.utils.compat.ContentProviderCompat;
 
 /**
@@ -21,7 +21,7 @@ import com.anubis.loader.utils.compat.ContentProviderCompat;
 public class ProviderCall {
     public static Bundle callSafely(String authority, String methodName, String arg, Bundle bundle) {
         try {
-            return call(authority, BlackBoxCore.getContext(), methodName, arg, bundle, 5);
+            return call(authority, AnubisCore.getContext(), methodName, arg, bundle, 5);
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         }

@@ -6,7 +6,7 @@ import android.os.IBinder;
 import java.lang.reflect.Method;
 
 import black.android.os.BRServiceManager;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.gms.MicroGCompat;
 import com.anubis.loader.fake.hook.BinderInvocationStub;
 import com.anubis.loader.fake.hook.MethodHook;
@@ -105,8 +105,8 @@ public class GmsProxy extends BinderInvocationStub {
                 if (args != null && args.length > 0) {
                     String callingPackage = (String) args[0];
                     if ("com.google.android.gms".equals(callingPackage)) {
-                        args[0] = BlackBoxCore.getHostPkg();
-                        Slog.d(TAG, "GmsProxy: Fixed calling package from com.google.android.gms to " + BlackBoxCore.getHostPkg());
+                        args[0] = AnubisCore.getHostPkg();
+                        Slog.d(TAG, "GmsProxy: Fixed calling package from com.google.android.gms to " + AnubisCore.getHostPkg());
                     }
                 }
                 return method.invoke(who, args);

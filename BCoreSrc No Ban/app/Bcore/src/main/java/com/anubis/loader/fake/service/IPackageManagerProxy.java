@@ -27,7 +27,7 @@ import black.android.app.BRContextImpl;
 import black.android.app.ContextImpl;
 //import black.android.content.pm.BRPackageManager;
 import com.anubis.loader.core.GmsCore;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.core.system.BProcessManagerService;
 import com.anubis.loader.core.system.ProcessRecord;
@@ -72,7 +72,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             return false;
         }
         String appPkg = BActivityThread.getAppPackageName();
-        return appPkg != null && !appPkg.equals(BlackBoxCore.getHostPkg());
+        return appPkg != null && !appPkg.equals(AnubisCore.getHostPkg());
     }
 
     public IPackageManagerProxy() {
@@ -88,7 +88,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
     protected void inject(Object baseInvocation, Object proxyInvocation) {
         BRActivityThread.get()._set_sPackageManager(proxyInvocation);
         replaceSystemService("package");
-        Object systemContext = BRActivityThread.get(BlackBoxCore.mainThread()).getSystemContext();
+        Object systemContext = BRActivityThread.get(AnubisCore.mainThread()).getSystemContext();
         PackageManager mPackageManager = BRContextImpl.get(systemContext).mPackageManager();
         if (mPackageManager != null) {
             try {
@@ -123,7 +123,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             Intent intent = (Intent) args[0];
             String resolvedType = (String) args[1];
             int flags = MethodParameterUtils.toInt(args[2]);
-            ResolveInfo resolveInfo = BlackBoxCore.getBPackageManager().resolveIntent(intent, resolvedType, flags, BActivityThread.getUserId());
+            ResolveInfo resolveInfo = AnubisCore.getBPackageManager().resolveIntent(intent, resolvedType, flags, BActivityThread.getUserId());
             if (resolveInfo != null) {
                 return resolveInfo;
             }
@@ -138,7 +138,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             Intent intent = (Intent) args[0];
             String resolvedType = (String) args[1];
             int flags = MethodParameterUtils.toInt(args[2]);
-            ResolveInfo resolveInfo = BlackBoxCore.getBPackageManager().resolveService(intent, flags, resolvedType, BActivityThread.getUserId());
+            ResolveInfo resolveInfo = AnubisCore.getBPackageManager().resolveService(intent, flags, resolvedType, BActivityThread.getUserId());
             if (resolveInfo != null) {
                 return resolveInfo;
             }
@@ -172,7 +172,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             flags = MethodParameterUtils.toPackageFlags(args[1]);
 
             PackageInfo result;
-            if (packageName != null && packageName.equals(BlackBoxCore.getHostPkg())) {
+            if (packageName != null && packageName.equals(AnubisCore.getHostPkg())) {
                 if (shouldHideHostFromGuest()) {
                     return null;
                 }
@@ -183,7 +183,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                     result = (PackageInfo) method.invoke(who, args);
                 }
             } else {
-                PackageInfo packageInfo = BlackBoxCore.getBPackageManager()
+                PackageInfo packageInfo = AnubisCore.getBPackageManager()
                         .getPackageInfo(packageName, flags, BActivityThread.getUserId());
                 if (packageInfo != null) {
                     result = packageInfo;
@@ -203,9 +203,9 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             String pkg = (String) args[0];
             if (pkg != null) {
                 try {
-                    if (BlackBoxCore.getBPackageManager().getApplicationInfo(
+                    if (AnubisCore.getBPackageManager().getApplicationInfo(
                             pkg, 0, BActivityThread.getUserId()) != null) {
-                        return BlackBoxCore.getHostUid();
+                        return AnubisCore.getHostUid();
                     }
                 } catch (Throwable ignored) {
                 }
@@ -234,7 +234,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                 return method.invoke(who, args);
             }
             int flags = MethodParameterUtils.toInt(args[1]);
-            ProviderInfo providerInfo = BlackBoxCore.getBPackageManager().getProviderInfo(componentName, flags, BActivityThread.getUserId());
+            ProviderInfo providerInfo = AnubisCore.getBPackageManager().getProviderInfo(componentName, flags, BActivityThread.getUserId());
             if (providerInfo != null)
                 return providerInfo;
             if (AppSystemEnv.isOpenPackage(componentName)) {
@@ -256,7 +256,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                 return method.invoke(who, args);
             }
             int flags = MethodParameterUtils.toInt(args[1]);
-            ActivityInfo receiverInfo = BlackBoxCore.getBPackageManager().getReceiverInfo(componentName, flags, BActivityThread.getUserId());
+            ActivityInfo receiverInfo = AnubisCore.getBPackageManager().getReceiverInfo(componentName, flags, BActivityThread.getUserId());
             if (receiverInfo != null)
                 return receiverInfo;
             if (AppSystemEnv.isOpenPackage(componentName)) {
@@ -278,7 +278,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                 return method.invoke(who, args);
             }
             int flags = MethodParameterUtils.toInt(args[1]);
-            ActivityInfo activityInfo = BlackBoxCore.getBPackageManager().getActivityInfo(componentName, flags, BActivityThread.getUserId());
+            ActivityInfo activityInfo = AnubisCore.getBPackageManager().getActivityInfo(componentName, flags, BActivityThread.getUserId());
             if (activityInfo != null)
                 return activityInfo;
             if (AppSystemEnv.isOpenPackage(componentName)) {
@@ -301,7 +301,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                 return method.invoke(who, args);
             }
             int flags = MethodParameterUtils.toInt(args[1]);
-            ServiceInfo serviceInfo = BlackBoxCore.getBPackageManager().getServiceInfo(componentName, flags, BActivityThread.getUserId());
+            ServiceInfo serviceInfo = AnubisCore.getBPackageManager().getServiceInfo(componentName, flags, BActivityThread.getUserId());
             if (serviceInfo != null)
                 return serviceInfo;
             if (AppSystemEnv.isOpenPackage(componentName)) {
@@ -318,7 +318,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             int flags = MethodParameterUtils.toInt(args[0]);
             List<ApplicationInfo> installedApplications =
-                    new ArrayList<>(BlackBoxCore.getBPackageManager().getInstalledApplications(flags, BActivityThread.getUserId()));
+                    new ArrayList<>(AnubisCore.getBPackageManager().getInstalledApplications(flags, BActivityThread.getUserId()));
             mergeHostGoogleApplications(installedApplications, flags);
             return ParceledListSliceCompat.create(installedApplications);
         }
@@ -331,7 +331,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             int flags = MethodParameterUtils.toInt(args[0]);
             List<PackageInfo> installedPackages =
-                    new ArrayList<>(BlackBoxCore.getBPackageManager().getInstalledPackages(flags, BActivityThread.getUserId()));
+                    new ArrayList<>(AnubisCore.getBPackageManager().getInstalledPackages(flags, BActivityThread.getUserId()));
             mergeHostGooglePackages(installedPackages, flags);
             return ParceledListSliceCompat.create(installedPackages);
         }
@@ -357,7 +357,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             String packageName = (String) args[0];
             int flags = MethodParameterUtils.toPackageFlags(args[1]);
-            if (packageName != null && packageName.equals(BlackBoxCore.getHostPkg())) {
+            if (packageName != null && packageName.equals(AnubisCore.getHostPkg())) {
                 if (shouldHideHostFromGuest()) {
                     return null;
                 }
@@ -374,7 +374,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                 ensureHostGmsMetaData(info);
                 return info;
             }
-            ApplicationInfo applicationInfo = BlackBoxCore.getBPackageManager().getApplicationInfo(packageName, flags, BActivityThread.getUserId());
+            ApplicationInfo applicationInfo = AnubisCore.getBPackageManager().getApplicationInfo(packageName, flags, BActivityThread.getUserId());
             if (applicationInfo != null) {
                 applicationInfo.flags |= ApplicationInfo.FLAG_EXTERNAL_STORAGE;
                 return applicationInfo;
@@ -400,7 +400,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             int flags = MethodParameterUtils.toInt(args[2]);
-            List<ProviderInfo> providers = BlackBoxCore.getBPackageManager().
+            List<ProviderInfo> providers = AnubisCore.getBPackageManager().
                     queryContentProviders(BActivityThread.getAppProcessName(), BActivityThread.getBUid(), flags, BActivityThread.getUserId());
             return ParceledListSliceCompat.create(providers);
         }
@@ -413,7 +413,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             Intent intent = MethodParameterUtils.getFirstParam(args, Intent.class);
             String type = MethodParameterUtils.getFirstParam(args, String.class);
             Integer flags = MethodParameterUtils.getFirstParam(args, Integer.class);
-            List<ResolveInfo> resolves = BlackBoxCore.getBPackageManager().queryBroadcastReceivers(intent, flags, type, BActivityThread.getUserId());
+            List<ResolveInfo> resolves = AnubisCore.getBPackageManager().queryBroadcastReceivers(intent, flags, type, BActivityThread.getUserId());
             Slog.d(TAG, "queryIntentReceivers: " + resolves);
 
             // http://androidxref.com/7.0.0_r1/xref/frameworks/base/core/java/android/app/ApplicationPackageManager.java#872
@@ -438,7 +438,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                 return method.invoke(who, args);
             }
             int flags = MethodParameterUtils.toInt(args[1]);
-            ProviderInfo providerInfo = BlackBoxCore.getBPackageManager().resolveContentProvider(authority, flags, BActivityThread.getUserId());
+            ProviderInfo providerInfo = AnubisCore.getBPackageManager().resolveContentProvider(authority, flags, BActivityThread.getUserId());
             if (providerInfo == null) {
                 return method.invoke(who, args);
             }
@@ -464,18 +464,18 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             String callerPkg = BProcessManagerService.get().getPackageNameByPid(callingPid);
 
             if (callerPkg != null && !GmsCore.isGoogleAppOrService(callerPkg)) {
-                int hostUid = BlackBoxCore.getHostUid();
+                int hostUid = AnubisCore.getHostUid();
                 if (uid == hostUid) {
                     Slog.d(TAG, "GetPackagesForUid(hostUid) -> [" + callerPkg + "] pid=" + callingPid);
                     return new String[]{callerPkg};
                 }
             }
 
-            if (uid == BlackBoxCore.getHostUid()) {
+            if (uid == AnubisCore.getHostUid()) {
                 args[0] = BActivityThread.getBUid();
                 uid = (int) args[0];
             }
-            String[] packagesForUid = BlackBoxCore.getBPackageManager().getPackagesForUid(uid);
+            String[] packagesForUid = AnubisCore.getBPackageManager().getPackagesForUid(uid);
             Slog.d(TAG, uid + " , " + BActivityThread.getAppProcessName() + " GetPackagesForUid: "
                     + Arrays.toString(packagesForUid) + " caller=" + callerPkg + " pid=" + callingPid);
             return packagesForUid;
@@ -506,7 +506,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             ComponentName componentName = (ComponentName) args[0];
             String packageName = componentName.getPackageName();
             
-            ApplicationInfo applicationInfo = BlackBoxCore.getBPackageManager().getApplicationInfo(packageName,0, BActivityThread.getUserId());
+            ApplicationInfo applicationInfo = AnubisCore.getBPackageManager().getApplicationInfo(packageName,0, BActivityThread.getUserId());
             
             if(applicationInfo != null){
                 return PackageManager.COMPONENT_ENABLED_STATE_DEFAULT;
@@ -533,7 +533,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             return false;
         }
         String caller = BActivityThread.getAppPackageName();
-        return caller != null && !caller.equals(BlackBoxCore.getHostPkg());
+        return caller != null && !caller.equals(AnubisCore.getHostPkg());
     }
 
     private static ApplicationInfo getClonedGoogleApplicationInfo(String packageName, int flags) {
@@ -541,10 +541,10 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             return null;
         }
         int userId = BActivityThread.getUserId();
-        if (!BlackBoxCore.get().isInstalled(packageName, userId)) {
+        if (!AnubisCore.get().isInstalled(packageName, userId)) {
             return null;
         }
-        ApplicationInfo virtual = BlackBoxCore.getBPackageManager()
+        ApplicationInfo virtual = AnubisCore.getBPackageManager()
                 .getApplicationInfo(packageName, flags, userId);
         if (virtual != null) {
             ensureHostGmsMetaData(virtual);
@@ -557,10 +557,10 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             return null;
         }
         int userId = BActivityThread.getUserId();
-        if (!BlackBoxCore.get().isInstalled(packageName, userId)) {
+        if (!AnubisCore.get().isInstalled(packageName, userId)) {
             return null;
         }
-        PackageInfo virtual = BlackBoxCore.getBPackageManager()
+        PackageInfo virtual = AnubisCore.getBPackageManager()
                 .getPackageInfo(packageName, flags, userId);
         if (virtual != null && virtual.applicationInfo != null) {
             ensureHostGmsMetaData(virtual.applicationInfo);
@@ -576,7 +576,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         for (PackageInfo info : installedPackages) {
             present.add(info.packageName);
         }
-        PackageManager hostPm = BlackBoxCore.getContext().getPackageManager();
+        PackageManager hostPm = AnubisCore.getContext().getPackageManager();
         for (String googlePkg : GmsCore.getAllGooglePackages()) {
             if (present.contains(googlePkg)) {
                 continue;
@@ -596,7 +596,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         for (ApplicationInfo info : installedApplications) {
             present.add(info.packageName);
         }
-        PackageManager hostPm = BlackBoxCore.getContext().getPackageManager();
+        PackageManager hostPm = AnubisCore.getContext().getPackageManager();
         for (String googlePkg : GmsCore.getAllGooglePackages()) {
             if (present.contains(googlePkg)) {
                 continue;

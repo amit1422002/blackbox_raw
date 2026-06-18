@@ -56,7 +56,7 @@ import java.util.Objects;
 
 import black.com.android.internal.BRRstyleable;
 import black.com.android.internal.RstyleableStatic;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.core.system.BProcessManagerService;
 import com.anubis.loader.core.system.ISystemService;
@@ -98,7 +98,7 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
     }
 
     public BAccountManagerService() {
-        mContext = BlackBoxCore.getContext();
+        mContext = AnubisCore.getContext();
         mPms = BPackageManagerService.get();
     }
 

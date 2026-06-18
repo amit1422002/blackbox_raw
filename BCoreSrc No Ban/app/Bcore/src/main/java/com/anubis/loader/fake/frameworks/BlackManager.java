@@ -5,11 +5,11 @@ import android.os.IInterface;
 
 import java.lang.reflect.ParameterizedType;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.utils.Reflector;
 
 /**
- * Created by BlackBox on 2022/3/23.
+ * Created by Anubis on 2022/3/23.
  */
 public abstract class BlackManager<Service extends IInterface> {
     public static final String TAG = "BlackManager";
@@ -24,7 +24,7 @@ public abstract class BlackManager<Service extends IInterface> {
         }
         try {
             mService = Reflector.on(getTClass().getName() + "$Stub").method("asInterface", IBinder.class)
-                    .call(BlackBoxCore.get().getService(getServiceName()));
+                    .call(AnubisCore.get().getService(getServiceName()));
             mService.asBinder().linkToDeath(new IBinder.DeathRecipient() {
                 @Override
                 public void binderDied() {

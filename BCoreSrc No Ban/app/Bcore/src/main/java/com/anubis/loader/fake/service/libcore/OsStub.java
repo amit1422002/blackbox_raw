@@ -5,7 +5,7 @@ import android.os.Process;
 import java.lang.reflect.Method;
 
 import black.libcore.io.BRLibcore;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.core.IOCore;
 import com.anubis.loader.fake.hook.ClassInvocationStub;
@@ -99,7 +99,7 @@ public class OsStub extends ClassInvocationStub {
         if (BActivityThread.isThreadInit() && BActivityThread.currentActivityThread().isInit()) {
             return BActivityThread.getBAppId();
         } else {
-            return BlackBoxCore.getHostUid();
+            return AnubisCore.getHostUid();
         }
     }
 }

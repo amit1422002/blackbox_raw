@@ -13,7 +13,7 @@ import com.anubis.loader.utils.MethodParameterUtils;
 import com.anubis.loader.utils.compat.BuildCompat;
 
 /**
- * Created by BlackBox on 2022/3/7.
+ * Created by Anubis on 2022/3/7.
  */
 public class IVibratorServiceProxy extends BinderInvocationStub {
     private static String NAME;

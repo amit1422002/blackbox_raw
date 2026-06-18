@@ -7,7 +7,7 @@ import com.anubis.loader.fake.hook.BinderInvocationStub;
 import com.anubis.loader.fake.service.base.ValueMethodProxy;
 
 /**
- * Created by BlackBox on 2022/3/8.
+ * Created by Anubis on 2022/3/8.
  */
 public class IPersistentDataBlockServiceProxy extends BinderInvocationStub {
 

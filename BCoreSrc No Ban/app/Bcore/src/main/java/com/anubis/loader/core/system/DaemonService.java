@@ -9,7 +9,7 @@ import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.utils.compat.BuildCompat;
 
 
@@ -23,7 +23,7 @@ import com.anubis.loader.utils.compat.BuildCompat;
  */
 public class DaemonService extends Service {
     public static final String TAG = "DaemonService";
-    private static final int NOTIFY_ID = BlackBoxCore.getHostPkg().hashCode();
+    private static final int NOTIFY_ID = AnubisCore.getHostPkg().hashCode();
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -52,7 +52,7 @@ public class DaemonService extends Service {
     }
 
     private void showNotification() {
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), getPackageName() + ".blackbox_core")
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), getPackageName() + ".anubis_core")
                 .setPriority(NotificationCompat.PRIORITY_MAX);
         startForeground(NOTIFY_ID, builder.build());
     }

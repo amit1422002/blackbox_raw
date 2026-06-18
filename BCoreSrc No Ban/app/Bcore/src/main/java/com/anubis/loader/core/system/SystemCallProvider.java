@@ -29,7 +29,7 @@ public class SystemCallProvider extends ContentProvider {
     }
 
     private boolean initSystem() {
-        BlackBoxSystem.getSystem().startup();
+        AnubisSystem.getSystem().startup();
         return true;
     }
 

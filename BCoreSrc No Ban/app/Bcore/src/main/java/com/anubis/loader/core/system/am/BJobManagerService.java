@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import black.android.app.job.BRJobInfo;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.system.BProcessManagerService;
 import com.anubis.loader.core.system.ISystemService;
 import com.anubis.loader.core.system.ProcessRecord;
@@ -73,7 +73,7 @@ public class BJobManagerService extends IBJobManagerService.Stub implements ISys
         jobRecord.mServiceInfo = serviceInfo;
 
         mJobRecords.put(formatKey(processRecord.processName, info.getId()), jobRecord);
-        BRJobInfo.get(info)._set_service(new ComponentName(BlackBoxCore.getHostPkg(), ProxyManifest.getProxyJobService(processRecord.bpid)));
+        BRJobInfo.get(info)._set_service(new ComponentName(AnubisCore.getHostPkg(), ProxyManifest.getProxyJobService(processRecord.bpid)));
         return info;
     }
 

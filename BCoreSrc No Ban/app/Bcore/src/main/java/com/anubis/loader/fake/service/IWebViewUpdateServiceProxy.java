@@ -4,7 +4,7 @@ import android.content.Context;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.fake.hook.ClassInvocationStub;
 import com.anubis.loader.utils.Slog;
 
@@ -36,7 +36,7 @@ public class IWebViewUpdateServiceProxy extends ClassInvocationStub {
     @Override
     public boolean isBadEnv() {
         try {
-            Context ctx = BlackBoxCore.get() != null ? BlackBoxCore.get().getContext() : null;
+            Context ctx = AnubisCore.get() != null ? AnubisCore.get().getContext() : null;
             return ctx == null;
         } catch (Throwable t) {
             return true;

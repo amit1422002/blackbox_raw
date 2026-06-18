@@ -13,7 +13,7 @@ import com.anubis.loader.fake.service.base.UidMethodProxy;
 import com.anubis.loader.utils.MethodParameterUtils;
 
 /**
- * Created by BlackBox on 2022/3/5.
+ * Created by Anubis on 2022/3/5.
  */
 public class INetworkManagementServiceProxy extends BinderInvocationStub {
     public static final String NAME = "network_management";

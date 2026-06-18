@@ -7,7 +7,7 @@ import androidx.annotation.Nullable;
 import com.anubis.loader.app.configuration.ClientConfiguration;
 
 /**
- * Validates the embedded secret and expiry from {@code BlackBoxCore.doAttachBaseContext}.
+ * Validates the embedded secret and expiry from {@code AnubisCore.doAttachBaseContext}.
  */
 public final class BcoreLicenseInstaller {
 

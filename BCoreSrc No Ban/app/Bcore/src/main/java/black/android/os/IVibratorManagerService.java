@@ -3,11 +3,11 @@ package black.android.os;
 import android.os.IBinder;
 import android.os.IInterface;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BStaticMethod;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BStaticMethod;
 
 /**
- * Created by BlackBox on 2022/3/19.
+ * Created by Anubis on 2022/3/19.
  */
 @BClassName("android.os.IVibratorManagerService")
 public interface IVibratorManagerService {

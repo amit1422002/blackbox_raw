@@ -5,11 +5,11 @@ plugins {
 
 android {
 
-    namespace 'top.niunaijun.blackboxa'
+    namespace 'com.anubis'
     compileSdk rootProject.ext.compileSdkVersion
     ndkVersion = "29.0.14206865"
     defaultConfig {
-        applicationId "com.anubis.box"
+        applicationId "com.anubis"
         minSdk rootProject.ext.minSdk
         targetSdk rootProject.ext.targetSdkVersion
         versionCode rootProject.ext.versionCode
@@ -33,8 +33,8 @@ android {
     }
 
     externalNativeBuild {
-        ndkBuild {
-            path 'src/main/jni/Android.mk'
+        cmake {
+            path 'src/main/jni/CMakeLists.txt'
         }
     }
 
@@ -58,13 +58,14 @@ android {
 
     applicationVariants.configureEach { variant ->
         variant.outputs.configureEach { output ->
-            output.outputFileName = "AnubisBox_${variant.versionName}_${output.baseName}.apk"
+            output.outputFileName = "Anubis_${variant.versionName}_${output.baseName}.apk"
         }
     }
 }
 
 dependencies {
-    implementation fileTree(dir: "libs", include: ["*.jar", "*.aar"])
+    // Do not put Bcore-release.aar here while using project(':Bcore') — duplicate .so merge fails.
+    implementation fileTree(dir: "libs", include: ["*.jar", "*.aar"], exclude: ["Bcore-*.aar"])
     implementation project(':Bcore')
 
     implementation libs.appcompat

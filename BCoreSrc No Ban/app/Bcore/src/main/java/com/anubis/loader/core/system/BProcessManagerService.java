@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.IBActivityThread;
 import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.core.env.ProcStealthHelper;
@@ -103,14 +103,14 @@ public class BProcessManagerService implements ISystemService {
                 mPidsSelfLocked.remove(app);
                 app = null;
             } else {
-                app.pid = getPid(BlackBoxCore.getContext(), ProxyManifest.getProcessName(app.bpid));
+                app.pid = getPid(AnubisCore.getContext(), ProxyManifest.getProcessName(app.bpid));
             }
         }
         return app;
     }
 
     private int getUsingBPidL() {
-        ActivityManager manager = (ActivityManager) BlackBoxCore.getContext().getSystemService(Context.ACTIVITY_SERVICE);
+        ActivityManager manager = (ActivityManager) AnubisCore.getContext().getSystemService(Context.ACTIVITY_SERVICE);
         List<ActivityManager.RunningAppProcessInfo> runningAppProcesses = manager.getRunningAppProcesses();
         Set<Integer> usingPs = new HashSet<>();
         for (ActivityManager.RunningAppProcessInfo runningAppProcess : runningAppProcesses) {
@@ -132,7 +132,7 @@ public class BProcessManagerService implements ISystemService {
             int callingPid = Binder.getCallingPid();
             ProcessRecord app = findProcessByPid(callingPid);;
             if (app == null) {
-                String stubProcessName = getProcessName(BlackBoxCore.getContext(), callingPid);
+                String stubProcessName = getProcessName(AnubisCore.getContext(), callingPid);
                 int bpid = parseBPid(stubProcessName);
                 startProcessLocked(packageName, processName, userId, bpid, callingPid);
             }
@@ -144,7 +144,7 @@ public class BProcessManagerService implements ISystemService {
         if (stubProcessName == null) {
             return -1;
         } else {
-            prefix = BlackBoxCore.getHostPkg() + ":p";
+            prefix = AnubisCore.getHostPkg() + ":p";
         }
         if (stubProcessName.startsWith(prefix)) {
             try {
@@ -305,13 +305,13 @@ public class BProcessManagerService implements ISystemService {
 
   /**
    * Resolve the virtual app package for a host Android pid (used by microG UID checks).
-   * Guest processes delegate to the BlackBox server where {@link #mPidsSelfLocked} lives.
+   * Guest processes delegate to the Anubis server where {@link #mPidsSelfLocked} lives.
    */
     public String getPackageNameByPid(int pid) {
         if (pid <= 0) return null;
-        if (!BlackBoxCore.get().isServerProcess()) {
+        if (!AnubisCore.get().isServerProcess()) {
             try {
-                String pkg = BlackBoxCore.getBActivityManager().getPackageNameByPid(pid);
+                String pkg = AnubisCore.getBActivityManager().getPackageNameByPid(pid);
                 if (pkg != null) return pkg;
             } catch (Throwable t) {
                 Slog.w(TAG, "getPackageNameByPid IPC pid=" + pid, t);
@@ -327,7 +327,7 @@ public class BProcessManagerService implements ISystemService {
         ProcessRecord record = findProcessByPid(pid);
         if (record != null) return record.getPackageName();
 
-        ActivityManager am = (ActivityManager) BlackBoxCore.getContext().getSystemService(Context.ACTIVITY_SERVICE);
+        ActivityManager am = (ActivityManager) AnubisCore.getContext().getSystemService(Context.ACTIVITY_SERVICE);
         if (am != null) {
             List<ActivityManager.RunningAppProcessInfo> running = am.getRunningAppProcesses();
             if (running != null) {
@@ -351,7 +351,7 @@ public class BProcessManagerService implements ISystemService {
 
         String stubProcess = readLinuxProcCmdline(pid);
         if (stubProcess == null) {
-            stubProcess = getProcessNameSafe(BlackBoxCore.getContext(), pid);
+            stubProcess = getProcessNameSafe(AnubisCore.getContext(), pid);
         }
         if (stubProcess == null) return null;
         int bpid = parseBPid(stubProcess);
@@ -398,7 +398,7 @@ public class BProcessManagerService implements ISystemService {
     }
 
     private void syncProcessPids() {
-        ActivityManager am = (ActivityManager) BlackBoxCore.getContext().getSystemService(Context.ACTIVITY_SERVICE);
+        ActivityManager am = (ActivityManager) AnubisCore.getContext().getSystemService(Context.ACTIVITY_SERVICE);
         List<ActivityManager.RunningAppProcessInfo> running = am != null ? am.getRunningAppProcesses() : null;
         if (running == null) return;
         synchronized (mPidsSelfLocked) {

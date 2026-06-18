@@ -49,7 +49,7 @@ public class IWifiManagerProxy extends BinderInvocationStub {
         /*
         * It doesn't have public method to set BSSID and SSID fields in WifiInfo class,
         * So the reflection framework invocation appeared.
-        * commented by BlackBoxing at 2022/03/08
+        * commented by Anubis at 2022/03/08
         * */
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {

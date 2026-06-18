@@ -2,12 +2,12 @@ package black.android.telephony;
 
 import android.os.IInterface;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BStaticField;
-import top.niunaijun.blackreflection.annotation.BStaticMethod;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BStaticField;
+import com.anubis.reflection.annotation.BStaticMethod;
 
 /**
- * Created by BlackBox on 2022/2/26.
+ * Created by Anubis on 2022/2/26.
  */
 @BClassName("android.telephony.TelephonyManager")
 public interface TelephonyManager {

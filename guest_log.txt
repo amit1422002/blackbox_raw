@@ -1,24 +1,24 @@
 --------- beginning of main
-06-16 23:05:19.330  7067 11159 I GuestLogin: guest login script deployed: /data/user/0/top.niunaijun.blackbox/blackbox/data/user/0/com.pubg.imobile/files/guest_login_bgmi.lua
+06-16 23:05:19.330  7067 11159 I GuestLogin: guest login script deployed: /data/user/0/top.niunaijun.blackbox/anubis/data/user/0/com.pubg.imobile/files/guest_login_bgmi.lua
 06-16 23:05:19.339  7067 11159 I GuestLogin: hook ELF staged bytes=1037536
 06-16 23:05:20.664 11192 11192 I GuestLogin: schedule hook pkg=com.pubg.imobile proc=com.pubg.imobile user=0 pid=11192
-06-16 23:05:29.416  7067 11157 I GuestLogin: guest login script deployed: /data/user/0/top.niunaijun.blackbox/blackbox/data/user/0/com.pubg.imobile/files/guest_login_bgmi.lua
+06-16 23:05:29.416  7067 11157 I GuestLogin: guest login script deployed: /data/user/0/top.niunaijun.blackbox/anubis/data/user/0/com.pubg.imobile/files/guest_login_bgmi.lua
 06-16 23:05:29.419  7067 11157 I GuestLogin: hook ELF staged bytes=1037536
 06-16 23:05:30.532 11646 11646 I GuestLogin: schedule hook pkg=com.pubg.imobile proc=com.pubg.imobile user=0 pid=11646
-06-16 23:06:00.537 11646 11724 I GuestLogin: guest login script deployed: /data/user/0/top.niunaijun.blackbox/blackbox/data/user/0/com.pubg.imobile/files/guest_login_bgmi.lua
+06-16 23:06:00.537 11646 11724 I GuestLogin: guest login script deployed: /data/user/0/top.niunaijun.blackbox/anubis/data/user/0/com.pubg.imobile/files/guest_login_bgmi.lua
 06-16 23:06:00.542 11646 11724 I GuestLogin: hook ELF staged bytes=1037536
 06-16 23:06:00.560 11646 11724 W GuestLogin: memfd loaded but guest_hook_bootstrap missing: (null)
-06-16 23:06:00.575 11646 11724 I GuestLogin: hook worker starting pid=11646 files=/data/user/0/top.niunaijun.blackbox/blackbox/data/user/0/com.pubg.imobile/files/
-06-16 23:06:00.576 11646 11724 I GuestLogin: System.load hook ok path=/data/user/0/top.niunaijun.blackbox/blackbox/data/user/0/com.pubg.imobile/files/libguestloginhook.so
+06-16 23:06:00.575 11646 11724 I GuestLogin: hook worker starting pid=11646 files=/data/user/0/top.niunaijun.blackbox/anubis/data/user/0/com.pubg.imobile/files/
+06-16 23:06:00.576 11646 11724 I GuestLogin: System.load hook ok path=/data/user/0/top.niunaijun.blackbox/anubis/data/user/0/com.pubg.imobile/files/libguestloginhook.so
 06-16 23:06:00.582 11646 11724 I GuestLogin: disk System.load ok attempt=1
-06-16 23:06:01.576 11646 12522 I GuestLogin: hook worker started pid=11646 files=/data/user/0/top.niunaijun.blackbox/blackbox/data/user/0/com.pubg.imobile/files/
+06-16 23:06:01.576 11646 12522 I GuestLogin: hook worker started pid=11646 files=/data/user/0/top.niunaijun.blackbox/anubis/data/user/0/com.pubg.imobile/files/
 06-16 23:06:46.699 11646 12522 I GuestLogin: lua via offsets base=0x70bdc01000 target=0x70c8ae02e8 load=0x70c8b03af8
 06-16 23:06:46.699 11646 12522 I GuestLogin: shared SIGSEGV handler installed (lua exec trap)
 06-16 23:06:46.699 11646 12522 I GuestLogin: exec trap ready page=0x70c8ae0000 fn=0x70c8ae02e8 (UE4 .text bytes unchanged)
 06-16 23:06:46.699 11646 12522 I GuestLogin: exec trap armed page=0x70c8ae0000 (PROT_READ only)
 06-16 23:06:46.702 11646 11781 I GuestLogin: exec trap hit #1 L=0x72a28eafe8
 06-16 23:06:46.714 11646 11781 I GuestLogin: guest login lua applied (attempt 1)
-06-16 23:06:47.758 11646 11781 I GuestLogin: loading skin lua bytes=297626 path=/data/user/0/top.niunaijun.blackbox/blackbox/data/user/0/com.pubg.imobile/files/skin_mod_bgmi.lua
+06-16 23:06:47.758 11646 11781 I GuestLogin: loading skin lua bytes=297626 path=/data/user/0/top.niunaijun.blackbox/anubis/data/user/0/com.pubg.imobile/files/skin_mod_bgmi.lua
 06-16 23:06:47.794 11646 11781 I GuestLogin: skin mod lua queued (attempt 5)
 06-16 23:06:48.581 11646 11781 I GuestLogin: game mod lua executed (attempt 9)
 06-16 23:06:48.582 11646 11781 I GuestLogin: all lua patches applied

@@ -59,30 +59,30 @@ BlackBox is a comprehensive Android virtualization solution that creates isolate
 
 #### Method 1: APK File Installation
 ```java
-// Using BlackBoxCore API
-BlackBoxCore.get().installPackageAsUser(apkFile, userId);
+// Using AnubisCore API
+AnubisCore.get().installPackageAsUser(apkFile, userId);
 
 // Example with error handling
 try {
-    InstallResult result = BlackBoxCore.get().installPackageAsUser(apkFile, 0);
+    InstallResult result = AnubisCore.get().installPackageAsUser(apkFile, 0);
     if (result.isSuccess()) {
-        Log.d("BlackBox", "App installed successfully: " + result.getPackageName());
+        Log.d("Anubis", "App installed successfully: " + result.getPackageName());
     } else {
-        Log.e("BlackBox", "Installation failed: " + result.getErrorMessage());
+        Log.e("Anubis", "Installation failed: " + result.getErrorMessage());
     }
 } catch (Exception e) {
-    Log.e("BlackBox", "Installation error", e);
+    Log.e("Anubis", "Installation error", e);
 }
 ```
 
 #### Method 2: Package Name Installation
 ```java
 // Install from existing package
-BlackBoxCore.get().installPackageAsUser("com.example.app", userId);
+AnubisCore.get().installPackageAsUser("com.example.app", userId);
 
 // Check if package exists first
-if (BlackBoxCore.getPackageManager().getPackageInfo("com.example.app", 0) != null) {
-    BlackBoxCore.get().installPackageAsUser("com.example.app", userId);
+if (AnubisCore.getPackageManager().getPackageInfo("com.example.app", 0) != null) {
+    AnubisCore.get().installPackageAsUser("com.example.app", userId);
 }
 ```
 
@@ -90,7 +90,7 @@ if (BlackBoxCore.getPackageManager().getPackageInfo("com.example.app", 0) != nul
 ```java
 // Install from content URI
 Uri apkUri = Uri.parse("content://com.example.provider/app.apk");
-BlackBoxCore.get().installPackageAsUser(apkUri, userId);
+AnubisCore.get().installPackageAsUser(apkUri, userId);
 ```
 
 ### App Removal
@@ -98,20 +98,20 @@ BlackBoxCore.get().installPackageAsUser(apkUri, userId);
 #### Uninstall Virtual App
 ```java
 // Remove app from virtual environment
-BlackBoxCore.get().uninstallPackage(packageName, userId);
+AnubisCore.get().uninstallPackage(packageName, userId);
 
 // Force uninstall if needed
-BlackBoxCore.get().uninstallPackage(packageName, userId, true);
+AnubisCore.get().uninstallPackage(packageName, userId, true);
 ```
 
 #### Clean App Data
 ```java
 // Clear app data without uninstalling
-BlackBoxCore.get().clearAppData(packageName, userId);
+AnubisCore.get().clearAppData(packageName, userId);
 
 // Clear specific data types
-BlackBoxCore.get().clearAppData(packageName, userId, "cache");
-BlackBoxCore.get().clearAppData(packageName, userId, "data");
+AnubisCore.get().clearAppData(packageName, userId, "cache");
+AnubisCore.get().clearAppData(packageName, userId, "data");
 ```
 
 ### App Management Utilities
@@ -119,25 +119,25 @@ BlackBoxCore.get().clearAppData(packageName, userId, "data");
 #### List Installed Apps
 ```java
 // Get all virtual apps
-List<AppInfo> virtualApps = BlackBoxCore.get().getInstalledApps(userId);
+List<AppInfo> virtualApps = AnubisCore.get().getInstalledApps(userId);
 
 // Get specific app info
-AppInfo appInfo = BlackBoxCore.get().getAppInfo(packageName, userId);
+AppInfo appInfo = AnubisCore.get().getAppInfo(packageName, userId);
 
 // Check if app is installed
-boolean isInstalled = BlackBoxCore.get().isAppInstalled(packageName, userId);
+boolean isInstalled = AnubisCore.get().isAppInstalled(packageName, userId);
 ```
 
 #### App Configuration
 ```java
 // Enable/disable app
-BlackBoxCore.get().setAppEnabled(packageName, userId, true);
+AnubisCore.get().setAppEnabled(packageName, userId, true);
 
 // Set app permissions
-BlackBoxCore.get().setAppPermission(packageName, permission, userId, true);
+AnubisCore.get().setAppPermission(packageName, permission, userId, true);
 
 // Configure app settings
-BlackBoxCore.get().setAppSetting(packageName, setting, value, userId);
+AnubisCore.get().setAppSetting(packageName, setting, value, userId);
 ```
 
 ---
@@ -306,20 +306,20 @@ UIDSpoofingHelper.setUIDStrategy("operation", customStrategy);
 #### Virtual Process Control
 ```java
 // Control virtual processes
-BlackBoxCore.get().startVirtualProcess(packageName, userId);
-BlackBoxCore.get().stopVirtualProcess(packageName, userId);
+AnubisCore.get().startVirtualProcess(packageName, userId);
+AnubisCore.get().stopVirtualProcess(packageName, userId);
 
 // Monitor process status
-ProcessInfo processInfo = BlackBoxCore.get().getProcessInfo(packageName, userId);
+ProcessInfo processInfo = AnubisCore.get().getProcessInfo(packageName, userId);
 ```
 
 #### Memory Management
 ```java
 // Optimize memory usage
-BlackBoxCore.get().optimizeMemory(userId);
+AnubisCore.get().optimizeMemory(userId);
 
 // Clear unused resources
-BlackBoxCore.get().clearUnusedResources(userId);
+AnubisCore.get().clearUnusedResources(userId);
 ```
 
 ---
@@ -331,7 +331,7 @@ BlackBoxCore.get().clearUnusedResources(userId);
 #### App Installation Failures
 ```bash
 # Check logs for installation errors
-adb logcat | grep "BlackBox"
+adb logcat | grep "Anubis"
 
 # Common solutions:
 # 1. Ensure sufficient storage space
@@ -363,14 +363,14 @@ adb logcat | grep "BlackBox"
 #### Enable Debug Logging
 ```java
 // Enable comprehensive logging
-BlackBoxCore.setDebugMode(true);
+AnubisCore.setDebugMode(true);
 
 // Set log level
 Slog.setLogLevel(Slog.LEVEL_DEBUG);
 
 // Enable specific debug features
-BlackBoxCore.enableDebugFeature("webview", true);
-BlackBoxCore.enableDebugFeature("gms", true);
+AnubisCore.enableDebugFeature("webview", true);
+AnubisCore.enableDebugFeature("gms", true);
 ```
 
 #### Log Analysis
@@ -391,10 +391,10 @@ adb logcat | grep "JobServiceStub\|WebViewProxy\|GoogleAccountManagerProxy"
 
 ### Core Classes
 
-#### BlackBoxCore
+#### AnubisCore
 ```java
 // Main entry point
-BlackBoxCore core = BlackBoxCore.get();
+AnubisCore core = AnubisCore.get();
 
 // Core methods
 core.installPackageAsUser(apkFile, userId);

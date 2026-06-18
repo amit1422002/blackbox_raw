@@ -13,7 +13,7 @@ STORAGE: /storage/emulated/0/anubisloader/guest_accounts/<backupId>/
       - Read device_id.xml uuid from clone shared_prefs
       - Read login-identifier.txt (internal + external files/)
       - Count databases, check Documents/TGPA/Intermediate/ProgramBinaryCache
-   b. BlackBoxCore.stopPackage(BGMI)
+   b. AnubisCore.stopPackage(BGMI)
    c. Delete shared_prefs, recreate device_id.xml with NEW random uuid
    d. Delete databases/
    e. Delete Documents (external user dir)

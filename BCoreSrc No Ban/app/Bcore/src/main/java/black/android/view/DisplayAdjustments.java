@@ -1,8 +1,8 @@
 package black.android.view;
 
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BMethod;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BMethod;
 
 @BClassName("android.view.DisplayAdjustments")
 public interface DisplayAdjustments {

@@ -5,7 +5,7 @@
         <item name="windowMinWidthMinor">0%</item>
     </style>
 
-    <style name="Theme.BlackBox" parent="Theme.MaterialComponents.Light.NoActionBar">
+    <style name="Theme.Anubis" parent="Theme.MaterialComponents.Light.NoActionBar">
         <!-- Primary brand color. -->
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryVariant">@color/primary_dark</item>

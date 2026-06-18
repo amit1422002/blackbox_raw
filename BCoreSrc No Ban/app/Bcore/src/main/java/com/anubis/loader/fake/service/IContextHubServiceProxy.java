@@ -8,7 +8,7 @@ import com.anubis.loader.fake.service.base.ValueMethodProxy;
 import com.anubis.loader.utils.compat.BuildCompat;
 
 /**
- * Created by BlackBox on 2022/3/2.
+ * Created by Anubis on 2022/3/2.
  */
 public class IContextHubServiceProxy extends BinderInvocationStub {
 

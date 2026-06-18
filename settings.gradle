@@ -8,7 +8,7 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories { google(); mavenCentral(); maven { url "https://www.jitpack.io" } }
 }
-rootProject.name = "NewBlackbox"
+rootProject.name = "Anubis"
 include ':app'
 include ':black-reflection'
 include ':compiler'

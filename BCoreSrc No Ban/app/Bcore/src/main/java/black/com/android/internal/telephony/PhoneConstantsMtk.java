@@ -1,8 +1,8 @@
 package black.com.android.internal.telephony;
 
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BStaticField;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BStaticField;
 
 @BClassName("com.android.internal.telephony.PhoneConstants")
 public interface PhoneConstantsMtk {

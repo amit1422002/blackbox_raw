@@ -6,7 +6,7 @@ import black.android.app.BRActivityThread;
 import black.android.app.BRContextImpl;
 import black.android.os.BRServiceManager;
 import black.android.permission.BRIPermissionManagerStub;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.fake.hook.BinderInvocationStub;
 import com.anubis.loader.fake.service.base.PkgMethodProxy;
 import com.anubis.loader.fake.service.base.ValueMethodProxy;
@@ -14,7 +14,7 @@ import com.anubis.loader.utils.Reflector;
 import com.anubis.loader.utils.compat.BuildCompat;
 
 /**
- * Created by BlackBox on 2022/3/2.
+ * Created by Anubis on 2022/3/2.
  */
 public class IPermissionManagerProxy extends BinderInvocationStub {
     public static final String TAG = "IPermissionManagerProxy";
@@ -34,7 +34,7 @@ public class IPermissionManagerProxy extends BinderInvocationStub {
     protected void inject(Object baseInvocation, Object proxyInvocation) {
         replaceSystemService("permissionmgr");
         BRActivityThread.getWithException()._set_sPermissionManager(proxyInvocation);
-        Object systemContext = BRActivityThread.get(BlackBoxCore.mainThread()).getSystemContext();
+        Object systemContext = BRActivityThread.get(AnubisCore.mainThread()).getSystemContext();
         PackageManager packageManager = BRContextImpl.get(systemContext).mPackageManager();
         if (packageManager != null) {
             try {

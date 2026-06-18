@@ -1,0 +1,123 @@
+package com.anubis.view.apps
+
+import androidx.lifecycle.MutableLiveData
+import com.anubis.bean.AppInfo
+import com.anubis.bean.ObbProgress
+import com.anubis.data.AppsRepository
+import com.anubis.skin.GuestAccountBackupHelper
+import com.anubis.view.base.BaseViewModel
+import android.util.Log
+
+
+class AppsViewModel(private val repo: AppsRepository) : BaseViewModel() {
+
+    val appsLiveData = MutableLiveData<List<AppInfo>>()
+
+    val resultLiveData = MutableLiveData<String>()
+
+    val launchLiveData = MutableLiveData<Boolean>()
+
+    val obbProgressLiveData = MutableLiveData<ObbProgress?>()
+
+    val obbPickerRequestLiveData = MutableLiveData<String?>()
+
+    
+    val updateSortLiveData = MutableLiveData<Boolean>()
+
+    fun getInstalledApps(userId: Int) {
+        launchOnUI {
+            repo.getVmInstallList(userId, appsLiveData)
+        }
+    }
+    
+    
+    fun getInstalledAppsWithRetry(userId: Int, maxRetries: Int = 3) {
+        var retryCount = 0
+        
+        fun attemptLoad() {
+            launchOnUI {
+                repo.getVmInstallList(userId, appsLiveData)
+                
+                
+                val currentApps = appsLiveData.value
+                if ((currentApps == null || currentApps.isEmpty()) && retryCount < maxRetries) {
+                    retryCount++
+                    Log.d("AppsViewModel", "No apps loaded, retrying... (${retryCount}/${maxRetries})")
+                    
+                    
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        attemptLoad()
+                    }, 1000) 
+                }
+            }
+        }
+        
+        attemptLoad()
+    }
+
+    fun install(source: String, userID: Int) {
+        launchOnUI {
+            repo.installApk(source, userID, resultLiveData, obbProgressLiveData, obbPickerRequestLiveData)
+        }
+    }
+
+    fun unInstall(packageName: String, userID: Int) {
+        launchOnUI {
+            repo.unInstall(packageName, userID, resultLiveData)
+        }
+    }
+
+    fun clearApkData(packageName: String,userID: Int){
+        launchOnUI {
+            repo.clearApkData(packageName,userID,resultLiveData)
+        }
+    }
+
+    fun copyObbFromAnubisLoader(packageName: String, userID: Int) {
+        launchOnUI {
+            repo.copyObbFromAnubisLoader(packageName, userID, resultLiveData, obbProgressLiveData)
+        }
+    }
+
+    fun copyDataFromAnubisLoader(packageName: String, userID: Int) {
+        launchOnUI {
+            repo.copyDataFromAnubisLoader(packageName, userID, resultLiveData, obbProgressLiveData)
+        }
+    }
+
+    fun copyObb(packageName: String, treeUri: android.net.Uri, userID: Int) {
+        launchOnUI {
+            repo.copyObb(packageName, treeUri, userID, resultLiveData, obbProgressLiveData)
+        }
+    }
+
+    fun logoutBgmiAccount(userID: Int) {
+        launchOnUI {
+            repo.logoutBgmiAccount(userID, resultLiveData)
+        }
+    }
+
+    fun resetGuestAccount(userID: Int) {
+        launchOnUI {
+            repo.resetGuestAccount(userID, resultLiveData)
+        }
+    }
+
+    fun restoreGuestAccount(userID: Int, backup: GuestAccountBackupHelper.GuestBackup) {
+        launchOnUI {
+            repo.restoreGuestAccount(userID, backup, resultLiveData)
+        }
+    }
+
+    fun launchApk(packageName: String, userID: Int) {
+        launchOnUI {
+            repo.launchApk(packageName, userID, launchLiveData)
+        }
+    }
+
+    fun updateApkOrder(userID: Int,dataList:List<AppInfo>){
+        launchOnUI {
+            repo.updateApkOrder(userID,dataList)
+        }
+    }
+}

@@ -9,7 +9,7 @@ import java.lang.reflect.Method;
 import black.android.app.BRAppOpsManager;
 import black.android.os.BRServiceManager;
 import black.com.android.internal.app.BRIAppOpsServiceStub;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.fake.hook.BinderInvocationStub;
 import com.anubis.loader.fake.hook.MethodHook;
 import com.anubis.loader.fake.hook.ProxyMethod;
@@ -37,7 +37,7 @@ public class IAppOpsManagerProxy extends BinderInvocationStub {
     @Override
     protected void inject(Object baseInvocation, Object proxyInvocation) {
         if (BRAppOpsManager.get(null)._check_mService() != null) {
-            AppOpsManager appOpsManager = (AppOpsManager) BlackBoxCore.getContext().getSystemService(Context.APP_OPS_SERVICE);
+            AppOpsManager appOpsManager = (AppOpsManager) AnubisCore.getContext().getSystemService(Context.APP_OPS_SERVICE);
             try {
                 BRAppOpsManager.get(appOpsManager)._set_mService(getProxyInvocation());
             } catch (Exception e) {

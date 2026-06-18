@@ -8,7 +8,7 @@ import android.text.TextUtils;
 import java.lang.reflect.Method;
 
 import black.android.content.BRAttributionSource;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.core.device.DeviceSpoofManager;
 import com.anubis.loader.fake.hook.ClassInvocationStub;
@@ -60,9 +60,9 @@ public class SystemProviderStub extends ClassInvocationStub implements BContentP
         if (args != null && args.length > 0) {
             Object arg = args[0];
             if (arg instanceof String) {
-                args[0] = BlackBoxCore.getHostPkg();
+                args[0] = AnubisCore.getHostPkg();
             } else if (arg.getClass().getName().equals(BRAttributionSource.getRealClass().getName())) {
-                ContextCompat.fixAttributionSourceState(arg, BlackBoxCore.getHostUid());
+                ContextCompat.fixAttributionSourceState(arg, AnubisCore.getHostUid());
             }
         }
         Object result = method.invoke(mBase, args);

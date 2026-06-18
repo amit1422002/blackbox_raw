@@ -8,7 +8,7 @@ import java.lang.reflect.Method;
 import black.android.os.BRServiceManager;
 import black.android.os.mount.BRIMountServiceStub;
 import black.android.os.storage.BRIStorageManagerStub;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.fake.hook.BinderInvocationStub;
 import com.anubis.loader.fake.hook.MethodHook;
@@ -71,7 +71,7 @@ public class IStorageManagerProxy extends BinderInvocationStub {
     @Override
     protected Object hook(Object who, Method method, Object[] args) throws Throwable {
       if (args == null) {
-        StorageVolume[] volumeList = BlackBoxCore.getBStorageManager().getVolumeList(BActivityThread.getBUid(), null, 0, BActivityThread.getUserId());
+        StorageVolume[] volumeList = AnubisCore.getBStorageManager().getVolumeList(BActivityThread.getBUid(), null, 0, BActivityThread.getUserId());
         if (volumeList == null) {
           return method.invoke(who, args);
         }
@@ -81,7 +81,7 @@ public class IStorageManagerProxy extends BinderInvocationStub {
         int uid = (int) args[0];
         String packageName = (String) args[1];
         int flags = (int) args[2];
-        StorageVolume[] volumeList = BlackBoxCore.getBStorageManager().getVolumeList(uid, packageName, flags, BActivityThread.getUserId());
+        StorageVolume[] volumeList = AnubisCore.getBStorageManager().getVolumeList(uid, packageName, flags, BActivityThread.getUserId());
         if (volumeList == null) {
           return method.invoke(who, args);
         }

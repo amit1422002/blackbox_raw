@@ -13,7 +13,7 @@ import com.anubis.loader.core.system.ServiceManager;
 import com.anubis.loader.core.system.notification.IBNotificationManagerService;
 
 /**
- * Created by BlackBox on 2022/3/18.
+ * Created by Anubis on 2022/3/18.
  */
 public class BNotificationManager extends BlackManager<IBNotificationManagerService> {
     private static final BNotificationManager sNotificationManager = new BNotificationManager();

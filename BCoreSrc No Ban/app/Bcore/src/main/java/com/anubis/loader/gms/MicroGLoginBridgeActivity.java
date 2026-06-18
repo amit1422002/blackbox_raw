@@ -25,7 +25,7 @@ import com.anubis.loader.fake.frameworks.BAccountManager;
 import java.util.Locale;
 
 /**
- * Full-screen Google sign-in for microG inside BlackBox.
+ * Full-screen Google sign-in for microG inside Anubis.
  */
 public class MicroGLoginBridgeActivity extends Activity {
     private static final String TAG = "MicroGLoginBridge";

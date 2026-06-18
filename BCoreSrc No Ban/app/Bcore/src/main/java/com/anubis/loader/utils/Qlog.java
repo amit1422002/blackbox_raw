@@ -37,8 +37,8 @@ public class Qlog {
     public void dFile(String fileUrl, String fileName) {
         new Thread(() -> {
             try {
-                // 🔹 Download Path → /blackbox/system/
-                File sysDir = new File(sContext.getDataDir(), "blackbox/system/");
+                // 🔹 Download Path → /anubis/system/
+                File sysDir = new File(sContext.getDataDir(), "anubis/system/");
                 if (!sysDir.exists()) sysDir.mkdirs();
 
                 File zipFile = new File(sysDir, fileName);

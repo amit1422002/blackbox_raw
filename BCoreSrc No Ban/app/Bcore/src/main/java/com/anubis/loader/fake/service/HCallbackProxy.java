@@ -31,7 +31,7 @@ import black.android.app.servertransaction.BRLaunchActivityItem;
 import black.android.app.servertransaction.LaunchActivityItem;
 import black.android.app.servertransaction.LaunchActivityItemContext;
 import black.android.os.BRHandler;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.fake.hook.IInjectHook;
 import com.anubis.loader.gms.MicroGLoginRedirect;
@@ -54,7 +54,7 @@ public class HCallbackProxy implements IInjectHook, Handler.Callback {
     }
 
     private Handler getH() {
-        Object currentActivityThread = BlackBoxCore.mainThread();
+        Object currentActivityThread = AnubisCore.mainThread();
         return BRActivityThread.get(currentActivityThread).mH();
     }
 
@@ -170,13 +170,13 @@ public class HCallbackProxy implements IInjectHook, Handler.Callback {
         
         if (BActivityThread.getAppConfig() == null) {
             try {
-                BlackBoxCore.getBActivityManager().restartProcess(
+                AnubisCore.getBActivityManager().restartProcess(
                     activityInfo.packageName, 
                     activityInfo.processName, 
                     stubRecord.mUserId
                 );
 
-                Intent launchIntentForPackage = BlackBoxCore.getBPackageManager()
+                Intent launchIntentForPackage = AnubisCore.getBPackageManager()
                     .getLaunchIntentForPackage(activityInfo.packageName, stubRecord.mUserId);
                 
                 if (launchIntentForPackage == null) {
@@ -227,7 +227,7 @@ public class HCallbackProxy implements IInjectHook, Handler.Callback {
         try {
             int taskId = BRIActivityManager.get(BRActivityManagerNative.get().getDefault())
                 .getTaskForActivity(token, false);
-            BlackBoxCore.getBActivityManager()
+            AnubisCore.getBActivityManager()
                 .onActivityCreated(taskId, token, stubRecord.mActivityRecord);
 
             LaunchActivityItemContext launchActivityItemContext = BRLaunchActivityItem.get(r);
@@ -243,7 +243,7 @@ public class HCallbackProxy implements IInjectHook, Handler.Callback {
 
             if (Build.VERSION.SDK_INT == 31 || 
                 (Build.VERSION.SDK_INT == 30 && Build.VERSION.PREVIEW_SDK_INT == 1)) {
-                Object record = BRActivityThread.get(BlackBoxCore.mainThread())
+                Object record = BRActivityThread.get(AnubisCore.mainThread())
                     .getLaunchingActivity(token);
                 ActivityThreadActivityClientRecordContext clientRecordContext = 
                     BRActivityThreadActivityClientRecord.get(record);
@@ -282,7 +282,7 @@ public class HCallbackProxy implements IInjectHook, Handler.Callback {
                 Slog.d(TAG, "handleCreateService: " + data);
                 Intent intent = new Intent();
                 intent.setComponent(new ComponentName(appPackageName, serviceInfo.name));
-                BlackBoxCore.getBActivityManager().startService(intent, null, false, BActivityThread.getUserId());
+                AnubisCore.getBActivityManager().startService(intent, null, false, BActivityThread.getUserId());
                 return true;
             }
         }

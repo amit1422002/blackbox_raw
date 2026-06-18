@@ -15,7 +15,7 @@ import com.ayan.box.R;
 import com.ayan.box.activity.MainActivity;
 
 import java.util.List;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import android.graphics.drawable.Drawable;
 
 

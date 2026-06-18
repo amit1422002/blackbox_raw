@@ -11,7 +11,7 @@ import java.util.List;
 
 import black.android.os.BRServiceManager;
 import black.com.android.internal.telephony.BRITelephonyStub;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.entity.location.BCell;
 import com.anubis.loader.fake.frameworks.BLocationManager;

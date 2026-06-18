@@ -9,7 +9,7 @@ import org.lsposed.lsparanoid.Obfuscate;
 import java.io.File;
 import java.util.Locale;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.utils.FileUtils;
 
@@ -18,7 +18,7 @@ import java.io.IOException;
 @Obfuscate
 
 /**
- * Virtual paths for BlackBox / Bcore.
+ * Virtual paths for Anubis loader.
  * OBB for sandboxed apps must live under getExternalUserDir(0)/Android/obb/&lt;package&gt; so
  * {@link com.anubis.loader.core.IOCore} redirects /sdcard/Android/obb to the same tree.
  * not the real /sdcard/Android/obb (guest does not read that path).
@@ -41,10 +41,10 @@ public class BEnvironment {
         if (sVirtualRoot == null) {
             synchronized (BEnvironment.class) {
                 if (sVirtualRoot == null) {
-                    Context ctx = BlackBoxCore.getContext();
+                    Context ctx = AnubisCore.getContext();
                     if (ctx == null) {
                         throw new IllegalStateException(
-                                "BEnvironment: BlackBoxCore.getContext() is null; init BlackBox before BEnvironment paths.");
+                                "BEnvironment: AnubisCore.getContext() is null; init Anubis before BEnvironment paths.");
                     }
                     sVirtualRoot = new File(ctx.getFilesDir(), VIRTUAL_ROOT_DIR);
                 }
@@ -257,7 +257,7 @@ public class BEnvironment {
 
     /** Guest/host was using {@code localhost} as virtual root — rename once to {@link #VIRTUAL_ROOT_DIR}. */
     private static void migrateLegacyVirtualRootIfNeeded() {
-        Context ctx = BlackBoxCore.getContext();
+        Context ctx = AnubisCore.getContext();
         if (ctx == null) {
             return;
         }

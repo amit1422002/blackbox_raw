@@ -2,7 +2,7 @@ package com.anubis.loader.core.env;
 
 import android.os.Build;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 
 import java.io.BufferedReader;
@@ -107,7 +107,7 @@ public final class ProcStealthHelper {
             return false;
         }
         String lower = line.toLowerCase(Locale.US);
-        String hostPkg = safeLower(BlackBoxCore.getHostPkg());
+        String hostPkg = safeLower(AnubisCore.getHostPkg());
         if (hostPkg != null && lower.contains(hostPkg)) {
             return true;
         }

@@ -1,7 +1,7 @@
 package com.anubis.loader.fake.service;
 
 import android.content.Context;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.fake.hook.ClassInvocationStub;
 import com.anubis.loader.utils.Slog;
 
@@ -33,7 +33,7 @@ public class WebViewFactoryProxy extends ClassInvocationStub {
     @Override
     public boolean isBadEnv() {
         try {
-            Context ctx = BlackBoxCore.get() != null ? BlackBoxCore.get().getContext() : null;
+            Context ctx = AnubisCore.get() != null ? AnubisCore.get().getContext() : null;
             if (ctx == null) return true;
             if (android.os.Build.VERSION.SDK_INT < 14) return true;
             return false;

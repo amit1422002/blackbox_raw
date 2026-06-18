@@ -8,7 +8,7 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 
 public class LicenseVerifier {
 
@@ -21,7 +21,7 @@ public class LicenseVerifier {
             @Override
             protected String doInBackground(Void... voids) {
                 try {
-					String packageName = BlackBoxCore.getHostPkg();
+					String packageName = AnubisCore.getHostPkg();
                     URL url = new URL("https://blackbox360.business/api/connect.php");
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("POST");

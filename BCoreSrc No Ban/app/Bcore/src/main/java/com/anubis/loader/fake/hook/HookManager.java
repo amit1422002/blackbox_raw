@@ -8,7 +8,7 @@ import com.anubis.loader.fake.service.WebViewFactoryProxy;
 import com.anubis.loader.fake.service.WebViewProxy;
 import com.anubis.loader.fake.service.IWebViewUpdateServiceProxy;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.fake.delegate.AppInstrumentation;
 import com.anubis.loader.fake.service.HCallbackProxy;
 import com.anubis.loader.fake.service.IAccessibilityManagerProxy;
@@ -80,7 +80,7 @@ public class HookManager {
     }
 
     public void init() {
-        if (BlackBoxCore.get().isBlackProcess() || BlackBoxCore.get().isServerProcess()) {
+        if (AnubisCore.get().isAnubisProcess() || AnubisCore.get().isServerProcess()) {
             addInjector(new IDisplayManagerProxy());
             addInjector(new OsStub());
             addInjector(new IActivityManagerProxy());

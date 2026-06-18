@@ -9,7 +9,7 @@ import com.anubis.loader.fake.hook.ProxyMethod;
 import com.anubis.loader.utils.MethodParameterUtils;
 
 /**
- * Created by BlackBox on 2022/2/26.
+ * Created by Anubis on 2022/2/26.
  */
 public class IPhoneSubInfoProxy extends ClassInvocationStub {
     public static final String TAG = "IPhoneSubInfoProxy";

@@ -6,7 +6,7 @@ import android.content.pm.PackageManager;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.entity.pm.InstallResult;
 import com.anubis.loader.gms.MicroGBootstrap;
 import com.anubis.loader.gms.MicroGInstaller;
@@ -53,13 +53,13 @@ public class GmsCore {
     }
 
     private static InstallResult installPackages(Set<String> list, int userId) {
-        BlackBoxCore blackBoxCore = BlackBoxCore.get();
+        AnubisCore blackBoxCore = AnubisCore.get();
         for (String packageName : list) {
             if (blackBoxCore.isInstalled(packageName, userId)) {
                 continue;
             }
             try {
-                BlackBoxCore.getContext().getPackageManager().getApplicationInfo(packageName, 0);
+                AnubisCore.getContext().getPackageManager().getApplicationInfo(packageName, 0);
             } catch (PackageManager.NameNotFoundException e) {
                 continue;
             }
@@ -72,7 +72,7 @@ public class GmsCore {
     }
 
     private static void uninstallPackages(Set<String> list, int userId) {
-        BlackBoxCore blackBoxCore = BlackBoxCore.get();
+        AnubisCore blackBoxCore = AnubisCore.get();
         for (String packageName : list) {
             blackBoxCore.uninstallPackageAsUser(packageName, userId);
         }
@@ -105,7 +105,7 @@ public class GmsCore {
     }
 
     public static boolean isInstalledGoogleService(int userId) {
-        return BlackBoxCore.get().isInstalled(GMS_PKG, userId);
+        return AnubisCore.get().isInstalled(GMS_PKG, userId);
     }
 
     public static String getIntentPackage(Intent intent) {
@@ -121,7 +121,7 @@ public class GmsCore {
 
     public static boolean shouldUseHostGoogle(String callerPackage) {
         return callerPackage != null
-                && !callerPackage.equals(BlackBoxCore.getHostPkg())
+                && !callerPackage.equals(AnubisCore.getHostPkg())
                 && !isGoogleAppOrService(callerPackage);
     }
 

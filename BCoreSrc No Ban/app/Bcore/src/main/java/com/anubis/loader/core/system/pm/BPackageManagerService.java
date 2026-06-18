@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.GmsCore;
 import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.core.system.BProcessManagerService;
@@ -81,7 +81,7 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
         filter.addAction("android.intent.action.PACKAGE_ADDED");
         filter.addAction("android.intent.action.PACKAGE_REMOVED");
         filter.addDataScheme("package");
-        BlackBoxCore.getContext()
+        AnubisCore.getContext()
                 .registerReceiver(mPackageChangedHandler, filter);
     }
 
@@ -103,9 +103,9 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
         if (mFakeApps.containsKey(packageName)) {
         return mFakeApps.get(packageName);
     }
-        if (Objects.equals(packageName, BlackBoxCore.getHostPkg())) {
+        if (Objects.equals(packageName, AnubisCore.getHostPkg())) {
             try {
-                return BlackBoxCore.getPackageManager().getApplicationInfo(packageName, flags);
+                return AnubisCore.getPackageManager().getApplicationInfo(packageName, flags);
             } catch (PackageManager.NameNotFoundException e) {
                 e.printStackTrace();
             }
@@ -256,7 +256,7 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
     @Override
     public List<ResolveInfo> queryIntentServices(
             Intent intent, int flags, int userId) {
-        final String resolvedType = intent.resolveTypeIfNeeded(BlackBoxCore.getContext().getContentResolver());
+        final String resolvedType = intent.resolveTypeIfNeeded(AnubisCore.getContext().getContentResolver());
         return this.queryIntentServicesInternal(intent, resolvedType, flags, userId);
     }
 
@@ -278,9 +278,9 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
     @Override
     public PackageInfo getPackageInfo(String packageName, int flags, int userId) {
         if (!sUserManager.exists(userId)) return null;
-        if (Objects.equals(packageName, BlackBoxCore.getHostPkg())) {
+        if (Objects.equals(packageName, AnubisCore.getHostPkg())) {
             try {
-                return BlackBoxCore.getPackageManager().getPackageInfo(packageName, flags);
+                return AnubisCore.getPackageManager().getPackageInfo(packageName, flags);
             } catch (PackageManager.NameNotFoundException e) {
                 e.printStackTrace();
             }
@@ -686,7 +686,7 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
             }
             if (option.isFlag(InstallOption.FLAG_URI_FILE)) {
                 apkFile = new File(BEnvironment.getCacheDir(), UUID.randomUUID().toString() + ".apk");
-                InputStream inputStream = BlackBoxCore.getContext().getContentResolver().openInputStream(Uri.parse(file));
+                InputStream inputStream = AnubisCore.getContext().getContentResolver().openInputStream(Uri.parse(file));
                 FileUtils.copyFile(inputStream, apkFile);
             } else {
                 apkFile = new File(file);
@@ -706,9 +706,9 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
 
             boolean support = AbiUtils.isSupport(apkFile);
             if (!support) {
-                String msg = packageArchiveInfo.applicationInfo.loadLabel(BlackBoxCore.getPackageManager()) + "[" + packageArchiveInfo.packageName + "]";
+                String msg = packageArchiveInfo.applicationInfo.loadLabel(AnubisCore.getPackageManager()) + "[" + packageArchiveInfo.packageName + "]";
                 return result.installError(packageArchiveInfo.packageName,
-                        msg + "\n" + (BlackBoxCore.is64Bit() ? "The box does not support 32-bit Application" : "The box does not support 64-bit Application"));
+                        msg + "\n" + (AnubisCore.is64Bit() ? "The box does not support 32-bit Application" : "The box does not support 64-bit Application"));
             }
             PackageParser.Package aPackage = parserApk(apkFile.getAbsolutePath());
             if (aPackage == null) {
@@ -717,7 +717,7 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
             result.packageName = aPackage.packageName;
 
             if (option.isFlag(InstallOption.FLAG_SYSTEM)) {
-                aPackage.applicationInfo = BlackBoxCore.getPackageManager().getPackageInfo(aPackage.packageName, 0).applicationInfo;
+                aPackage.applicationInfo = AnubisCore.getPackageManager().getPackageInfo(aPackage.packageName, 0).applicationInfo;
             }
             BPackageSettings bPackageSettings = mSettings.getPackageLPw(aPackage.packageName, aPackage, option);
 
@@ -834,7 +834,7 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
     }
 
     private static PackageInfo getPackageArchiveInfo(String apkPath) {
-        PackageManager pm = BlackBoxCore.getPackageManager();
+        PackageManager pm = AnubisCore.getPackageManager();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             return pm.getPackageArchiveInfo(
                     apkPath,

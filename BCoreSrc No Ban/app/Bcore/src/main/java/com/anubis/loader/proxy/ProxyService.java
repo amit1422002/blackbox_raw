@@ -8,7 +8,7 @@ import android.os.IBinder;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.dispatcher.AppServiceDispatcher;
 import com.anubis.loader.utils.compat.BuildCompat;
 
@@ -66,10 +66,10 @@ public class ProxyService extends Service {
     }
 
     private void showNotification() {
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), getPackageName() + ".blackbox_proxy")
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), getPackageName() + ".anubis_proxy")
                 .setPriority(NotificationCompat.PRIORITY_MAX);
         if (BuildCompat.isOreo()) {
-            startForeground(BlackBoxCore.getHostPkg().hashCode(), builder.build());
+            startForeground(AnubisCore.getHostPkg().hashCode(), builder.build());
         }
     }
 

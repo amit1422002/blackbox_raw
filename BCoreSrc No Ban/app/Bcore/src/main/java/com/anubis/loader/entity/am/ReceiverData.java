@@ -6,7 +6,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 /**
- * Created by BlackBox on 2022/2/28.
+ * Created by Anubis on 2022/2/28.
  */
 public class ReceiverData implements Parcelable {
     public Intent intent;

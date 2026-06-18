@@ -6,7 +6,7 @@ import java.lang.reflect.Method;
 
 import black.android.media.session.BRISessionManagerStub;
 import black.android.os.BRServiceManager;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.fake.hook.BinderInvocationStub;
 import com.anubis.loader.fake.hook.MethodHook;
 import com.anubis.loader.fake.hook.ProxyMethod;
@@ -45,7 +45,7 @@ public class IMediaSessionManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             if (args != null && args.length > 0 && args[0] instanceof String) {
-                args[0] = BlackBoxCore.getHostPkg();
+                args[0] = AnubisCore.getHostPkg();
             }
             return method.invoke(who, args);
         }

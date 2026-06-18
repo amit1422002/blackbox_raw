@@ -2,7 +2,7 @@ package com.anubis.loader.fake.hook;
 
 import java.lang.reflect.Method;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 
 /**
  * Created by Milk on 3/30/21.
@@ -28,6 +28,6 @@ public abstract class MethodHook {
     protected abstract Object hook(Object who, Method method, Object[] args) throws Throwable;
 
     protected boolean isEnable() {
-        return BlackBoxCore.get().isBlackProcess();
+        return AnubisCore.get().isAnubisProcess();
     }
 }

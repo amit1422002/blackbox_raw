@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.system.pm.BPackage;
 import com.anubis.loader.core.system.pm.BPackageManagerService;
 import com.anubis.loader.core.system.pm.BPackageSettings;
@@ -22,7 +22,7 @@ import com.anubis.loader.proxy.ProxyBroadcastReceiver;
 import com.anubis.loader.utils.Slog;
 
 /**
- * Created by BlackBox on 2022/2/28.
+ * Created by Anubis on 2022/2/28.
  */
 public class BroadcastManager implements PackageMonitor {
     public static final String TAG = "BroadcastManager";
@@ -88,9 +88,9 @@ public class BroadcastManager implements PackageMonitor {
                 for (BPackage.ActivityIntentInfo intent : intents) {
                     ProxyBroadcastReceiver proxyBroadcastReceiver = new ProxyBroadcastReceiver();
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        BlackBoxCore.getContext().registerReceiver(proxyBroadcastReceiver, intent.intentFilter, Context.RECEIVER_EXPORTED);
+                        AnubisCore.getContext().registerReceiver(proxyBroadcastReceiver, intent.intentFilter, Context.RECEIVER_EXPORTED);
                     }else{
-                        BlackBoxCore.getContext().registerReceiver(proxyBroadcastReceiver, intent.intentFilter);
+                        AnubisCore.getContext().registerReceiver(proxyBroadcastReceiver, intent.intentFilter);
                     }
                     addReceiver(bPackage.packageName, proxyBroadcastReceiver);
                 }
@@ -132,7 +132,7 @@ public class BroadcastManager implements PackageMonitor {
                     Slog.d(TAG, "unregisterReceiver Package: " + packageName + ", size: " + broadcastReceivers.size());
                     for (BroadcastReceiver broadcastReceiver : broadcastReceivers) {
                         try {
-                            BlackBoxCore.getContext().unregisterReceiver(broadcastReceiver);
+                            AnubisCore.getContext().unregisterReceiver(broadcastReceiver);
                         } catch (Throwable ignored) {
                         }
                     }

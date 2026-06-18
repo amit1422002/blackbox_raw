@@ -2,8 +2,8 @@ package black.android.renderscript;
 
 import java.io.File;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BStaticMethod;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BStaticMethod;
 
 @BClassName("android.renderscript.RenderScriptCacheDir")
 public interface RenderScriptCacheDir {

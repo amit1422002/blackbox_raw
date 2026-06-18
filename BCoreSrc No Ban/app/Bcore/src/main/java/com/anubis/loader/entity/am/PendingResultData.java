@@ -15,7 +15,7 @@ import black.android.content.BroadcastReceiverPendingResultMContext;
 import com.anubis.loader.utils.compat.BuildCompat;
 
 /**
- * Created by BlackBox on 2022/2/28.
+ * Created by Anubis on 2022/2/28.
  */
 public class PendingResultData implements Parcelable {
     public int mType;

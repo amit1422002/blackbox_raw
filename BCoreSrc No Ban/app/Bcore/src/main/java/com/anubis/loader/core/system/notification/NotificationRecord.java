@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Created by BlackBox on 2022/3/18.
+ * Created by Anubis on 2022/3/18.
  */
 public class NotificationRecord {
     public final Map<String, NotificationChannel> mNotificationChannels = new HashMap<>();

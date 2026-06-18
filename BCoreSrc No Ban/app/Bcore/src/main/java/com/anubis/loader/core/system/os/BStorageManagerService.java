@@ -9,7 +9,7 @@ import java.io.File;
 
 import black.android.os.storage.BRStorageManager;
 import black.android.os.storage.BRStorageVolume;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.core.system.ISystemService;
 import com.anubis.loader.core.system.user.BUserHandle;
@@ -59,7 +59,7 @@ public class BStorageManagerService extends IBStorageManagerService.Stub impleme
 
     @Override
     public Uri getUriForFile(String file) throws RemoteException {
-        return FileProvider.getUriForFile(BlackBoxCore.getContext(), ProxyManifest.getProxyFileProvider(), new File(file));
+        return FileProvider.getUriForFile(AnubisCore.getContext(), ProxyManifest.getProxyFileProvider(), new File(file));
     }
 
     @Override

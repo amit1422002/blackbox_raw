@@ -67,7 +67,7 @@ public class IDevicePolicyManagerProxy extends BinderInvocationStub {
 
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            // Guest was detecting literal "BlackBox" device owner name from DPM binder.
+            // Guest was detecting literal "Anubis" device owner name from DPM binder.
             return null;
         }
     }

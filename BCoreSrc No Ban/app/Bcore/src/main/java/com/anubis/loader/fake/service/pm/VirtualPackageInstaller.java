@@ -10,7 +10,7 @@ import com.anubis.loader.utils.Slog;
 import java.lang.reflect.Method;
 
 /**
- * Routes Play Store / virtual-app PackageInstaller sessions into BlackBox install pipeline.
+ * Routes Play Store / virtual-app PackageInstaller sessions into Anubis install pipeline.
  */
 public class VirtualPackageInstaller extends ClassInvocationStub {
     public static final String TAG = "VirtualPkgInstaller";

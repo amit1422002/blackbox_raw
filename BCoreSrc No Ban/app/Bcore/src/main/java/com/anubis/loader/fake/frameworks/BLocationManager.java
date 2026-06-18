@@ -13,7 +13,7 @@ import com.anubis.loader.entity.location.BCell;
 import com.anubis.loader.entity.location.BLocation;
 
 /**
- * Created by BlackBoxing on 3/8/22.
+ * Created by Anubis on 3/8/22.
  **/
 public class BLocationManager extends BlackManager<IBLocationManagerService> {
     private static final BLocationManager sLocationManager = new BLocationManager();

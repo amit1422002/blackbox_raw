@@ -1,7 +1,7 @@
 package com.anubis.loader.core.system.location;
 
 /**
- * Created by BlackBox on 2022/3/19.
+ * Created by Anubis on 2022/3/19.
  */
 public class LocationRecord {
     public String packageName;

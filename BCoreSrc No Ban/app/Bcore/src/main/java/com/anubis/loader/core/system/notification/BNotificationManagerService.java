@@ -22,14 +22,14 @@ import black.android.app.BRNotificationO;
 import black.android.app.NotificationChannelContext;
 import black.android.app.NotificationChannelGroupContext;
 import black.android.app.NotificationOContext;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.system.BProcessManagerService;
 import com.anubis.loader.core.system.ISystemService;
 import com.anubis.loader.core.system.ProcessRecord;
 import com.anubis.loader.utils.compat.BuildCompat;
 
 /**
- * Created by BlackBox on 2022/3/15.
+ * Created by Anubis on 2022/3/15.
  */
 public class BNotificationManagerService extends IBNotificationManagerService.Stub implements ISystemService {
     private final static BNotificationManagerService sService = new BNotificationManagerService();
@@ -40,7 +40,7 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
     private final Map<String, NotificationRecord> mNotificationRecords = new HashMap<>();
 
     private final NotificationManager mRealNotificationManager =
-            (NotificationManager) BlackBoxCore.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+            (NotificationManager) AnubisCore.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
 
     public static BNotificationManagerService get() {
         return sService;

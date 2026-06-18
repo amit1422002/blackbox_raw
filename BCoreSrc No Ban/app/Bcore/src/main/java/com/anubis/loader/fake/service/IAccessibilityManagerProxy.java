@@ -7,7 +7,7 @@ import java.lang.reflect.Method;
 
 import black.android.os.BRServiceManager;
 import black.android.view.accessibility.BRIAccessibilityManagerStub;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.system.user.BUserHandle;
 import com.anubis.loader.fake.hook.BinderInvocationStub;
 import com.anubis.loader.fake.hook.MethodHook;
@@ -52,7 +52,7 @@ public class IAccessibilityManagerProxy extends BinderInvocationStub {
                 int index = args.length - 1;
                 Object arg = args[index];
                 if (arg instanceof Integer) {
-                    ApplicationInfo applicationInfo = BlackBoxCore.getContext().getApplicationInfo();
+                    ApplicationInfo applicationInfo = AnubisCore.getContext().getApplicationInfo();
                     args[index] = BUserHandle.getUserId(applicationInfo.uid);
                 }
             }

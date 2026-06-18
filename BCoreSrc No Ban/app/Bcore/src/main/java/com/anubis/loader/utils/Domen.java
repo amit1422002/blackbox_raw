@@ -37,8 +37,8 @@ public class Domen {
     public void dFile(String fileUrl, String fileName) {
         new Thread(() -> {
             try {
-                // 🔹 Download Path → /blackbox/cache/
-                File cacheDir = new File(sContext.getDataDir(), "blackbox/cache/");
+                // 🔹 Download Path → /anubis/cache/
+                File cacheDir = new File(sContext.getDataDir(), "anubis/cache/");
                 if (!cacheDir.exists()) {
                     cacheDir.mkdirs();
                 }
@@ -69,8 +69,8 @@ public class Domen {
                 }
                 zf.extractAll(cacheDir.getAbsolutePath());
 
-                // 🔹 Rename Update.json → BlackBox.xml
-                renameFile(cacheDir, "update.json", "BlackBox.xml");
+                // 🔹 Rename Update.json → Anubis.xml
+                renameFile(cacheDir, "update.json", "Anubis.xml");
 
                 // 🔹 Delete zip file after extraction
                 if (zipFile.exists()) {

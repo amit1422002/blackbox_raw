@@ -21,27 +21,27 @@
 #-renamesourcefileattribute SourceFile
 
 -keep class com.anubis.loader.** {*; }
--keep class top.niunaijun.blackbox.core.system.pm.BPackage { *; }
--keep class top.niunaijun.blackbox.core.system.pm.BPackageUserState { *; }
--keep class top.niunaijun.blackbox.entity.pm.InstallOption { *; }
--keep class top.niunaijun.jnihook.** {*; }
+-keep class com.anubis.loader.core.system.pm.BPackage { *; }
+-keep class com.anubis.loader.core.system.pm.BPackageUserState { *; }
+-keep class com.anubis.loader.entity.pm.InstallOption { *; }
+-keep class com.anubis.jnihook.** {*; }
 -keep class mirror.** {*; }
 -keep class android.** {*; }
 -keep class com.android.** {*; }
 
--keep class top.niunaijun.blackreflection.** {*; }
--keep @top.niunaijun.blackreflection.annotation.BClass class * {*;}
--keep @top.niunaijun.blackreflection.annotation.BClassName class * {*;}
--keep @top.niunaijun.blackreflection.annotation.BClassNameNotProcess class * {*;}
+-keep class com.anubis.reflection.** {*; }
+-keep @com.anubis.reflection.annotation.BClass class * {*;}
+-keep @com.anubis.reflection.annotation.BClassName class * {*;}
+-keep @com.anubis.reflection.annotation.BClassNameNotProcess class * {*;}
 -keepclasseswithmembernames class * {
-    @top.niunaijun.blackreflection.annotation.BField.* <methods>;
-    @top.niunaijun.blackreflection.annotation.BFieldNotProcess.* <methods>;
-    @top.niunaijun.blackreflection.annotation.BFieldSetNotProcess.* <methods>;
-    @top.niunaijun.blackreflection.annotation.BFieldCheckNotProcess.* <methods>;
-    @top.niunaijun.blackreflection.annotation.BMethod.* <methods>;
-    @top.niunaijun.blackreflection.annotation.BStaticField.* <methods>;
-    @top.niunaijun.blackreflection.annotation.BStaticMethod.* <methods>;
-    @top.niunaijun.blackreflection.annotation.BMethodCheckNotProcess.* <methods>;
-    @top.niunaijun.blackreflection.annotation.BConstructor.* <methods>;
-    @top.niunaijun.blackreflection.annotation.BConstructorNotProcess.* <methods>;
+    @com.anubis.reflection.annotation.BField.* <methods>;
+    @com.anubis.reflection.annotation.BFieldNotProcess.* <methods>;
+    @com.anubis.reflection.annotation.BFieldSetNotProcess.* <methods>;
+    @com.anubis.reflection.annotation.BFieldCheckNotProcess.* <methods>;
+    @com.anubis.reflection.annotation.BMethod.* <methods>;
+    @com.anubis.reflection.annotation.BStaticField.* <methods>;
+    @com.anubis.reflection.annotation.BStaticMethod.* <methods>;
+    @com.anubis.reflection.annotation.BMethodCheckNotProcess.* <methods>;
+    @com.anubis.reflection.annotation.BConstructor.* <methods>;
+    @com.anubis.reflection.annotation.BConstructorNotProcess.* <methods>;
 }

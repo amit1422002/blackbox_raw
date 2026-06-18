@@ -1,8 +1,8 @@
 package black.libcore.io;
 
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BField;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BField;
 
 @BClassName("libcore.io.ForwardingOs")
 public interface ForwardingOs {

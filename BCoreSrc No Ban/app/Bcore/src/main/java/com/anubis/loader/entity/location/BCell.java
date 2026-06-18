@@ -3,7 +3,7 @@ package com.anubis.loader.entity.location;
 import android.os.Parcel;
 import android.os.Parcelable;
 /*
- * created by BlackBoxing at 2022/03/06
+ * created by Anubis at 2022/03/06
  * */
 public class BCell implements Parcelable {
     /**

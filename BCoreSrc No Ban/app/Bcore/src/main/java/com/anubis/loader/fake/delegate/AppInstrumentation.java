@@ -13,7 +13,7 @@ import android.util.Log;
 import java.lang.reflect.Field;
 import black.android.app.BRActivity;
 import black.android.app.BRActivityThread;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.fake.hook.HookManager;
 import com.anubis.loader.fake.hook.IInjectHook;
@@ -52,14 +52,14 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
             if (mInstrumentation == this || checkInstrumentation(mInstrumentation))
                 return;
             mBaseInstrumentation = (Instrumentation) mInstrumentation;
-            BRActivityThread.get(BlackBoxCore.mainThread())._set_mInstrumentation(this);
+            BRActivityThread.get(AnubisCore.mainThread())._set_mInstrumentation(this);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     private Instrumentation getCurrInstrumentation() {
-        Object currentActivityThread = BlackBoxCore.mainThread();
+        Object currentActivityThread = AnubisCore.mainThread();
         return BRActivityThread.get(currentActivityThread).mInstrumentation();
     }
 

@@ -10,7 +10,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.GmsCore;
 import com.anubis.loader.entity.pm.InstallResult;
 import com.anubis.loader.utils.Slog;
@@ -31,11 +31,11 @@ public final class MicroGInstaller {
     private MicroGInstaller() {}
 
     public static InstallResult install(int userId) {
-        Context ctx = BlackBoxCore.getContext();
+        Context ctx = AnubisCore.getContext();
         if (ctx == null) return new InstallResult().installError("no context");
 
         try {
-            BlackBoxCore core = BlackBoxCore.get();
+            AnubisCore core = AnubisCore.get();
             if (core.isInstalled(GmsCore.GMS_PKG, userId)) {
                 core.uninstallPackageAsUser(GmsCore.GMS_PKG, userId);
             }

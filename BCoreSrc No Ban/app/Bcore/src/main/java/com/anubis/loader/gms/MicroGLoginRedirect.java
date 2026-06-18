@@ -4,10 +4,10 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.utils.Slog;
 
-/** Redirect microG {@code LoginActivity} to BlackBox bridge that skips the broken CookieManager gate. */
+/** Redirect microG {@code LoginActivity} to Anubis bridge that skips the broken CookieManager gate. */
 public final class MicroGLoginRedirect {
     private static final String TAG = "MicroGLoginRedirect";
     private static final String MICROG_LOGIN = "org.microg.gms.auth.login.LoginActivity";
@@ -18,9 +18,9 @@ public final class MicroGLoginRedirect {
         if (!redirectIfNeeded(intent)) return false;
         if (info != null) {
             info.name = MicroGLoginBridgeActivity.class.getName();
-            info.packageName = BlackBoxCore.getHostPkg();
+            info.packageName = AnubisCore.getHostPkg();
             if (info.applicationInfo != null) {
-                info.applicationInfo.packageName = BlackBoxCore.getHostPkg();
+                info.applicationInfo.packageName = AnubisCore.getHostPkg();
             }
         }
         return true;
@@ -33,7 +33,7 @@ public final class MicroGLoginRedirect {
         if (!MICROG_LOGIN.equals(cn.getClassName())) return false;
         Slog.d(TAG, "Redirect " + MICROG_LOGIN + " -> MicroGLoginBridgeActivity");
         intent.setComponent(new ComponentName(
-                BlackBoxCore.getHostPkg(),
+                AnubisCore.getHostPkg(),
                 MicroGLoginBridgeActivity.class.getName()));
         return true;
     }

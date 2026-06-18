@@ -3,7 +3,7 @@
 // --- Reset Guest button ---
 AppCompatButton resetGuestBgmiBtn = findViewById(R.id.ResetGuestBgmi);
 resetGuestBgmiBtn.setOnClickListener(v -> {
-    if (!blackboxCore.isInstalled(packageName, 0)) {
+    if (!anubisCore.isInstalled(packageName, 0)) {
         Toast.makeText(getApplicationContext(), R.string.logout_bgmi_not_installed, Toast.LENGTH_LONG).show();
         return;
     }
@@ -37,7 +37,7 @@ resetGuestBgmiBtn.setOnClickListener(v -> {
 // --- Recover Guest button ---
 AppCompatButton recoverGuestBgmiBtn = findViewById(R.id.RecoverGuestBgmi);
 recoverGuestBgmiBtn.setOnClickListener(v -> {
-    if (!blackboxCore.isInstalled(packageName, 0)) {
+    if (!anubisCore.isInstalled(packageName, 0)) {
         Toast.makeText(getApplicationContext(), R.string.logout_bgmi_not_installed, Toast.LENGTH_LONG).show();
         return;
     }

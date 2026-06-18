@@ -1,7 +1,7 @@
 package com.anubis.loader.proxy;
 
 /**
- * Created by BlackBox on 2022/3/17.
+ * Created by Anubis on 2022/3/17.
  */
 public class TransparentProxyActivity extends ProxyActivity {
 

@@ -9,10 +9,10 @@ import android.os.Build;
 
 import androidx.annotation.RequiresApi;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 
 /**
- * Created by BlackBox on 2022/3/18.
+ * Created by Anubis on 2022/3/18.
  */
 public class NotificationChannelManager {
     private final static NotificationChannelManager sManager = new NotificationChannelManager();
@@ -31,8 +31,8 @@ public class NotificationChannelManager {
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     private void registerAppChannel() {
-        NotificationManager nm = (NotificationManager) BlackBoxCore.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-        String CHANNEL_ONE_ID = BlackBoxCore.getContext().getPackageName();
+        NotificationManager nm = (NotificationManager) AnubisCore.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+        String CHANNEL_ONE_ID = AnubisCore.getContext().getPackageName();
         String CHANNEL_ONE_NAME = "black-box-app";
         APP_CHANNEL = new NotificationChannel(CHANNEL_ONE_ID,
                 CHANNEL_ONE_NAME, NotificationManager.IMPORTANCE_HIGH);

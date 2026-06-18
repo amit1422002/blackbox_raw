@@ -7,7 +7,7 @@ import android.content.res.Configuration;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.entity.JobRecord;
 
@@ -90,7 +90,7 @@ public class AppJobServiceDispatcher {
                 return jobRecord.mJobService;
             }
             try {
-                JobRecord record = BlackBoxCore.getBJobManager().queryJobRecord(BActivityThread.getAppProcessName(), jobId);
+                JobRecord record = AnubisCore.getBJobManager().queryJobRecord(BActivityThread.getAppProcessName(), jobId);
                 record.mJobService = BActivityThread.currentActivityThread().createJobService(record.mServiceInfo);
                 if (record.mJobService == null)
                     return null;

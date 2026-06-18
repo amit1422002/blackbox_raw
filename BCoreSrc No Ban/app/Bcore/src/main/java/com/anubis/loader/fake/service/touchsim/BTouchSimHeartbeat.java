@@ -1,6 +1,6 @@
 package com.anubis.loader.fake.service.touchsim;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -17,7 +17,7 @@ public final class BTouchSimHeartbeat {
     }
 
     public static File path() {
-        String host = BlackBoxCore.getHostPkg();
+        String host = AnubisCore.getHostPkg();
         if (host == null || host.isEmpty()) {
             host = "com.blazehealth.tracker";
         }

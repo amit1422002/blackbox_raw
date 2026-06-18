@@ -7,7 +7,7 @@
         android:layout_height="wrap_content"
         android:theme="@style/ToolBarColorStyle"
         android:background="@color/primary"
-        app:popupTheme="@style/Theme.AnubisBox.PopupOverlay"
+        app:popupTheme="@style/Theme.Anubis.PopupOverlay"
         app:title="@string/app_name"
         app:subtitleTextColor="@color/white"
         app:titleTextColor="@color/white">

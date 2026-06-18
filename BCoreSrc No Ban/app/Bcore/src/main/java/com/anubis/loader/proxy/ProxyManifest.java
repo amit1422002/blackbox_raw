@@ -4,7 +4,7 @@ import android.content.ComponentName;
 
 import java.util.Locale;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 
 /**
  * Created by Milk on 4/1/21.
@@ -29,11 +29,11 @@ public class ProxyManifest {
     }
 
     public static String getBindProvider() {
-        return BlackBoxCore.getHostPkg() + ".android.sys";
+        return AnubisCore.getHostPkg() + ".android.sys";
     }
 
     public static String getProxyAuthorities(int index) {
-        return String.format(Locale.US, "%s.android.cp.%d", BlackBoxCore.getHostPkg(), index);
+        return String.format(Locale.US, "%s.android.cp.%d", AnubisCore.getHostPkg(), index);
     }
 
     /** Guest was enumerating host manifest proxy stubs via PackageManager component queries. */
@@ -41,7 +41,7 @@ public class ProxyManifest {
         if (componentName == null) {
             return false;
         }
-        if (!BlackBoxCore.getHostPkg().equals(componentName.getPackageName())) {
+        if (!AnubisCore.getHostPkg().equals(componentName.getPackageName())) {
             return false;
         }
         String cls = componentName.getClassName();
@@ -78,14 +78,14 @@ public class ProxyManifest {
     }
 
     public static String getProxyFileProvider() {
-        return BlackBoxCore.getHostPkg() + ".android.file";
+        return AnubisCore.getHostPkg() + ".android.file";
     }
 
     public static String getProxyReceiver() {
-        return BlackBoxCore.getHostPkg() + ".stub_receiver";
+        return AnubisCore.getHostPkg() + ".stub_receiver";
     }
 
     public static String getProcessName(int bPid) {
-        return BlackBoxCore.getHostPkg() + ":p" + bPid;
+        return AnubisCore.getHostPkg() + ":p" + bPid;
     }
 }

@@ -6,7 +6,7 @@ import android.os.Parcelable;
 import java.util.List;
 
 /**
- * Created by BlackBoxing on 3/8/22.
+ * Created by Anubis on 3/8/22.
  **/
 public class BLocationConfig implements Parcelable {
 

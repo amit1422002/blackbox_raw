@@ -3,7 +3,7 @@ package com.anubis.loader.utils;
 import java.util.Arrays;
 import java.util.HashSet;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 
 public class MethodParameterUtils {
@@ -26,8 +26,8 @@ public class MethodParameterUtils {
         for (int i = 0; i < args.length; i++) {
             if (args[i] instanceof String) {
                 String value = (String) args[i];
-                if (BlackBoxCore.get().isInstalled(value, BActivityThread.getUserId())) {
-                    args[i] = BlackBoxCore.getHostPkg();
+                if (AnubisCore.get().isInstalled(value, BActivityThread.getUserId())) {
+                    args[i] = AnubisCore.getHostPkg();
                     return value;
                 }
             }
@@ -44,8 +44,8 @@ public class MethodParameterUtils {
                 continue;
             if (args[i] instanceof String) {
                 String value = (String) args[i];
-                if (BlackBoxCore.get().isInstalled(value, BActivityThread.getUserId())) {
-                    args[i] = BlackBoxCore.getHostPkg();
+                if (AnubisCore.get().isInstalled(value, BActivityThread.getUserId())) {
+                    args[i] = AnubisCore.getHostPkg();
                 }
             }
         }
@@ -58,7 +58,7 @@ public class MethodParameterUtils {
             if (args[i] instanceof Integer) {
                 int uid = (int) args[i];
                 if (uid == BActivityThread.getBUid()) {
-                    args[i] = BlackBoxCore.getHostUid();
+                    args[i] = AnubisCore.getHostUid();
                 }
             }
         }
@@ -69,7 +69,7 @@ public class MethodParameterUtils {
         if (index != -1) {
             int uid = (int) args[index];
             if (uid == BActivityThread.getBUid()) {
-                args[index] = BlackBoxCore.getHostUid();
+                args[index] = AnubisCore.getHostUid();
             }
         }
     }
@@ -78,8 +78,8 @@ public class MethodParameterUtils {
         int index = ArrayUtils.indexOfLast(args, String.class);
         if (index != -1) {
             String pkg = (String) args[index];
-            if (BlackBoxCore.get().isInstalled(pkg, BActivityThread.getUserId())) {
-                args[index] = BlackBoxCore.getHostPkg();
+            if (AnubisCore.get().isInstalled(pkg, BActivityThread.getUserId())) {
+                args[index] = AnubisCore.getHostPkg();
             }
             return pkg;
         }
@@ -90,8 +90,8 @@ public class MethodParameterUtils {
         int index = ArrayUtils.indexOf(args, String.class, sequence);
         if (index != -1) {
             String pkg = (String) args[index];
-            if (BlackBoxCore.get().isInstalled(pkg, BActivityThread.getUserId())) {
-                args[index] = BlackBoxCore.getHostPkg();
+            if (AnubisCore.get().isInstalled(pkg, BActivityThread.getUserId())) {
+                args[index] = AnubisCore.getHostPkg();
             }
             return pkg;
         }
@@ -147,7 +147,7 @@ public class MethodParameterUtils {
     public static void replaceLastUserId(Object[] args) {
         int index = args.length - 1;
         if (index >= 0 && args[index] instanceof Integer) {
-            args[index] = BlackBoxCore.getHostUserId();
+            args[index] = AnubisCore.getHostUserId();
         }
     }
 

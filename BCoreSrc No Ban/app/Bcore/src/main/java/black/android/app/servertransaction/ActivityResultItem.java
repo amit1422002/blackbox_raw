@@ -2,8 +2,8 @@ package black.android.app.servertransaction;
 
 import java.util.List;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BField;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BField;
 
 @BClassName("android.app.servertransaction.ActivityResultItem")
 public interface ActivityResultItem {

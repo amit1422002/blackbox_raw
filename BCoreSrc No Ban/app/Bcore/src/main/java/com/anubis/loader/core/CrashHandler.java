@@ -1,6 +1,6 @@
 package com.anubis.loader.core;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 
 /**
  * Created by Milk on 4/30/21.
@@ -24,8 +24,8 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
 
     @Override
     public void uncaughtException(Thread t, Throwable e) {
-        if (BlackBoxCore.get().getExceptionHandler() != null) {
-            BlackBoxCore.get().getExceptionHandler().uncaughtException(t, e);
+        if (AnubisCore.get().getExceptionHandler() != null) {
+            AnubisCore.get().getExceptionHandler().uncaughtException(t, e);
         }
         mDefaultHandler.uncaughtException(t, e);
     }

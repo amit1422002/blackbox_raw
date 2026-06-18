@@ -45,7 +45,7 @@ public class HostAccountBridge {
     /** Host app context ΓÇö virtual AccountManager must not be used for real GMS tokens. */
     private static Context hostCtx(Context ctx) {
         try {
-            Context h = com.anubis.loader.BlackBoxCore.getContext();
+            Context h = com.anubis.loader.AnubisCore.getContext();
             if (h != null) return h;
         } catch (Throwable ignored) {}
         return ctx;

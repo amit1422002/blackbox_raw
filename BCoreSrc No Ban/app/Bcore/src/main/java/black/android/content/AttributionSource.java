@@ -1,12 +1,12 @@
 package black.android.content;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BConstructor;
-import top.niunaijun.blackreflection.annotation.BField;
-import top.niunaijun.blackreflection.annotation.BMethod;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BConstructor;
+import com.anubis.reflection.annotation.BField;
+import com.anubis.reflection.annotation.BMethod;
 
 /**
- * Created by BlackBox on 2022/2/20.
+ * Created by Anubis on 2022/2/20.
  */
 @BClassName("android.content.AttributionSource")
 public interface AttributionSource {

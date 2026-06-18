@@ -2,9 +2,9 @@ package black.android.content.pm;
 
 import android.content.pm.PackageParser.SigningDetails;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BConstructor;
-import top.niunaijun.blackreflection.annotation.BField;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BConstructor;
+import com.anubis.reflection.annotation.BField;
 
 @BClassName("android.content.pm.SigningInfo")
 public interface SigningInfo {

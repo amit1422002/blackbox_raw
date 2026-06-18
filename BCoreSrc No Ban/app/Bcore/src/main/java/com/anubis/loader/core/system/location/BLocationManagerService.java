@@ -19,7 +19,7 @@ import java.util.concurrent.Executors;
 
 import black.android.location.BRILocationListener;
 import black.android.location.BRILocationListenerStub;
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.core.system.ISystemService;
 import com.anubis.loader.entity.location.BCell;
@@ -36,7 +36,7 @@ import com.anubis.loader.utils.Slog;
  * plan2: mock fake neighboring cells from LBS database and modify the result of GPS invocation.
  * plan3: cheat internal application at being given permission to access location information but get data from BB.
  * the final testing condition requires UI demo.
- * Created by BlackBoxing on 3/8/22.
+ * Created by Anubis on 3/8/22.
  **/
 public class BLocationManagerService extends IBLocationManagerService.Stub implements ISystemService {
     public static final String TAG = "BLocationManagerService";
@@ -258,7 +258,7 @@ public class BLocationManagerService extends IBLocationManagerService.Stub imple
                 }
                 lastLocation = location;
                 l = System.currentTimeMillis();
-                BlackBoxCore.get().getHandler().post(() -> BRILocationListener.get(iInterface).onLocationChanged(location.convert2SystemLocation()));
+                AnubisCore.get().getHandler().post(() -> BRILocationListener.get(iInterface).onLocationChanged(location.convert2SystemLocation()));
             }
         });
     }

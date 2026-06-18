@@ -5,7 +5,7 @@ import android.view.WindowManager;
 
 import java.lang.reflect.Method;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.fake.hook.BinderInvocationStub;
 import com.anubis.loader.fake.hook.MethodHook;
 import com.anubis.loader.fake.hook.ProxyMethod;
@@ -58,7 +58,7 @@ public class IWindowSessionProxy extends BinderInvocationStub {
                     continue;
                 }
                 if (arg instanceof WindowManager.LayoutParams) {
-                    ((WindowManager.LayoutParams) arg).packageName = BlackBoxCore.getHostPkg();
+                    ((WindowManager.LayoutParams) arg).packageName = AnubisCore.getHostPkg();
                 }
             }
             return method.invoke(who, args);

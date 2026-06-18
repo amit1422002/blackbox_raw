@@ -15,7 +15,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.core.system.BProcessManagerService;
 import com.anubis.loader.core.system.user.BUserHandle;
@@ -196,7 +196,7 @@ import com.anubis.loader.utils.compat.PackageParserCompat;
             BPackageSettings bPackageSettings = new BPackageSettings(packageSettingsIn);
             bPackageSettings.pkg.mExtras = bPackageSettings;
             if (bPackageSettings.installOption.isFlag(InstallOption.FLAG_SYSTEM)) {
-                PackageInfo packageInfo = BlackBoxCore.getPackageManager().getPackageInfo(packageName, PackageManager.GET_META_DATA);
+                PackageInfo packageInfo = AnubisCore.getPackageManager().getPackageInfo(packageName, PackageManager.GET_META_DATA);
                 String currPackageSourcePath = packageInfo.applicationInfo.sourceDir;
                 if (!currPackageSourcePath.equals(bPackageSettings.pkg.baseCodePath)) {
                     // update baseCodePath And Re install
@@ -229,7 +229,7 @@ import com.anubis.loader.utils.compat.PackageParserCompat;
         if (aPackage == null) {
             throw new RuntimeException("parser apk error.");
         }
-        aPackage.applicationInfo = BlackBoxCore.getPackageManager().getPackageInfo(aPackage.packageName, 0).applicationInfo;
+        aPackage.applicationInfo = AnubisCore.getPackageManager().getPackageInfo(aPackage.packageName, 0).applicationInfo;
         return getPackageLPw(aPackage.packageName, aPackage, option);
     }
 

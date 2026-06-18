@@ -153,7 +153,7 @@ public class BPackageSettings implements Parcelable {
         }
     }
 
-    /** Rehydrate parcel stubs under legacy {@code top.niunaijun.blackbox.*} FQCNs to canonical classes. */
+    /** Rehydrate parcel stubs under legacy {@code com.anubis.loader.*} FQCNs to canonical classes. */
     private static BPackage canonicalizePkg(BPackage pkg) {
         if (pkg == null || pkg.getClass() == BPackage.class) {
             return pkg;

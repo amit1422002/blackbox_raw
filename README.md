@@ -37,8 +37,8 @@ This enhanced edition includes bug fixes, stability improvements, and Android 14
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-repo/NewBlackbox.git
-cd NewBlackbox
+git clone https://github.com/your-repo/Anubis.git
+cd Anubis
 
 # Build Debug APK
 ./gradlew assembleDebug

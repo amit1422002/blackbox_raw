@@ -9,7 +9,7 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 
 /**
  * Created by Milk on 3/2/21.
@@ -33,7 +33,7 @@ public class AbiUtils {
             return true;
         }
 
-        if (BlackBoxCore.is64Bit()) {
+        if (AnubisCore.is64Bit()) {
             return abiUtils.is64Bit();
         } else {
             return abiUtils.is32Bit();

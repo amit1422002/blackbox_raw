@@ -20,7 +20,7 @@ import android.os.UserHandle;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.app.configuration.AppLifecycleCallback;
 import com.anubis.loader.utils.Reflector;
@@ -257,7 +257,7 @@ public void callActivityOnCreate(Activity activity, Bundle icicle) {
     // Call through to base instrumentation
     mBaseInstrumentation.callActivityOnCreate(activity, icicle);
 
-    for (AppLifecycleCallback appLifecycleCallback : BlackBoxCore.get().getAppLifecycleCallbacks()) {
+    for (AppLifecycleCallback appLifecycleCallback : AnubisCore.get().getAppLifecycleCallbacks()) {
         appLifecycleCallback.onActivityCreated(activity, icicle);
     }
 }
@@ -266,7 +266,7 @@ public void callActivityOnCreate(Activity activity, Bundle icicle) {
     @Override
     public void callActivityOnCreate(Activity activity, Bundle icicle, PersistableBundle persistentState) {
         mBaseInstrumentation.callActivityOnCreate(activity, icicle, persistentState);
-        for (AppLifecycleCallback appLifecycleCallback : BlackBoxCore.get().getAppLifecycleCallbacks()) {
+        for (AppLifecycleCallback appLifecycleCallback : AnubisCore.get().getAppLifecycleCallbacks()) {
             appLifecycleCallback.onActivityCreated(activity, icicle);
         }
     }
@@ -274,7 +274,7 @@ public void callActivityOnCreate(Activity activity, Bundle icicle) {
     @Override
     public void callActivityOnDestroy(Activity activity) {
         mBaseInstrumentation.callActivityOnDestroy(activity);
-        for (AppLifecycleCallback appLifecycleCallback : BlackBoxCore.get().getAppLifecycleCallbacks()) {
+        for (AppLifecycleCallback appLifecycleCallback : AnubisCore.get().getAppLifecycleCallbacks()) {
             appLifecycleCallback.onActivityDestroyed(activity);
         }
     }
@@ -335,7 +335,7 @@ public void callActivityOnStart(Activity activity) {
     // proceed with normal start
     mBaseInstrumentation.callActivityOnStart(activity);
 
-    for (AppLifecycleCallback appLifecycleCallback : BlackBoxCore.get().getAppLifecycleCallbacks()) {
+    for (AppLifecycleCallback appLifecycleCallback : AnubisCore.get().getAppLifecycleCallbacks()) {
         appLifecycleCallback.onActivityStarted(activity);
     }
 }
@@ -349,7 +349,7 @@ public void callActivityOnStart(Activity activity) {
     @Override
     public void callActivityOnResume(Activity activity) {
         mBaseInstrumentation.callActivityOnResume(activity);
-        for (AppLifecycleCallback appLifecycleCallback : BlackBoxCore.get().getAppLifecycleCallbacks()) {
+        for (AppLifecycleCallback appLifecycleCallback : AnubisCore.get().getAppLifecycleCallbacks()) {
             appLifecycleCallback.onActivityResumed(activity);
         }
     }
@@ -357,7 +357,7 @@ public void callActivityOnStart(Activity activity) {
     @Override
     public void callActivityOnStop(Activity activity) {
         mBaseInstrumentation.callActivityOnStop(activity);
-        for (AppLifecycleCallback appLifecycleCallback : BlackBoxCore.get().getAppLifecycleCallbacks()) {
+        for (AppLifecycleCallback appLifecycleCallback : AnubisCore.get().getAppLifecycleCallbacks()) {
             appLifecycleCallback.onActivityStopped(activity);
         }
     }
@@ -370,7 +370,7 @@ public void callActivityOnStart(Activity activity) {
     @Override
     public void callActivityOnSaveInstanceState(Activity activity, Bundle outState, PersistableBundle outPersistentState) {
         mBaseInstrumentation.callActivityOnSaveInstanceState(activity, outState, outPersistentState);
-        for (AppLifecycleCallback appLifecycleCallback : BlackBoxCore.get().getAppLifecycleCallbacks()) {
+        for (AppLifecycleCallback appLifecycleCallback : AnubisCore.get().getAppLifecycleCallbacks()) {
             appLifecycleCallback.onActivitySaveInstanceState(activity, outState);
         }
     }
@@ -378,7 +378,7 @@ public void callActivityOnStart(Activity activity) {
     @Override
     public void callActivityOnPause(Activity activity) {
         mBaseInstrumentation.callActivityOnPause(activity);
-        for (AppLifecycleCallback appLifecycleCallback : BlackBoxCore.get().getAppLifecycleCallbacks()) {
+        for (AppLifecycleCallback appLifecycleCallback : AnubisCore.get().getAppLifecycleCallbacks()) {
             appLifecycleCallback.onActivityPaused(activity);
         }
     }

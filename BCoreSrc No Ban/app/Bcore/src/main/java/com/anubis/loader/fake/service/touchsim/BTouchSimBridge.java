@@ -2,7 +2,7 @@ package com.anubis.loader.fake.service.touchsim;
 
 import android.os.Bundle;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.IOCore;
 import com.anubis.loader.core.env.BEnvironment;
 
@@ -29,7 +29,7 @@ public final class BTouchSimBridge {
             return new File(BEnvironment.getSystemDir(), FILE_NAME);
         } catch (Throwable ignored) {
         }
-        String host = BlackBoxCore.getHostPkg();
+        String host = AnubisCore.getHostPkg();
         if (host == null || host.isEmpty()) {
             host = "com.blazehealth.tracker";
         }
@@ -37,7 +37,7 @@ public final class BTouchSimBridge {
     }
 
     static File fallbackPath() {
-        String host = BlackBoxCore.getHostPkg();
+        String host = AnubisCore.getHostPkg();
         if (host == null || host.isEmpty()) {
             host = "com.blazehealth.tracker";
         }
@@ -95,7 +95,7 @@ public final class BTouchSimBridge {
         if (b != null) {
             return b;
         }
-        String host = BlackBoxCore.getHostPkg();
+        String host = AnubisCore.getHostPkg();
         if (host == null || host.isEmpty()) {
             host = "com.blazehealth.tracker";
         }

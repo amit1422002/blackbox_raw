@@ -13,10 +13,10 @@ import android.util.DisplayMetrics;
 import java.io.File;
 import java.util.List;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BConstructor;
-import top.niunaijun.blackreflection.annotation.BField;
-import top.niunaijun.blackreflection.annotation.BMethod;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BConstructor;
+import com.anubis.reflection.annotation.BField;
+import com.anubis.reflection.annotation.BMethod;
 
 @BClassName("android.content.pm.PackageParser")
 public interface PackageParser {

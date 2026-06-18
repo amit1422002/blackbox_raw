@@ -2,8 +2,8 @@ package black.android.view;
 
 import android.graphics.Bitmap;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BStaticMethod;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BStaticMethod;
 
 @BClassName("android.view.SurfaceControl")
 public interface SurfaceControl {

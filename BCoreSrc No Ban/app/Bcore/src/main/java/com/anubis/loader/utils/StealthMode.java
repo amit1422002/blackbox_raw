@@ -1,6 +1,6 @@
 package com.anubis.loader.utils;
 
-import com.anubis.loader.BlackBoxCore;
+import com.anubis.loader.AnubisCore;
 
 /**
  * When active, suppresses logcat and other traces inside cloned guest processes.
@@ -12,8 +12,8 @@ public final class StealthMode {
 
     public static boolean isActive() {
         try {
-            BlackBoxCore core = BlackBoxCore.get();
-            return core.isBlackProcess() || core.isServerProcess();
+            AnubisCore core = AnubisCore.get();
+            return core.isAnubisProcess() || core.isServerProcess();
         } catch (Throwable ignored) {
             return false;
         }

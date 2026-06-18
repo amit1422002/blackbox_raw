@@ -3,8 +3,8 @@ package black.android.content;
 import android.content.Intent;
 import android.os.Bundle;
 
-import top.niunaijun.blackreflection.annotation.BClassName;
-import top.niunaijun.blackreflection.annotation.BMethod;
+import com.anubis.reflection.annotation.BClassName;
+import com.anubis.reflection.annotation.BMethod;
 
 @BClassName("android.content.IIntentReceiver")
 public interface IIntentReceiver {
