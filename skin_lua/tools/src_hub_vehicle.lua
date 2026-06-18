@@ -1,4 +1,4 @@
--- SRC HUB in-game vehicle skins (lobby = Ultimate wardrobe inject)
+-- Anubis in-game vehicle skins (lobby = Ultimate wardrobe inject)
 _G.VehskinIdMappings = _G.VehskinIdMappings or {}
 _G.VehicleSkinIndex = _G.VehicleSkinIndex or {}
 _G.LobbyVehicleSkin = _G.LobbyVehicleSkin or 0

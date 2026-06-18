@@ -3491,9 +3491,9 @@ local function start()
     end)
     skinProbeLog("UltimateEngine hooks installed")
 end
--- ==================== SRC HUB (in-game module) ====================
+-- ==================== Anubis (in-game module) ====================
 
-(function() -- SRC HUB scope (Lua 200 local limit per function)
+(function() -- Anubis scope (Lua 200 local limit per function)
 local skinProbeLog = _G.skinProbeLog or function(...) end
 
 _G.skinIdMappings = {
@@ -3539,7 +3539,7 @@ _G.lastAppliedAttachments = _G.lastAppliedAttachments or {}
 _G.lastAppliedSkin = _G.lastAppliedSkin or {}
 _G.CurrentEquipVehicleID = 0
 
--- SRC HUB in-game vehicle skins (lobby = Ultimate wardrobe inject)
+-- Anubis in-game vehicle skins (lobby = Ultimate wardrobe inject)
 _G.VehskinIdMappings = _G.VehskinIdMappings or {}
 _G.VehicleSkinIndex = _G.VehicleSkinIndex or {}
 _G.LobbyVehicleSkin = _G.LobbyVehicleSkin or 0
@@ -6347,15 +6347,15 @@ function _G.TryShowWelcome()
     pcall(function()
         local CommonMsgBoxMgr = require("client.slua.logic.common.logic_common_msg_box")
         if not CommonMsgBoxMgr then return end
-        local activeStatus = "SRC HUB Menu & Status\n"
+        local activeStatus = "Anubis Menu & Status\n"
         activeStatus = activeStatus .. "\nWeapon Skins: Active"
         activeStatus = activeStatus .. "\nKill Counter: Active"
         activeStatus = activeStatus .. "\nOutfit Skins: Active"
         activeStatus = activeStatus .. "\nLobby Theme: Active"
         activeStatus = activeStatus .. "\nDeadBox Skins: Active"
         activeStatus = activeStatus .. "\nVehicle Skins: Active"
-        activeStatus = activeStatus .. "\n\nConfigure your values in config.ini and changes will apply automatically without UI hooks.\n\nEnjoy SRC HUB!"
-        CommonMsgBoxMgr.Show(1, "SRC HUB MENU", activeStatus, function() end)
+        activeStatus = activeStatus .. "\n\nConfigure your values in config.ini and changes will apply automatically without UI hooks.\n\nEnjoy Anubis!"
+        CommonMsgBoxMgr.Show(1, "Anubis MENU", activeStatus, function() end)
         _G.WelcomeShown = true
     end)
 end
@@ -6779,12 +6779,12 @@ pcall(function()
     local o_UpdateQuality = Lobby_Main_Wifi_UIBP.__inner_impl.UpdateQuality
     Lobby_Main_Wifi_UIBP.__inner_impl.UpdateQuality = function(self)
         self.UIRoot.WidgetSwitcher_Quality:SetActiveWidgetIndex(0)
-        self.UIRoot.TextBlock_High:SetText("SRC HUB")
+        self.UIRoot.TextBlock_High:SetText("Anubis")
         self.UIRoot.TextBlock_High:SetColorAndOpacity(FSlateColor(FLinearColor(1, 1, 1, 1)))
     end
     local o_UpdateArtQualityUI = IngamePhoneStateUI.__inner_impl.UpdateArtQualityUI
     IngamePhoneStateUI.__inner_impl.UpdateArtQualityUI = function(self, _, _)
-        self.UIRoot.TextBlock_quality:SetText("SRC HUB")
+        self.UIRoot.TextBlock_quality:SetText("Anubis")
         self.UIRoot.TextBlock_quality:SetColorAndOpacity(FSlateColor(FLinearColor(0, 1, 0, 1)))
     end
 end)
@@ -6846,7 +6846,7 @@ local function ShowMatchEndMessage(message)
     pcall(function()
         local CommonMsgBoxMgr = require("client.slua.logic.common.logic_common_msg_box")
         if CommonMsgBoxMgr then
-            CommonMsgBoxMgr.Show(1, "SRC HUB", message, function() end)
+            CommonMsgBoxMgr.Show(1, "Anubis", message, function() end)
         end
     end)
 end
@@ -6858,7 +6858,7 @@ local function GetRandomEndMessage(rank, kills)
         "You are a true champion!", "The battlefield honors you!", "Great performance today!",
         "Your skills are impressive!", "Keep up the good work!", "You made your team proud!",
         "Legendary performance!", "You are unstoppable!", "Fear the reaper! You are death itself!",
-        "SRC HUB sends their regards!"
+        "Anubis sends their regards!"
     }
     if rank == 1 then
         table.insert(messages, "WINNER WINNER CHICKEN DINNER!")
@@ -6890,7 +6890,7 @@ local function OnMatchEnd()
         local TeamRank = GameState:GetTeamRank()
         if TeamRank and TeamRank > 0 then MyRank = TeamRank end
         local message = GetRandomEndMessage(MyRank, MyKills)
-        message = message .. "\n\nRank: " .. MyRank .. "\nKills: " .. MyKills .. "\n\nSRC HUB"
+        message = message .. "\n\nRank: " .. MyRank .. "\nKills: " .. MyKills .. "\n\nAnubis"
         ShowMatchEndMessage(message)
         _G.MatchEndMessageShown = true
         _G.ResetMatchState()
@@ -7084,7 +7084,7 @@ else
     end)
 end
 
--- ========== SRC HUB in-game bootstrap (match/training — lobby = Ultimate) ==========
+-- ========== Anubis in-game bootstrap (match/training — lobby = Ultimate) ==========
 local function isNonLobbyWorldCharacter(ch)
     if not ch or not slua.isValid(ch) then return false end
     local isLobbyActor = false
@@ -7139,7 +7139,7 @@ local function scheduleSrcHubRetry()
         end
         if tries >= 40 then
             _G.__srcHubRetryTimer = nil
-            skinProbeLog("SRC HUB retry gave up after " .. tries)
+            skinProbeLog("Anubis retry gave up after " .. tries)
             return
         end
         if _G.Mytimer_ticker and _G.Mytimer_ticker.AddTimer then
@@ -7159,13 +7159,13 @@ _G.scheduleSrcHubRetry = scheduleSrcHubRetry
 
 function _G.bootstrapSrcHubIngame()
     if not srcHubInMatch() then
-        skinProbeLog("SRC HUB in-game: skip (lobby/loading) — will retry")
+        skinProbeLog("Anubis in-game: skip (lobby/loading) — will retry")
         scheduleSrcHubRetry()
         return
     end
     local firstBoot = not _G.__SRC_HUB_STARTED
     if firstBoot then
-        skinProbeLog("SRC HUB in-game bootstrap")
+        skinProbeLog("Anubis in-game bootstrap")
         pcall(function()
             local ok, ticker = pcall(require, 'common.time_ticker')
             if ok and ticker then _G.Mytimer_ticker = ticker end
@@ -7184,7 +7184,7 @@ function _G.bootstrapSrcHubIngame()
         pcall(function()
             if _G.startSrcOutfitTimers then _G.startSrcOutfitTimers() end
         end)
-        notify("SRC HUB in-game active")
+        notify("Anubis in-game active")
     end
     _G.__outfitProbeDone = nil
     _G.__outfitZeroLogged = nil

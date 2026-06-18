@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build SRC HUB skin_mod_bgmi.lua from git base + user timer/weapon handlers."""
+"""Build Anubis skin_mod_bgmi.lua from git base + user timer/weapon handlers."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -275,9 +275,9 @@ def main():
     lua = SRC.read_text(encoding="utf-8")
 
     # branding
-    lua = lua.replace("Anubis", "SRC HUB").replace("SRCHUB", "SRCHUB")
-    lua = lua.replace("Enjoy SRC HUB!", "Enjoy SRCHUB!")
-    lua = lua.replace("SRC HUB sends their regards!", "SRCHUB sends their regards!")
+    lua = lua.replace("Anubis", "Anubis").replace("SRCHUB", "SRCHUB")
+    lua = lua.replace("Enjoy Anubis!", "Enjoy SRCHUB!")
+    lua = lua.replace("Anubis sends their regards!", "SRCHUB sends their regards!")
 
     # match user WeaponBaseIDMap (no ACE32)
     lua = lua.replace("FAMAS=101011, ACE32=101102,", "FAMAS=101011,")

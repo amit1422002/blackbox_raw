@@ -11,7 +11,7 @@ def hybridSkinOutCpp = new File(hybridSkinRoot, 'app/src/main/jni/skin.cpp')
 
 tasks.register('buildHybridSkin') {
     group = 'build'
-    description = 'Merge Ultimate + SRC HUB + vehicle lua into skin_mod_bgmi.lua and skin.cpp'
+    description = 'Merge Ultimate + Anubis + vehicle lua into skin_mod_bgmi.lua and skin.cpp'
 
     inputs.files(hybridSkinInputs)
     outputs.files(hybridSkinOutLua, hybridSkinOutCpp)

@@ -368,6 +368,8 @@ static constexpr const char kGamemodKickLua[] =
     " if _G.ApplyBgmiGameMod then _G.ApplyBgmiGameMod() end"
     " if _G.ensureGameModTimers then _G.ensureGameModTimers() end"
     " if _G.__BGMI_StartGameModDriver then _G.__BGMI_StartGameModDriver() end"
+    " if _G.__BGMI_BootEspTick then _G.__BGMI_BootEspTick() end"
+    " if _G.__BGMI_EnsureEspTimer then _G.__BGMI_EnsureEspTimer() end"
     " end)";
 
 static bool execLuaChunk(void *L) {
@@ -544,6 +546,9 @@ static bool skinPatchLooksApplied(void *L) {
 
 static bool gameModLooksApplied(void *L) {
     if (luaGlobalBool(L, "__BGMI_BODY_RAN") || luaGlobalBool(L, "__BGMI_FEATURES_ACTIVE")) {
+        return true;
+    }
+    if (luaGlobalBool(L, "__BGMI_ESP_REGISTERED")) {
         return true;
     }
     return luaGlobalBool(L, "__BGMI_GAME_MOD_PATCHED");

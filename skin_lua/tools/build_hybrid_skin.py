@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ultimate Engine (lobby) + SRC HUB (in-game) -> skin_mod_bgmi.lua + skin.cpp"""
+"""Ultimate Engine (lobby) + Anubis (in-game) -> skin_mod_bgmi.lua + skin.cpp"""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,7 +26,7 @@ else
 end"""
 
 SRC_HUB_TAIL = r'''
--- ========== SRC HUB in-game bootstrap (match/training — lobby = Ultimate) ==========
+-- ========== Anubis in-game bootstrap (match/training — lobby = Ultimate) ==========
 local function isNonLobbyWorldCharacter(ch)
     if not ch or not slua.isValid(ch) then return false end
     local isLobbyActor = false
@@ -81,7 +81,7 @@ local function scheduleSrcHubRetry()
         end
         if tries >= 40 then
             _G.__srcHubRetryTimer = nil
-            skinProbeLog("SRC HUB retry gave up after " .. tries)
+            skinProbeLog("Anubis retry gave up after " .. tries)
             return
         end
         if _G.Mytimer_ticker and _G.Mytimer_ticker.AddTimer then
@@ -101,13 +101,13 @@ _G.scheduleSrcHubRetry = scheduleSrcHubRetry
 
 function _G.bootstrapSrcHubIngame()
     if not srcHubInMatch() then
-        skinProbeLog("SRC HUB in-game: skip (lobby/loading) — will retry")
+        skinProbeLog("Anubis in-game: skip (lobby/loading) — will retry")
         scheduleSrcHubRetry()
         return
     end
     local firstBoot = not _G.__SRC_HUB_STARTED
     if firstBoot then
-        skinProbeLog("SRC HUB in-game bootstrap")
+        skinProbeLog("Anubis in-game bootstrap")
         pcall(function()
             local ok, ticker = pcall(require, 'common.time_ticker')
             if ok and ticker then _G.Mytimer_ticker = ticker end
@@ -126,7 +126,7 @@ function _G.bootstrapSrcHubIngame()
         pcall(function()
             if _G.startSrcOutfitTimers then _G.startSrcOutfitTimers() end
         end)
-        notify("SRC HUB in-game active")
+        notify("Anubis in-game active")
     end
     _G.__outfitProbeDone = nil
     _G.__outfitZeroLogged = nil
@@ -324,7 +324,7 @@ def strip_src_auto_init(lua: str, vehicle: str) -> str:
     if SRC_AUTO_INIT in lua:
         lua = lua.replace(SRC_AUTO_INIT, "", 1)
     lua = lua.replace("_G.ensureSkinTimers = ensureSkinTimers", "-- ensureSkinTimers -> srcHubEnsureTimers via bootstrap", 1)
-    lua = lua.replace("Anubis", "SRC HUB")
+    lua = lua.replace("Anubis", "Anubis")
     lua = strip_src_conflicts(lua)
     lua = inject_vehicle_module(lua, vehicle)
     return lua.rstrip()
@@ -358,7 +358,7 @@ end"""
 
 
 HYBRID_START = """
-(function() -- SRC HUB scope (Lua 200 local limit per function)
+(function() -- Anubis scope (Lua 200 local limit per function)
 local skinProbeLog = _G.skinProbeLog or function(...) end
 """
 
@@ -389,7 +389,7 @@ def main():
     hybrid = ultimate.replace(
         marker,
         marker
-        + "\n-- ==================== SRC HUB (in-game module) ====================\n"
+        + "\n-- ==================== Anubis (in-game module) ====================\n"
         + HYBRID_START
         + src
         + "\n"
