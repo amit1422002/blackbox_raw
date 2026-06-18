@@ -30,6 +30,7 @@ import black.android.app.BRActivityManagerNative;
 import black.android.app.BRIActivityManager;
 import black.com.android.internal.BRRstyleable;
 import com.anubis.loader.AnubisCore;
+import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.core.system.BProcessManagerService;
 import com.anubis.loader.core.system.ProcessRecord;
 import com.anubis.loader.core.system.pm.BPackageManagerService;
@@ -518,16 +519,21 @@ public class ActivityStack {
                     return resultTo.info.packageName;
                 }
             }
-            return AnubisCore.getHostPkg();
+            String guestPkg = BActivityThread.getAppPackageName();
+            return guestPkg != null ? guestPkg : AnubisCore.getHostPkg();
         }
     }
 
     public String getLaunchedFromPackage(IBinder token, int userId) {
         String calling = getCallingPackage(token, userId);
+        String guestPkg = BActivityThread.getAppPackageName();
+        if (calling != null && guestPkg != null && calling.equals(guestPkg)) {
+            return calling;
+        }
         if (calling != null && !calling.equals(AnubisCore.getHostPkg())) {
             return calling;
         }
-        return AnubisCore.getHostPkg();
+        return guestPkg != null ? guestPkg : AnubisCore.getHostPkg();
     }
 
     public ComponentName getCallingActivity(IBinder token, int userId) {
@@ -539,6 +545,10 @@ public class ActivityStack {
                 if (resultTo != null) {
                     return resultTo.component;
                 }
+            }
+            String guestPkg = BActivityThread.getAppPackageName();
+            if (guestPkg != null) {
+                return new ComponentName(guestPkg, guestPkg + ".MainActivity");
             }
             return new ComponentName(AnubisCore.getHostPkg(), ProxyActivity.P0.class.getName());
         }

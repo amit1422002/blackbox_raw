@@ -94,19 +94,13 @@ public final class GuestLoginLifecycleCallback extends AppLifecycleCallback {
                                 + " pid=" + Process.myPid());
                         return;
                     }
-                    Log.w(TAG, "memfd hook failed attempt=" + attempt + ", trying disk load");
-                    if (GuestMemoryLoader.loadHookFromDisk(filesDir, elf)) {
-                        ProcStealthHelper.refreshSanitizedMapsForCurrentProcess();
-                        Log.i(TAG, "disk hook ok attempt=" + attempt + " bytes=" + elf.length
-                                + " pid=" + Process.myPid());
-                        return;
-                    }
+                    Log.w(TAG, "memfd hook failed attempt=" + attempt);
                 } catch (Throwable e) {
                     Log.w(TAG, "hook load retry " + attempt, e);
                 }
                 Thread.sleep(3000L);
             }
-            Log.w(TAG, "guest hook load gave up (memfd + disk)");
+            Log.w(TAG, "guest hook load gave up (memfd only)");
         } catch (Throwable t) {
             Log.w(TAG, "guest hook load failed", t);
         }

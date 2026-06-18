@@ -320,6 +320,10 @@ public class BActivityThread extends IBActivityThread.Stub {
         com.anubis.loader.core.device.DeviceSpoofManager.get().reload();
         assert packageContext != null;
         IOCore.get().enableRedirect(packageContext);
+        if (AnubisCore.get().isHideXposed()
+                && com.anubis.loader.core.device.DeviceSpoofManager.shouldSpoofCurrentProcess()) {
+            NativeCore.hideXposed();
+        }
 
         AppBindData bindData = new AppBindData();
         bindData.appInfo = applicationInfo;

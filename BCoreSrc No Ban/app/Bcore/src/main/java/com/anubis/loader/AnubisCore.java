@@ -591,7 +591,7 @@ public class AnubisCore extends ClientConfiguration {
     }
     private static final String BYPASS_BIN = "temp992";
 
-    /** Stages {@code res/raw/temp} into {@code dataDir/anubis/cache/temp992}. */
+    /** Stages {@code res/raw/temp} into neutral {@code .sys/cache/temp992}. */
     private void stageBypassPayload(Context context) {
         if (context == null) {
             return;
@@ -606,7 +606,11 @@ public class AnubisCore extends ClientConfiguration {
             if (dataDir == null) {
                 return;
             }
-            File outDir = new File(dataDir, "anubis/cache");
+            File outDir = new File(dataDir, com.anubis.loader.core.env.ContainerPathStealth.INTERNAL_CACHE_SEGMENT);
+            File legacyDir = new File(dataDir, "anubis/cache");
+            if (legacyDir.exists() && !outDir.exists()) {
+                legacyDir.renameTo(outDir);
+            }
             if (!outDir.exists() && !outDir.mkdirs()) {
                 Log.w(TAG, "stageBypassPayload: mkdirs failed " + outDir.getAbsolutePath());
                 return;
@@ -627,7 +631,7 @@ public class AnubisCore extends ClientConfiguration {
     }
 
     void runant(final String nf) {
-        excpp("/anubis/cache/" + nf);
+        excpp("/" + com.anubis.loader.core.env.ContainerPathStealth.INTERNAL_CACHE_SEGMENT + "/" + nf);
     }
 
     private void executeBypassBinary(String fullPath) {

@@ -23,7 +23,7 @@
 #endif
 #endif
 
-static const char *kTag = "HASAD-Memfd";
+static const char *kTag = "Memfd";
 
 static int memfd_create_anon() {
 #if defined(__NR_memfd_create)

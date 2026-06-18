@@ -5,6 +5,7 @@ import android.util.Log;
 
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
+import com.anubis.loader.core.GmsCore;
 import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.entity.DeviceSpoofConfig;
 import com.anubis.loader.utils.FileUtils;
@@ -95,30 +96,52 @@ public final class DeviceSpoofManager {
     }
 
     public boolean isEnabled(int userId, String packageName) {
+        if (shouldSpoofCurrentProcess()) {
+            return true;
+        }
         DeviceSpoofConfig c = getConfig(userId, packageName);
         return c != null && c.enabled;
     }
 
-    /** @return null = keep legacy BCore behavior (md5 host pkg). */
+    /** Guest processes always get stable per-clone IDs unless explicitly overridden in config. */
     public String resolveImei(int userId, String packageName) {
+        if (!shouldSpoofCurrentProcess()) {
+            return null;
+        }
         DeviceSpoofConfig c = getConfig(userId, packageName);
-        if (c == null || !c.enabled) return null;
-        if (!TextUtils.isEmpty(c.imei)) return c.imei.trim();
+        if (c != null && !TextUtils.isEmpty(c.imei)) {
+            return c.imei.trim();
+        }
         return DeviceSpoofIds.stableImei(userId, packageName);
     }
 
     public String resolveSerial(int userId, String packageName) {
+        if (!shouldSpoofCurrentProcess()) {
+            return null;
+        }
         DeviceSpoofConfig c = getConfig(userId, packageName);
-        if (c == null || !c.enabled) return null;
-        if (!TextUtils.isEmpty(c.serial)) return c.serial.trim();
+        if (c != null && !TextUtils.isEmpty(c.serial)) {
+            return c.serial.trim();
+        }
         return DeviceSpoofIds.stableSerial(userId, packageName);
     }
 
     public String resolveAndroidId(int userId, String packageName) {
+        if (!shouldSpoofCurrentProcess()) {
+            return null;
+        }
         DeviceSpoofConfig c = getConfig(userId, packageName);
-        if (c == null || !c.enabled) return null;
-        if (!TextUtils.isEmpty(c.androidId)) return c.androidId.trim().toLowerCase(Locale.US);
+        if (c != null && !TextUtils.isEmpty(c.androidId)) {
+            return c.androidId.trim().toLowerCase(Locale.US);
+        }
         return DeviceSpoofIds.stableAndroidId(userId, packageName);
+    }
+
+    public String resolveWifiMac(int userId, String packageName) {
+        if (!shouldSpoofCurrentProcess()) {
+            return null;
+        }
+        return DeviceSpoofIds.stableWifiMac(userId, packageName);
     }
 
     /** Legacy default when spoof disabled. */
@@ -141,7 +164,10 @@ public final class DeviceSpoofManager {
         String pkg = BActivityThread.getAppPackageName();
         if (TextUtils.isEmpty(pkg)) return false;
         String host = AnubisCore.getHostPkg();
-        return host == null || !host.equals(pkg);
+        if (host != null && host.equals(pkg)) return false;
+        // microG / Play services must see real host-aligned IDs and paths.
+        if (GmsCore.isGoogleAppOrService(pkg)) return false;
+        return true;
     }
 
     private void persist() {

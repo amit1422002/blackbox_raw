@@ -4,6 +4,7 @@ import android.os.Build;
 
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
+import com.anubis.loader.core.env.ContainerPathStealth;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -63,6 +64,19 @@ public final class ProcStealthHelper {
         }
     }
 
+    /** Fake mountinfo/cgroup/environ so guest probes do not see container paths. */
+    public static void writeExtendedProcFiles(File procDir) {
+        if (procDir == null || !procDir.isDirectory()) {
+            return;
+        }
+        try {
+            writeSanitizedMountinfo(new File(procDir, "mountinfo"));
+            writeSanitizedCgroup(new File(procDir, "cgroup"));
+            writeSanitizedEnviron(new File(procDir, "environ"));
+        } catch (Throwable ignored) {
+        }
+    }
+
     /** Rebuild fake /proc/maps after late native loads (guest hook memfd, etc.). */
     public static void refreshSanitizedMapsForCurrentProcess() {
         try {
@@ -113,6 +127,7 @@ public final class ProcStealthHelper {
         }
         return lower.contains("blackbox")
                 || lower.contains("libhasad")
+                || lower.contains("libartpalette")
                 || lower.contains("libblazebox")
                 || lower.contains("guestloginhook")
                 || lower.contains("anogshook")
@@ -175,5 +190,82 @@ public final class ProcStealthHelper {
             // keep status small; guest anti-tamper often only checks Name/Uid
         }
         FileUtils.writeToFile(sb.toString().getBytes(StandardCharsets.UTF_8), statusOut);
+    }
+
+    private static void writeSanitizedMountinfo(File out) throws IOException {
+        List<String> lines = new ArrayList<>();
+        File mountinfo = new File("/proc/self/mountinfo");
+        try (BufferedReader reader = new BufferedReader(new FileReader(mountinfo))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!shouldHideProcContentLine(line)) {
+                    lines.add(sanitizeProcContentLine(line));
+                }
+            }
+        }
+        if (lines.isEmpty()) {
+            lines.add("1 1 0:1 / / rw,relatime - tmpfs tmpfs rw");
+        }
+        FileUtils.writeToFile(String.join("\n", lines).getBytes(StandardCharsets.UTF_8), out);
+    }
+
+    private static void writeSanitizedCgroup(File out) throws IOException {
+        List<String> lines = new ArrayList<>();
+        File cgroup = new File("/proc/self/cgroup");
+        try (BufferedReader reader = new BufferedReader(new FileReader(cgroup))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                lines.add(sanitizeProcContentLine(line));
+            }
+        }
+        FileUtils.writeToFile(String.join("\n", lines).getBytes(StandardCharsets.UTF_8), out);
+    }
+
+    private static void writeSanitizedEnviron(File out) throws IOException {
+        byte[] raw;
+        try (FileInputStream in = new FileInputStream("/proc/self/environ")) {
+            raw = new byte[(int) Math.min(in.available(), 32_768)];
+            int n = in.read(raw);
+            if (n > 0) {
+                raw = java.util.Arrays.copyOf(raw, n);
+            }
+        }
+        String env = new String(raw, StandardCharsets.UTF_8);
+        String[] parts = env.split("\0");
+        StringBuilder sb = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty() || shouldHideProcContentLine(part)) {
+                continue;
+            }
+            sb.append(sanitizeProcContentLine(part)).append('\0');
+        }
+        FileUtils.writeToFile(sb.toString().getBytes(StandardCharsets.UTF_8), out);
+    }
+
+    static boolean shouldHideProcContentLine(String line) {
+        if (line == null || line.isEmpty()) {
+            return false;
+        }
+        return shouldHideMapsLine(line);
+    }
+
+    static String sanitizeProcContentLine(String line) {
+        if (line == null) {
+            return "";
+        }
+        String guestPkg = BActivityThread.getAppPackageName();
+        int sysUser = AnubisCore.getHostUserId();
+        if (guestPkg != null && sysUser >= 0) {
+            String canonical = ContainerPathStealth.canonicalDataDir(guestPkg, sysUser);
+            line = ContainerPathStealth.sanitizeGuestPath(line);
+            String hostPkg = AnubisCore.getHostPkg();
+            if (hostPkg != null) {
+                line = line.replace(hostPkg, guestPkg);
+            }
+            if (!line.contains(canonical) && line.contains("/.vfs/")) {
+                line = ContainerPathStealth.sanitizeGuestPath(line);
+            }
+        }
+        return line;
     }
 }

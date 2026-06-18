@@ -1,5 +1,6 @@
 package com.anubis.loader.fake.service;
 
+import android.app.ActivityManager;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
@@ -10,6 +11,8 @@ import android.os.IBinder;
 
 import java.io.File;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
@@ -23,6 +26,8 @@ import com.anubis.loader.gms.PlayStoreAuthHelper;
 import com.anubis.loader.utils.Slog;
 import com.anubis.loader.utils.compat.BuildCompat;
 import com.anubis.loader.utils.compat.StartActivityCompat;
+import com.anubis.loader.proxy.ProxyManifest;
+import com.anubis.loader.utils.compat.ParceledListSliceCompat;
 
 import static android.content.pm.PackageManager.GET_META_DATA;
 
@@ -226,5 +231,75 @@ public class ActivityManagerCommonProxy {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             return AnubisCore.getBActivityManager().getCallingActivity((IBinder) args[0], BActivityThread.getUserId());
         }
+    }
+
+    @ProxyMethod("getRecentTasks")
+    public static class GetRecentTasks extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            Object result = method.invoke(who, args);
+            if (!BActivityThread.isThreadInit() || !isGuestContext()) {
+                return result;
+            }
+            return filterRecentTasks(result);
+        }
+    }
+
+    private static boolean isGuestContext() {
+        String pkg = BActivityThread.getAppPackageName();
+        String host = AnubisCore.getHostPkg();
+        return pkg != null && host != null && !pkg.equals(host);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object filterRecentTasks(Object result) {
+        if (result == null) {
+            return null;
+        }
+        List<ActivityManager.RecentTaskInfo> tasks;
+        if (ParceledListSliceCompat.isParceledListSlice(result)) {
+            tasks = ParceledListSliceCompat.getList(result);
+        } else if (result instanceof List) {
+            tasks = (List<ActivityManager.RecentTaskInfo>) result;
+        } else {
+            return result;
+        }
+        if (tasks == null || tasks.isEmpty()) {
+            return result;
+        }
+        String guestPkg = BActivityThread.getAppPackageName();
+        String hostPkg = AnubisCore.getHostPkg();
+        List<ActivityManager.RecentTaskInfo> filtered = new ArrayList<>();
+        for (ActivityManager.RecentTaskInfo task : tasks) {
+            if (task == null || task.baseIntent == null) {
+                continue;
+            }
+            ComponentName component = task.baseIntent.getComponent();
+            if (component != null) {
+                if (hostPkg != null && hostPkg.equals(component.getPackageName())) {
+                    continue;
+                }
+                if (ProxyManifest.isHostProxyComponent(component)) {
+                    continue;
+                }
+            }
+            if (task.baseIntent.getPackage() != null
+                    && hostPkg != null
+                    && hostPkg.equals(task.baseIntent.getPackage())) {
+                continue;
+            }
+            if (guestPkg != null
+                    && component != null
+                    && guestPkg.equals(component.getPackageName())) {
+                filtered.add(task);
+            } else if (component == null && guestPkg != null
+                    && guestPkg.equals(task.baseIntent.getPackage())) {
+                filtered.add(task);
+            }
+        }
+        if (ParceledListSliceCompat.isParceledListSlice(result)) {
+            return ParceledListSliceCompat.create(filtered);
+        }
+        return filtered;
     }
 }

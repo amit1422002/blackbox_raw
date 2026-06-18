@@ -18,6 +18,7 @@ import com.anubis.loader.fake.frameworks.BLocationManager;
 import com.anubis.loader.fake.hook.BinderInvocationStub;
 import com.anubis.loader.fake.hook.MethodHook;
 import com.anubis.loader.fake.hook.ProxyMethod;
+import com.anubis.loader.core.device.DeviceSpoofIds;
 import com.anubis.loader.core.device.DeviceSpoofManager;
 
 /**
@@ -111,8 +112,11 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
     private static String resolveTelephonyId() {
         int userId = BActivityThread.getUserId();
         String pkg = BActivityThread.getAppPackageName();
+        if (!DeviceSpoofManager.shouldSpoofCurrentProcess()) {
+            return DeviceSpoofManager.legacyTelephonyId();
+        }
         String spoof = DeviceSpoofManager.get().resolveImei(userId, pkg);
-        return spoof != null ? spoof : DeviceSpoofManager.legacyTelephonyId();
+        return spoof != null ? spoof : DeviceSpoofIds.stableImei(userId, pkg);
     }
 
     @ProxyMethod("getCellLocation")

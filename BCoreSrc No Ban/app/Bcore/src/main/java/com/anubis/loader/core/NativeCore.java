@@ -16,6 +16,7 @@ import java.util.Locale;
 
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
+import com.anubis.loader.core.env.StealthConstants;
 
 /**
  * Extended patched NativeCore with more anti-detection shims to cover
@@ -32,9 +33,7 @@ public class NativeCore {
     public static final String TAG = "NativeCore";
 
     static {
-        System.loadLibrary("HASAD");
-        // Guest inject .so files are loaded per-game from BoxApplication (elite), not here.
-        // Loading libbgmi.so in static init broke BGMI/Korea guests when both were injected.
+        System.loadLibrary(StealthConstants.NATIVE_CORE_LIB);
     }
  
 

@@ -305,8 +305,7 @@ public class PackageManagerCompat {
         if ((flags & PackageManager.GET_META_DATA) != 0) {
             ai.metaData = p.mAppMetaData;
         }
-        // Must match BEnvironment + IOCore redirect target or SQLite/WorkManager open spoofed
-        // /data/user/0/<pkg> paths that do not exist on disk (native open bypasses Java hooks).
+        // Must match BEnvironment + IOCore redirect target or native open misses .vfs files.
         File dataRoot = BEnvironment.getDataDir(p.packageName, userId);
         ai.dataDir = dataRoot.getAbsolutePath();
         if (!p.installOption.isFlag(InstallOption.FLAG_SYSTEM)) {

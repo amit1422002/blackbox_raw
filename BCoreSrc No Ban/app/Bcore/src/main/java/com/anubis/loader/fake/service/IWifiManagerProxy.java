@@ -10,6 +10,8 @@ import black.android.net.wifi.BRIWifiManagerStub;
 import black.android.net.wifi.BRWifiInfo;
 import black.android.net.wifi.BRWifiSsid;
 import black.android.os.BRServiceManager;
+import com.anubis.loader.app.BActivityThread;
+import com.anubis.loader.core.device.DeviceSpoofManager;
 import com.anubis.loader.fake.hook.BinderInvocationStub;
 import com.anubis.loader.fake.hook.MethodHook;
 import com.anubis.loader.fake.hook.ProxyMethod;
@@ -54,9 +56,13 @@ public class IWifiManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             WifiInfo wifiInfo = (WifiInfo) method.invoke(who, args);
-            BRWifiInfo.get(wifiInfo)._set_mBSSID("ac:62:5a:82:65:c4");
-            BRWifiInfo.get(wifiInfo)._set_mMacAddress("ac:62:5a:82:65:c4");
-            // Guest was detecting hardcoded "BlackBox_Wifi" SSID from WifiManager binder.
+            String mac = DeviceSpoofManager.get().resolveWifiMac(
+                    BActivityThread.getUserId(), BActivityThread.getAppPackageName());
+            if (mac == null) {
+                mac = "02:00:00:00:00:00";
+            }
+            BRWifiInfo.get(wifiInfo)._set_mBSSID(mac);
+            BRWifiInfo.get(wifiInfo)._set_mMacAddress(mac);
             if (wifiInfo != null && BRWifiInfo.get(wifiInfo).mWifiSsid() == null) {
                 BRWifiInfo.get(wifiInfo)._set_mWifiSsid(BRWifiSsid.get().createFromAsciiEncoded("<unknown ssid>"));
             }

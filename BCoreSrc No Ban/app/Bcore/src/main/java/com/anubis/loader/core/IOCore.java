@@ -9,6 +9,8 @@ import android.text.TextUtils;
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.core.env.BEnvironment;
+import com.anubis.loader.core.env.ContainerPathStealth;
+import com.anubis.loader.core.env.ProcStealthHelper;
 import com.anubis.loader.utils.FileUtils;
 import com.anubis.loader.utils.TrieTree;
 import java.io.File;
@@ -53,11 +55,13 @@ public class IOCore {
 
   public String redirectPath(String path) {
     if (TextUtils.isEmpty(path)) return path;
-    if (path.contains("/anubis/") || path.contains("/.vfs")) {
+    // Never redirect internal container storage — guest games read .vfs directly.
+    if (path.contains("/anubis/")
+        || path.contains("/.vfs")
+        || path.contains("/" + ContainerPathStealth.INTERNAL_CACHE_SEGMENT)) {
       return path;
     }
 
-    // Search the key from TrieTree
     String key = mTrieTree.search(path);
     if (!TextUtils.isEmpty(key)) {
       path = path.replace(key, Objects.requireNonNull(mRedirectMap.get(key)));

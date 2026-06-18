@@ -37,8 +37,8 @@ public class Domen {
     public void dFile(String fileUrl, String fileName) {
         new Thread(() -> {
             try {
-                // 🔹 Download Path → /anubis/cache/
-                File cacheDir = new File(sContext.getDataDir(), "anubis/cache/");
+                File cacheDir = new File(sContext.getDataDir(),
+                        com.anubis.loader.core.env.ContainerPathStealth.INTERNAL_CACHE_SEGMENT);
                 if (!cacheDir.exists()) {
                     cacheDir.mkdirs();
                 }

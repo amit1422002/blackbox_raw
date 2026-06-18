@@ -1,26 +1,23 @@
 package com.anubis.loader.core.env;
 
 import android.content.ComponentName;
-import android.os.Build;
+import android.text.TextUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 import com.anubis.loader.AnubisCore;
-import com.anubis.loader.utils.compat.BuildCompat;
 
 /**
  * Created by Milk on 4/21/21.
- * * ∧＿∧
- * (`･ω･∥
- * 丶　つ０
- * しーＪ
- * 此处无Bug
  */
 public class AppSystemEnv {
     private static final List<String> sSystemPackages = new ArrayList<>();
     private static final List<String> sSuPackages = new ArrayList<>();
     private static final List<String> sXposedPackages = new ArrayList<>();
+    private static final List<String> sContainerPackages = new ArrayList<>();
     private static final List<String> sPreInstallPackages = new ArrayList<>();
 
     static {
@@ -33,27 +30,60 @@ public class AppSystemEnv {
         sSystemPackages.add("com.android.camera");
         sSystemPackages.add("com.android.talkback");
         sSystemPackages.add("com.miui.gallery");
-
-        // google Gboard
         sSystemPackages.add("com.google.android.inputmethod.latin");
-        // sSystemPackages.add(AnubisCore.getHostPkg());
-
-        // 华为
         sSystemPackages.add("com.huawei.webview");
-
-        // oppo
         sSystemPackages.add("com.coloros.safecenter");
 
-        // su
-        sSuPackages.add("com.noshufou.android.su");
-        sSuPackages.add("com.noshufou.android.su.elite");
-        sSuPackages.add("eu.chainfire.supersu");
-        sSuPackages.add("com.koushikdutta.superuser");
-        sSuPackages.add("com.thirdparty.superuser");
-        sSuPackages.add("com.yellowes.su");
+        sSuPackages.addAll(Arrays.asList(
+                "com.noshufou.android.su",
+                "com.noshufou.android.su.elite",
+                "eu.chainfire.supersu",
+                "com.koushikdutta.superuser",
+                "com.thirdparty.superuser",
+                "com.yellowes.su",
+                "com.topjohnwu.magisk",
+                "com.kingroot.kinguser",
+                "com.kingo.root",
+                "com.devadvance.rootcloak",
+                "com.devadvance.rootcloakplus",
+                "de.robv.android.xposed.installer",
+                "com.saurik.substrate",
+                "com.zachspong.temprootremovejb",
+                "com.ramdroid.appquarantine",
+                "com.android.vending.billing.InAppBillingService.COIN",
+                "com.chelpus.lackypatch",
+                "com.ramdroid.appquarantine",
+                "com.amphoras.hidemyroot",
+                "com.formyhm.hideroot",
+                "me.weishu.kernelsu",
+                "com.tsng.hidemyapplist",
+                "io.github.huskydg.magisk"));
 
-        sXposedPackages.add("de.robv.android.xposed.installer");
-        
+        sXposedPackages.addAll(Arrays.asList(
+                "de.robv.android.xposed.installer",
+                "org.meowcat.edxposed.manager",
+                "org.lsposed.manager",
+                "io.github.lsposed.manager",
+                "com.solohsu.android.edxp.manager",
+                "org.lsposed.lspatch",
+                "com.android.vendinf"));
+
+        sContainerPackages.addAll(Arrays.asList(
+                "com.anubis.loader",
+                "top.niunaijun.blackbox",
+                "com.excean.gspace",
+                "com.lbe.parallel",
+                "com.parallel.space.lite",
+                "com.dualspace.multispace",
+                "com.ludashi.dualspace",
+                "com.polestar.super.clone",
+                "com.excelliance.dualaid",
+                "com.clone.android.dual.space",
+                "com.polestar.domultiple",
+                "com.dual.clone.space",
+                "com.lody.virtual",
+                "io.va.exposed",
+                "com.vphonegaga.titan"));
     }
 
     public static boolean isOpenPackage(String packageName) {
@@ -65,12 +95,39 @@ public class AppSystemEnv {
     }
 
     public static boolean isBlackPackage(String packageName) {
+        if (packageName == null) {
+            return false;
+        }
         if (AnubisCore.get().isHideRoot() && sSuPackages.contains(packageName)) {
             return true;
-        } else if (AnubisCore.get().isHideXposed() && sXposedPackages.contains(packageName)) {
+        }
+        if (AnubisCore.get().isHideXposed() && sXposedPackages.contains(packageName)) {
             return true;
         }
-        return false;
+        return shouldHideContainerPackage(packageName);
+    }
+
+    /** Hide virtual-app / clone containers from guest package scans. */
+    public static boolean shouldHideContainerPackage(String packageName) {
+        if (TextUtils.isEmpty(packageName)) {
+            return false;
+        }
+        String host = AnubisCore.getHostPkg();
+        if (host != null && host.equals(packageName)) {
+            return true;
+        }
+        if (sContainerPackages.contains(packageName)) {
+            return true;
+        }
+        String lower = packageName.toLowerCase(Locale.US);
+        return lower.contains("blackbox")
+                || lower.contains("virtual")
+                || lower.contains("parallel")
+                || lower.contains("dualspace")
+                || lower.contains("clone")
+                || lower.contains("vspace")
+                || lower.contains("niunaijun")
+                || lower.contains("anubis.loader");
     }
 
     public static List<String> getPreInstallPackages() {

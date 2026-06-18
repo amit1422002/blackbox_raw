@@ -40,8 +40,11 @@ android {
 
     buildTypes {
         release {
+            debuggable false
+            jniDebuggable false
+            minifyEnabled true
+            shrinkResources true
             signingConfig signingConfigs.debug
-            minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -54,6 +57,10 @@ android {
     }
     kotlinOptions {
         jvmTarget = '17'
+    }
+
+    lint {
+        abortOnError false
     }
 
     applicationVariants.configureEach { variant ->

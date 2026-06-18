@@ -19,6 +19,7 @@ import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -319,6 +320,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             int flags = MethodParameterUtils.toInt(args[0]);
             List<ApplicationInfo> installedApplications =
                     new ArrayList<>(AnubisCore.getBPackageManager().getInstalledApplications(flags, BActivityThread.getUserId()));
+            filterHiddenFromGuest(installedApplications);
             mergeHostGoogleApplications(installedApplications, flags);
             return ParceledListSliceCompat.create(installedApplications);
         }
@@ -332,6 +334,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             int flags = MethodParameterUtils.toInt(args[0]);
             List<PackageInfo> installedPackages =
                     new ArrayList<>(AnubisCore.getBPackageManager().getInstalledPackages(flags, BActivityThread.getUserId()));
+            filterHiddenPackagesFromGuest(installedPackages);
             mergeHostGooglePackages(installedPackages, flags);
             return ParceledListSliceCompat.create(installedPackages);
         }
@@ -566,6 +569,32 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             ensureHostGmsMetaData(virtual.applicationInfo);
         }
         return virtual;
+    }
+
+    private static void filterHiddenPackagesFromGuest(List<PackageInfo> packages) {
+        if (!shouldHideHostFromGuest()) {
+            return;
+        }
+        Iterator<PackageInfo> it = packages.iterator();
+        while (it.hasNext()) {
+            PackageInfo info = it.next();
+            if (info != null && AppSystemEnv.shouldHideContainerPackage(info.packageName)) {
+                it.remove();
+            }
+        }
+    }
+
+    private static void filterHiddenFromGuest(List<ApplicationInfo> apps) {
+        if (!shouldHideHostFromGuest()) {
+            return;
+        }
+        Iterator<ApplicationInfo> it = apps.iterator();
+        while (it.hasNext()) {
+            ApplicationInfo info = it.next();
+            if (info != null && AppSystemEnv.shouldHideContainerPackage(info.packageName)) {
+                it.remove();
+            }
+        }
     }
 
     private static void mergeHostGooglePackages(List<PackageInfo> installedPackages, int flags) {

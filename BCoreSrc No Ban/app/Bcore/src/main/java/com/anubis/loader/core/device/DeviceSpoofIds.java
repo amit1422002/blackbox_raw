@@ -29,6 +29,29 @@ public final class DeviceSpoofIds {
         return seed.substring(0, Math.min(16, seed.length())).toUpperCase(Locale.US);
     }
 
+    /** Locally administered, unique per clone/user. */
+    public static String stableWifiMac(int userId, String pkg) {
+        String md5 = Md5Utils.md5(pkg + ":wifi_mac:" + userId);
+        if (md5 == null || md5.length() < 12) {
+            md5 = "aabbccddeeff";
+        }
+        int[] octets = new int[6];
+        for (int i = 0; i < 6; i++) {
+            int hi = Character.digit(md5.charAt(i * 2), 16);
+            int lo = Character.digit(md5.charAt(i * 2 + 1), 16);
+            octets[i] = ((hi << 4) | lo) & 0xFF;
+        }
+        octets[0] = (octets[0] | 0x02) & 0xFE;
+        StringBuilder mac = new StringBuilder();
+        for (int i = 0; i < 6; i++) {
+            if (i > 0) {
+                mac.append(':');
+            }
+            mac.append(String.format(Locale.US, "%02x", octets[i]));
+        }
+        return mac.toString();
+    }
+
     public static String randomAndroidId() {
         byte[] b = new byte[8];
         RANDOM.nextBytes(b);
