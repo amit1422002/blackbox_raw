@@ -33,7 +33,12 @@
 -keep class com.anubis.loader.entity.pm.InstallOption { *; }
 -keep class com.anubis.loader.proxy.** { *; }
 
--keep,allowobfuscation class com.anubis.loader.** { *; }
+-keep class com.anubis.loader.** { *; }
+-keep class * implements android.os.IInterface { *; }
+-keep class * extends android.os.Binder { *; }
+-keepclassmembers class * {
+    public static ** asInterface(android.os.IBinder);
+}
 
 -keep class mirror.** { *; }
 -keep class black.** { *; }

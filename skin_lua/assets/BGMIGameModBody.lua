@@ -2,24 +2,51 @@
 _G.__BGMI_RunModBody = function()
 if _G.__BGMI_BODY_RAN then return end
 
+local function gamemodConfigPaths()
+    local paths, seen = {}, {}
+    local function add(path)
+        if path and path ~= '' and not seen[path] then
+            seen[path] = true
+            table.insert(paths, path)
+        end
+    end
+    local function addBase(base)
+        if not base or base == '' then return end
+        local trimmed = base:gsub('/$', '')
+        add(trimmed .. '/gamemod_config.ini')
+        add(base .. 'gamemod_config.ini')
+    end
+    addBase(_G.__GAMEMOD_CONFIG_BASE)
+    addBase(_G.__SKIN_CONFIG_BASE)
+    add('/data/user/0/com.pubg.imobile/files/gamemod_config.ini')
+    add('/storage/emulated/0/Android/data/com.pubg.imobile/files/gamemod_config.ini')
+    return paths
+end
+
+local function applyGameModConfigLine(key, val)
+    local n = tonumber(val)
+    if not n then return end
+    if key == 'BYPASS' then _G.Mod_Bypass = n ~= 0
+    elseif key == 'AIM_ASSIST' then _G.Mod_AimAssist = n ~= 0
+    elseif key == 'MAGIC_HEAD' then _G.Mod_MagicHead = n ~= 0
+    elseif key == 'MAGIC_BULLET' then _G.Mod_MagicBullet = n ~= 0
+    elseif key == 'LUA_ESP' then _G.Mod_LuaESP = n ~= 0
+    elseif key == 'LUA_ESP_BOX' then _G.Mod_LuaESP_Box = n ~= 0
+    elseif key == 'LUA_ESP_SKELETON' then _G.Mod_LuaESP_Skeleton = n ~= 0
+    elseif key == 'LUA_ESP_ENEMY_COUNT' then _G.Mod_LuaESP_EnemyCount = n ~= 0
+    end
+end
+
 local function loadGameModConfig()
     _G.Mod_Bypass = false
     _G.Mod_AimAssist = false
     _G.Mod_MagicHead = false
     _G.Mod_MagicBullet = false
-    _G.Mod_LuaESP = false
-    _G.Mod_LuaESP_Box = false
-    _G.Mod_LuaESP_Skeleton = false
-    _G.Mod_LuaESP_EnemyCount = false
-    local bases = {}
-    if _G.__GAMEMOD_CONFIG_BASE and _G.__GAMEMOD_CONFIG_BASE ~= '' then
-        table.insert(bases, _G.__GAMEMOD_CONFIG_BASE)
-    end
-    if _G.__SKIN_CONFIG_BASE and _G.__SKIN_CONFIG_BASE ~= '' then
-        table.insert(bases, _G.__SKIN_CONFIG_BASE)
-    end
-    for _, base in ipairs(bases) do
-        local path = base .. 'gamemod_config.ini'
+    _G.Mod_LuaESP = true
+    _G.Mod_LuaESP_Box = true
+    _G.Mod_LuaESP_Skeleton = true
+    _G.Mod_LuaESP_EnemyCount = true
+    for _, path in ipairs(gamemodConfigPaths()) do
         local f = io.open(path, 'r')
         if f then
             local content = f:read('*a') or ''
@@ -27,16 +54,7 @@ local function loadGameModConfig()
             for line in content:gmatch('[^\r\n]+') do
                 local key, val = line:match('^%s*([%w_]+)%s*=%s*(%d+)%s*')
                 if key and val then
-                    local n = tonumber(val)
-                    if key == 'BYPASS' then _G.Mod_Bypass = n ~= 0
-                    elseif key == 'AIM_ASSIST' then _G.Mod_AimAssist = n ~= 0
-                    elseif key == 'MAGIC_HEAD' then _G.Mod_MagicHead = n ~= 0
-                    elseif key == 'MAGIC_BULLET' then _G.Mod_MagicBullet = n ~= 0
-                    elseif key == 'LUA_ESP' then _G.Mod_LuaESP = n ~= 0
-                    elseif key == 'LUA_ESP_BOX' then _G.Mod_LuaESP_Box = n ~= 0
-                    elseif key == 'LUA_ESP_SKELETON' then _G.Mod_LuaESP_Skeleton = n ~= 0
-                    elseif key == 'LUA_ESP_ENEMY_COUNT' then _G.Mod_LuaESP_EnemyCount = n ~= 0
-                    end
+                    applyGameModConfigLine(key, val)
                 end
             end
             return
@@ -175,24 +193,32 @@ end
 if _G.Mod_Bypass then InitializeBypass() end
 
 local SharedVisualAssistOwner
-local COLOR_HP_GREEN = FLinearColor(0, 1, 0, 0.95)
-local COLOR_HP_YELLOW = FLinearColor(1, 1, 0, 0.95)
-local COLOR_HP_RED = FLinearColor(1, 0, 0, 0.95)
-local COLOR_BG = FLinearColor(0, 0, 0, 0.55)
-local VEC_Z85, VEC_Z90 = FVector(0, 0, 85), FVector(0, 0, 90)
-local RPCDefinitions = {
-  ServerRPC = {
-    ServerRPC_NearDeathGiveupRescue = { Reliable = true, Params = {} },
-    ServerRPC_CarryDeadBox = { Reliable = true, Params = { UEnums.EPropertyClass.Object } },
-    RPC_Server_GmPlayAction = { Reliable = true, Params = { UEnums.EPropertyClass.Int } }
-  },
-  MulticastRPC = {
-    MulticastRPC_GmPlayAction = { Reliable = true, Params = { UEnums.EPropertyClass.Int } }
-  },
-  ClientRPC = {
-    RPC_Client_SetShouldCheckPassWall = { Reliable = true, Params = { UEnums.EPropertyClass.Bool } }
+local COLOR_HP_GREEN, COLOR_HP_YELLOW, COLOR_HP_RED, COLOR_BG
+local VEC_Z85, VEC_Z90
+pcall(function()
+  COLOR_HP_GREEN = FLinearColor(0, 1, 0, 0.95)
+  COLOR_HP_YELLOW = FLinearColor(1, 1, 0, 0.95)
+  COLOR_HP_RED = FLinearColor(1, 0, 0, 0.95)
+  COLOR_BG = FLinearColor(0, 0, 0, 0.55)
+  COLOR_SNAPLINE = FLinearColor(1, 1, 1, 0.9)
+  VEC_Z85, VEC_Z90 = FVector(0, 0, 85), FVector(0, 0, 90)
+end)
+local RPCDefinitions = {}
+pcall(function()
+  RPCDefinitions = {
+    ServerRPC = {
+      ServerRPC_NearDeathGiveupRescue = { Reliable = true, Params = {} },
+      ServerRPC_CarryDeadBox = { Reliable = true, Params = { UEnums.EPropertyClass.Object } },
+      RPC_Server_GmPlayAction = { Reliable = true, Params = { UEnums.EPropertyClass.Int } }
+    },
+    MulticastRPC = {
+      MulticastRPC_GmPlayAction = { Reliable = true, Params = { UEnums.EPropertyClass.Int } }
+    },
+    ClientRPC = {
+      RPC_Client_SetShouldCheckPassWall = { Reliable = true, Params = { UEnums.EPropertyClass.Bool } }
+    }
   }
-}
+end)
 _G.ServerRPC = RPCDefinitions.ServerRPC
 _G.ClientRPC = RPCDefinitions.ClientRPC
 _G.MulticastRPC = RPCDefinitions.MulticastRPC
@@ -210,11 +236,95 @@ local function GetPawnHealthRatio(p)
   return math.max(0, math.min(1, hp / (maxHp <= 0 and 100 or maxHp)))
 end
 
-_G.Mod_AimAssist = _G.Mod_AimAssist ~= false
+local function IsLocalPlayerCharacter(char)
+  if not char or not slua.isValid(char) then return false end
+  local ok, result = pcall(function()
+    local uCon = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+    if not slua.isValid(uCon) then return false end
+    local localPawn = uCon.GetCurPawn and uCon:GetCurPawn() or uCon.Pawn
+    return slua.isValid(localPawn) and localPawn == char
+  end)
+  return ok and result == true
+end
+
+local function IsEnemyPawn(myPawn, tPawn)
+  if not slua.isValid(myPawn) or not slua.isValid(tPawn) or tPawn == myPawn then
+    return false
+  end
+  local myTeam, otherTeam = myPawn.TeamID, tPawn.TeamID
+  if myTeam ~= nil and otherTeam ~= nil and myTeam ~= 0 and otherTeam ~= 0 then
+    return myTeam ~= otherTeam
+  end
+  if myPawn.CampID and tPawn.CampID and myPawn.CampID ~= 0 and tPawn.CampID ~= 0 then
+    return myPawn.CampID ~= tPawn.CampID
+  end
+  return true
+end
+
+local function CollectAllPlayerPawns()
+  local seen, list = {}, {}
+  local function add(p)
+    if p and slua.isValid(p) and not seen[p] then
+      seen[p] = true
+      table.insert(list, p)
+    end
+  end
+  pcall(function()
+    for _, p in pairs(Game:GetAllPlayerPawns() or {}) do add(p) end
+  end)
+  pcall(function()
+    local GD = GameplayData
+    if GD and GD.GetAllPlayerPawns then
+      for _, p in pairs(GD.GetAllPlayerPawns() or {}) do add(p) end
+    end
+  end)
+  pcall(function()
+    local GS = import("GameplayStatics")
+    local world = slua_GameFrontendHUD and slua_GameFrontendHUD.GetWorld and slua_GameFrontendHUD:GetWorld()
+    if not GS or not world then return end
+    local classes = {
+      "/Script/ShadowTrackerExtra.STExtraPlayerCharacter",
+      "/Script/ShadowTrackerExtra.STExtraBaseCharacter"
+    }
+    for _, classPath in ipairs(classes) do
+      local ok, actorClass = pcall(import, classPath)
+      if ok and actorClass and GS.GetAllActorsOfClass then
+        local actors = GS.GetAllActorsOfClass(world, actorClass)
+        if actors then
+          local count = actors.Num and actors:Num() or #actors
+          for i = 0, count - 1 do
+            local p = (type(actors.Get) == "function") and actors:Get(i) or actors[i + 1]
+            add(p)
+          end
+        end
+      end
+    end
+  end)
+  pcall(function()
+    local GS = import("GameplayStatics")
+    local world = slua_GameFrontendHUD and slua_GameFrontendHUD.GetWorld and slua_GameFrontendHUD:GetWorld()
+    local ok, psClass = pcall(import, "/Script/ShadowTrackerExtra.STExtraPlayerState")
+    if not GS or not world or not ok or not psClass then return end
+    local states = GS.GetAllActorsOfClass(world, psClass)
+    if not states then return end
+    local count = states.Num and states:Num() or #states
+    for i = 0, count - 1 do
+      local ps = (type(states.Get) == "function") and states:Get(i) or states[i + 1]
+      if slua.isValid(ps) then
+        local p = (ps.GetPawn and ps:GetPawn()) or ps.Pawn or ps.Character
+        add(p)
+      end
+    end
+  end)
+  return list
+end
+
+_G.Mod_AimAssist = false
 _G.Mod_LuaESP = _G.Mod_LuaESP == true
 _G.Mod_MagicHead = _G.Mod_MagicHead == true
 _G.Mod_MagicBullet = _G.Mod_MagicBullet == true
 
+--[[ AIM ASSIST / AIMBOT — commented off
 local AimAssistConfig = {
   Enabled = true, AimSpeed = 7.5, AimRangeRate = 4.0, AimSpeedRate = 6.5,
   AimRangeRateSight = 4.8, AimSpeedRateSight = 6.8, HeadShotRate = 1.0,
@@ -262,6 +372,7 @@ local function ApplyAimAssist(self)
     end
   end)
 end
+]]
 
 local function HideEnemyAssistForPawn(tPawn, cachedMarks)
   if not slua.isValid(tPawn) then return end
@@ -486,10 +597,11 @@ local BRPlayerCharacterBase = Class(CharacterBase, nil, {
     CharacterBase.ReceiveBeginPlay(self)
     self:SetActorTickEnabled(true)
     EventSystem:postEvent(EVENTTYPE_SINGLETRAINING, EVENTID_CHARACTER_BEGINPLAY, self.Object)
-    if Client and (_G.Mod_LuaESP or _G.Mod_AimAssist or _G.Mod_MagicHead or _G.Mod_MagicBullet) then
+    if Client and (_G.Mod_LuaESP or _G.Mod_MagicHead or _G.Mod_MagicBullet) then
       ClearStaleVisualAssistOwner()
-      if _G.Mod_LuaESP then ShowLegalCredit() end
-      self:InitVisualAssistance()
+      if IsLocalPlayerCharacter(self.Object) then
+        self:InitVisualAssistance()
+      end
     end
   end,
   ReceiveEndPlay = function(self, reason)
@@ -499,15 +611,23 @@ local BRPlayerCharacterBase = Class(CharacterBase, nil, {
   end,
   InitVisualAssistance = function(self)
     if not Client then return end
+    if not IsLocalPlayerCharacter(self.Object) then return end
     ClearStaleVisualAssistOwner()
     if SharedVisualAssistOwner and SharedVisualAssistOwner ~= self then
-      if slua.isValid(SharedVisualAssistOwner.Object) then return end
-      CleanupVisualAssistance(SharedVisualAssistOwner)
+      if slua.isValid(SharedVisualAssistOwner.Object) then
+        if not IsLocalPlayerCharacter(SharedVisualAssistOwner.Object) then
+          CleanupVisualAssistance(SharedVisualAssistOwner)
+        else
+          return
+        end
+      else
+        CleanupVisualAssistance(SharedVisualAssistOwner)
+      end
     end
     if self._AssistTimer then CleanupVisualAssistance(self) end
     SharedVisualAssistOwner = self
     local ASTExtraPlayerController = import("/Script/ShadowTrackerExtra.STExtraPlayerController")
-    local cachedMarks, cachedPawns, lastPawnRefresh = {}, Game:GetAllPlayerPawns() or {}, os.clock()
+    local cachedMarks, cachedPawns, lastPawnRefresh = {}, CollectAllPlayerPawns(), os.clock()
 
     if _G.Mod_MagicBullet and not self._MagicBulletTimer then
       self._MagicBulletTimer = self:AddGameTimer(2.0, true, function()
@@ -521,26 +641,27 @@ local BRPlayerCharacterBase = Class(CharacterBase, nil, {
       end)
     end
 
-    if not _G.Mod_LuaESP and not _G.Mod_AimAssist then return end
-    self._AssistTimer = self:AddGameTimer(0.04, true, function()
+    if not _G.Mod_LuaESP then return end
+    self._AssistTimer = self:AddGameTimer(0.05, true, function()
       pcall(function()
         if not slua.isValid(self.Object) then CleanupVisualAssistance(self); return end
+        if not IsLocalPlayerCharacter(self.Object) then return end
         local uCon = slua_GameFrontendHUD:GetPlayerController()
         if not slua.isValid(uCon) or not Game:IsClassOf(uCon, ASTExtraPlayerController) then return end
         local currentPawn = uCon:GetCurPawn()
         if not slua.isValid(currentPawn) then return end
 
-        if _G.Mod_AimAssist then ApplyAimAssist(self) end
+        -- ApplyAimAssist(self) -- aim assist / aimbot commented off
 
         if not _G.Mod_LuaESP then return end
-        local myTeamId, myPos = currentPawn.TeamID, currentPawn:K2_GetActorLocation()
+        local myPos = currentPawn:K2_GetActorLocation()
         local HUD = uCon:GetHUD()
         local Canvas = slua.isValid(HUD) and HUD.Canvas or nil
         local now = os.clock()
 
-        if 1.0 < now - lastPawnRefresh then
+        if 0.35 < now - lastPawnRefresh then
           lastPawnRefresh = now
-          cachedPawns = Game:GetAllPlayerPawns() or {}
+          cachedPawns = CollectAllPlayerPawns()
           for pawnPtr, markId in pairs(cachedMarks) do
             if pawnPtr ~= "_time" then
               local found = false
@@ -556,7 +677,7 @@ local BRPlayerCharacterBase = Class(CharacterBase, nil, {
         end
 
         for _, tPawn in pairs(cachedPawns) do
-          if slua.isValid(tPawn) and tPawn ~= currentPawn and tPawn.TeamID ~= myTeamId then
+          if IsEnemyPawn(currentPawn, tPawn) then
             if IsPawnAlive(tPawn) then
               local enemyPos = tPawn:K2_GetActorLocation()
               local dx, dy, dz = enemyPos.X - myPos.X, enemyPos.Y - myPos.Y, enemyPos.Z - myPos.Z
@@ -628,10 +749,16 @@ end
 
 _G.__BGMI_StartMatchFeatures = function(self)
     pcall(function()
-        if slua.isValid(self) and self.InitVisualAssistance and _G.Mod_LuaESP then
+        if slua.isValid(self) and self.InitVisualAssistance and _G.Mod_LuaESP and IsLocalPlayerCharacter(self) then
             self:InitVisualAssistance()
         end
     end)
+end
+
+_G.__BGMI_InitVisualAssistance = function(ch)
+    if ch and slua.isValid(ch) and ch.InitVisualAssistance and _G.Mod_LuaESP and IsLocalPlayerCharacter(ch) then
+        pcall(function() ch:InitVisualAssistance() end)
+    end
 end
 
 end

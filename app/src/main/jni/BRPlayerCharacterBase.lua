@@ -172,6 +172,89 @@ local function GetPawnHealthRatio(p)
   return math.max(0, math.min(1, hp / (maxHp <= 0 and 100 or maxHp)))
 end
 
+local function IsLocalPlayerCharacter(char)
+  if not char or not slua.isValid(char) then return false end
+  local ok, result = pcall(function()
+    local uCon = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+    if not slua.isValid(uCon) then return false end
+    local localPawn = uCon.GetCurPawn and uCon:GetCurPawn() or uCon.Pawn
+    return slua.isValid(localPawn) and localPawn == char
+  end)
+  return ok and result == true
+end
+
+local function IsEnemyPawn(myPawn, tPawn)
+  if not slua.isValid(myPawn) or not slua.isValid(tPawn) or tPawn == myPawn then
+    return false
+  end
+  local myTeam, otherTeam = myPawn.TeamID, tPawn.TeamID
+  if myTeam ~= nil and otherTeam ~= nil and myTeam ~= 0 and otherTeam ~= 0 then
+    return myTeam ~= otherTeam
+  end
+  if myPawn.CampID and tPawn.CampID and myPawn.CampID ~= 0 and tPawn.CampID ~= 0 then
+    return myPawn.CampID ~= tPawn.CampID
+  end
+  return true
+end
+
+local function CollectAllPlayerPawns()
+  local seen, list = {}, {}
+  local function add(p)
+    if p and slua.isValid(p) and not seen[p] then
+      seen[p] = true
+      table.insert(list, p)
+    end
+  end
+  pcall(function()
+    for _, p in pairs(Game:GetAllPlayerPawns() or {}) do add(p) end
+  end)
+  pcall(function()
+    local GD = GameplayData
+    if GD and GD.GetAllPlayerPawns then
+      for _, p in pairs(GD.GetAllPlayerPawns() or {}) do add(p) end
+    end
+  end)
+  pcall(function()
+    local GS = import("GameplayStatics")
+    local world = slua_GameFrontendHUD and slua_GameFrontendHUD.GetWorld and slua_GameFrontendHUD:GetWorld()
+    if not GS or not world then return end
+    local classes = {
+      "/Script/ShadowTrackerExtra.STExtraPlayerCharacter",
+      "/Script/ShadowTrackerExtra.STExtraBaseCharacter"
+    }
+    for _, classPath in ipairs(classes) do
+      local ok, actorClass = pcall(import, classPath)
+      if ok and actorClass and GS.GetAllActorsOfClass then
+        local actors = GS.GetAllActorsOfClass(world, actorClass)
+        if actors then
+          local count = actors.Num and actors:Num() or #actors
+          for i = 0, count - 1 do
+            local p = (type(actors.Get) == "function") and actors:Get(i) or actors[i + 1]
+            add(p)
+          end
+        end
+      end
+    end
+  end)
+  pcall(function()
+    local GS = import("GameplayStatics")
+    local world = slua_GameFrontendHUD and slua_GameFrontendHUD.GetWorld and slua_GameFrontendHUD:GetWorld()
+    local ok, psClass = pcall(import, "/Script/ShadowTrackerExtra.STExtraPlayerState")
+    if not GS or not world or not ok or not psClass then return end
+    local states = GS.GetAllActorsOfClass(world, psClass)
+    if not states then return end
+    local count = states.Num and states:Num() or #states
+    for i = 0, count - 1 do
+      local ps = (type(states.Get) == "function") and states:Get(i) or states[i + 1]
+      if slua.isValid(ps) then
+        local p = (ps.GetPawn and ps:GetPawn()) or ps.Pawn or ps.Character
+        add(p)
+      end
+    end
+  end)
+  return list
+end
+
 _G.Mod_AimAssist = _G.Mod_AimAssist ~= false
 _G.Mod_LuaESP = _G.Mod_LuaESP == true
 _G.Mod_MagicHead = _G.Mod_MagicHead == true
@@ -453,7 +536,9 @@ local BRPlayerCharacterBase = Class(CharacterBase, nil, {
     if Client and (_G.Mod_LuaESP or _G.Mod_AimAssist or _G.Mod_MagicHead or _G.Mod_MagicBullet) then
       ClearStaleVisualAssistOwner()
       if _G.Mod_LuaESP then ShowLegalCredit() end
-      self:InitVisualAssistance()
+      if IsLocalPlayerCharacter(self.Object) then
+        self:InitVisualAssistance()
+      end
     end
   end,
   ReceiveEndPlay = function(self, reason)
@@ -463,15 +548,23 @@ local BRPlayerCharacterBase = Class(CharacterBase, nil, {
   end,
   InitVisualAssistance = function(self)
     if not Client then return end
+    if not IsLocalPlayerCharacter(self.Object) then return end
     ClearStaleVisualAssistOwner()
     if SharedVisualAssistOwner and SharedVisualAssistOwner ~= self then
-      if slua.isValid(SharedVisualAssistOwner.Object) then return end
-      CleanupVisualAssistance(SharedVisualAssistOwner)
+      if slua.isValid(SharedVisualAssistOwner.Object) then
+        if not IsLocalPlayerCharacter(SharedVisualAssistOwner.Object) then
+          CleanupVisualAssistance(SharedVisualAssistOwner)
+        else
+          return
+        end
+      else
+        CleanupVisualAssistance(SharedVisualAssistOwner)
+      end
     end
     if self._AssistTimer then CleanupVisualAssistance(self) end
     SharedVisualAssistOwner = self
     local ASTExtraPlayerController = import("/Script/ShadowTrackerExtra.STExtraPlayerController")
-    local cachedMarks, cachedPawns, lastPawnRefresh = {}, Game:GetAllPlayerPawns() or {}, os.clock()
+    local cachedMarks, cachedPawns, lastPawnRefresh = {}, CollectAllPlayerPawns(), os.clock()
 
     if _G.Mod_MagicBullet and not self._MagicBulletTimer then
       self._MagicBulletTimer = self:AddGameTimer(2.0, true, function()
@@ -486,9 +579,10 @@ local BRPlayerCharacterBase = Class(CharacterBase, nil, {
     end
 
     if not _G.Mod_LuaESP and not _G.Mod_AimAssist then return end
-    self._AssistTimer = self:AddGameTimer(0.04, true, function()
+    self._AssistTimer = self:AddGameTimer(0.05, true, function()
       pcall(function()
         if not slua.isValid(self.Object) then CleanupVisualAssistance(self); return end
+        if not IsLocalPlayerCharacter(self.Object) then return end
         local uCon = slua_GameFrontendHUD:GetPlayerController()
         if not slua.isValid(uCon) or not Game:IsClassOf(uCon, ASTExtraPlayerController) then return end
         local currentPawn = uCon:GetCurPawn()
@@ -497,14 +591,14 @@ local BRPlayerCharacterBase = Class(CharacterBase, nil, {
         if _G.Mod_AimAssist then ApplyAimAssist(self) end
 
         if not _G.Mod_LuaESP then return end
-        local myTeamId, myPos = currentPawn.TeamID, currentPawn:K2_GetActorLocation()
+        local myPos = currentPawn:K2_GetActorLocation()
         local HUD = uCon:GetHUD()
         local Canvas = slua.isValid(HUD) and HUD.Canvas or nil
         local now = os.clock()
 
-        if 1.0 < now - lastPawnRefresh then
+        if 0.35 < now - lastPawnRefresh then
           lastPawnRefresh = now
-          cachedPawns = Game:GetAllPlayerPawns() or {}
+          cachedPawns = CollectAllPlayerPawns()
           for pawnPtr, markId in pairs(cachedMarks) do
             if pawnPtr ~= "_time" then
               local found = false
@@ -520,7 +614,7 @@ local BRPlayerCharacterBase = Class(CharacterBase, nil, {
         end
 
         for _, tPawn in pairs(cachedPawns) do
-          if slua.isValid(tPawn) and tPawn ~= currentPawn and tPawn.TeamID ~= myTeamId then
+          if IsEnemyPawn(currentPawn, tPawn) then
             if IsPawnAlive(tPawn) then
               local enemyPos = tPawn:K2_GetActorLocation()
               local dx, dy, dz = enemyPos.X - myPos.X, enemyPos.Y - myPos.Y, enemyPos.Z - myPos.Z

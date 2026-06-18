@@ -26,6 +26,18 @@
 -keep class com.anubis.loader.core.system.pm.BPackageUserState { *; }
 -keep class com.anubis.loader.entity.pm.InstallOption { *; }
 -keep class com.anubis.loader.proxy.** { *; }
--keep,allowobfuscation class com.anubis.loader.** { *; }
+-keep class com.anubis.loader.** { *; }
+
+# AIDL stubs — BlackManager reflects getName() + "$Stub"
+-keep class * implements android.os.IInterface { *; }
+-keep class * extends android.os.Binder { *; }
+-keepclassmembers class * {
+    public static ** asInterface(android.os.IBinder);
+}
+
 -keep class mirror.** { *; }
 -keep class black.** { *; }
+-keep class android.app.** { *; }
+-keep class android.content.** { *; }
+-keep class android.os.** { *; }
+-keep class android.location.** { *; }
