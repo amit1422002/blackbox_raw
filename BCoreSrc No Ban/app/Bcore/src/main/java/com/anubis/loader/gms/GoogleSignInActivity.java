@@ -58,7 +58,8 @@ public class GoogleSignInActivity extends Activity {
         mTokenType     = getIntent() != null ? getIntent().getStringExtra(GoogleSignInHelper.EXTRA_AUTH_TOKEN_TYPE) : null;
         mCanonicalType = GoogleSignInHelper.canonicaliseTokenType(mTokenType);
 
-        if (tryFromCache()) return;
+        boolean addAccount = isAddAccountFlow(getIntent());
+        if (!addAccount && tryFromCache()) return;
         if (GmsAccountManagerProxy.useMicroGAuth()) {
             Log.i(TAG, "microG installed — redirect to MicroGLoginBridgeActivity");
             Intent bridge = new Intent();
@@ -202,6 +203,13 @@ public class GoogleSignInActivity extends Activity {
         String name=GoogleSignInHelper.getEmail(getApplicationContext());
         if (TextUtils.isEmpty(name)){fetchEmail(idTok,accTok);return;}
         storeAndBroadcast(new Account(name,GOOGLE_TYPE),idTok,accTok);
+    }
+
+    private static boolean isAddAccountFlow(Intent intent) {
+        if (intent == null) return false;
+        Bundle extras = intent.getExtras();
+        return extras != null
+                && extras.get(AccountManager.KEY_ACCOUNT_AUTHENTICATOR_RESPONSE) != null;
     }
 
     private boolean tryFromCache() {
