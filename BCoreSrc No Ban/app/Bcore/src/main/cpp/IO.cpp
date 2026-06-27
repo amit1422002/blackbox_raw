@@ -51,11 +51,11 @@ const char *IO::redirectPath(const char *__path) {
 }
 
 jstring IO::redirectPath(JNIEnv *env, jstring path) {
-//    const char * pathC = env->GetStringUTFChars(path, JNI_FALSE);
-//    const char *redirect = redirectPath(pathC);
-//    env->ReleaseStringUTFChars(path, pathC);
-//    return env->NewStringUTF(redirect);
     return BoxCore::redirectPathString(env, path);
+}
+
+jstring IO::reversePath(JNIEnv *env, jstring path) {
+    return BoxCore::reversePathString(env, path);
 }
 
 jobject IO::redirectPath(JNIEnv *env, jobject path) {

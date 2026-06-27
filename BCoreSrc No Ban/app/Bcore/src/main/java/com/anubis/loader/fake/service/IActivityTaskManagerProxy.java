@@ -12,6 +12,7 @@ import com.anubis.loader.fake.hook.BinderInvocationStub;
 import com.anubis.loader.fake.hook.MethodHook;
 import com.anubis.loader.fake.hook.ProxyMethod;
 import com.anubis.loader.fake.hook.ScanClass;
+import com.anubis.loader.utils.Slog;
 import com.anubis.loader.utils.compat.TaskDescriptionCompat;
 
 
@@ -49,6 +50,25 @@ public class IActivityTaskManagerProxy extends BinderInvocationStub {
             ActivityManager.TaskDescription td = (ActivityManager.TaskDescription) args[1];
             args[1] = TaskDescriptionCompat.fix(td);
             return method.invoke(who, args);
+        }
+    }
+
+    /** Delta Force / UE4 games call this on Activity.onStart(); sandbox lacks DETECT_SCREEN_CAPTURE. */
+    @ProxyMethod("registerScreenCaptureObserver")
+    public static class RegisterScreenCaptureObserver extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) {
+            Slog.d(TAG, "stub registerScreenCaptureObserver");
+            return null;
+        }
+    }
+
+    @ProxyMethod("unregisterScreenCaptureObserver")
+    public static class UnregisterScreenCaptureObserver extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) {
+            Slog.d(TAG, "stub unregisterScreenCaptureObserver");
+            return null;
         }
     }
 }

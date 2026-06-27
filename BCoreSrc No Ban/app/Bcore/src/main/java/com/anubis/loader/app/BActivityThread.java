@@ -60,10 +60,17 @@ import black.dalvik.system.BRVMRuntime;
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.configuration.AppLifecycleCallback;
 import com.anubis.loader.app.dispatcher.AppServiceDispatcher;
+import com.anubis.loader.utils.GuestPathContext;
+import com.anubis.loader.utils.Slog;
+import com.anubis.loader.utils.GuestNativeLibs;
+import com.anubis.loader.utils.GuestResourceLayout;
+import com.anubis.loader.utils.StealthClassLoaderHelper;
+import com.anubis.loader.utils.VirtualPathSpoof;
 import com.anubis.loader.core.CrashHandler;
 import com.anubis.loader.core.IBActivityThread;
 import com.anubis.loader.core.IOCore;
 import com.anubis.loader.core.NativeCore;
+import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.core.env.VirtualRuntime;
 import com.anubis.loader.core.system.user.BUserHandle;
@@ -273,15 +280,32 @@ public class BActivityThread extends IBActivityThread.Stub {
     public synchronized void handleBindApplication(String packageName, String processName) {
         if (isInit())
             return;
+        VirtualPathSpoof.beginInternalBind();
+        try {
+            handleBindApplicationInner(packageName, processName);
+        } finally {
+            VirtualPathSpoof.endInternalBind();
+        }
+    }
+
+    private synchronized void handleBindApplicationInner(String packageName, String processName) {
         try {
             CrashHandler.create();
         } catch (Throwable ignored) {
         }
 
+        processName = VirtualPathSpoof.guestVisibleProcessName(packageName, processName);
         BEnvironment.ensureGuestDataLayout(packageName, BActivityThread.getUserId(), processName);
 
         PackageInfo packageInfo = AnubisCore.getBPackageManager().getPackageInfo(packageName, PackageManager.GET_PROVIDERS, BActivityThread.getUserId());
-        ApplicationInfo applicationInfo = packageInfo.applicationInfo;
+        GuestNativeLibs.ensureExtracted(packageName, packageInfo.applicationInfo);
+        ApplicationInfo realAppInfo = packageInfo.applicationInfo;
+        if (VirtualPathSpoof.isStealthAcPackage(packageName)) {
+            realAppInfo = BEnvironment.resolveVirtualApplicationInfo(realAppInfo, packageName);
+        }
+        ApplicationInfo applicationInfo = realAppInfo;
+        final int guestUserId = BActivityThread.getUserId();
+        ApplicationInfo guestAppInfo = realAppInfo;
         if (packageInfo.providers == null) {
             packageInfo.providers = new ProviderInfo[]{};
         }
@@ -289,11 +313,24 @@ public class BActivityThread extends IBActivityThread.Stub {
 
         Object boundApplication = BRActivityThread.get(AnubisCore.mainThread()).mBoundApplication();
 
-        Context packageContext = createPackageContext(applicationInfo);
+        Context packageContext = createPackageContext(realAppInfo);
         Object loadedApk = BRContextImpl.get(packageContext).mPackageInfo();
         BRLoadedApk.get(loadedApk)._set_mSecurityViolation(false);
-        // fix applicationInfo
-        BRLoadedApk.get(loadedApk)._set_mApplicationInfo(applicationInfo);
+
+        VirtualRuntime.setupRuntime(processName, applicationInfo);
+
+        BRVMRuntime.get(BRVMRuntime.get().getRuntime()).setTargetSdkVersion(applicationInfo.targetSdkVersion);
+        if (BuildCompat.isS()) {
+            BRCompatibility.get().setTargetSdkVersion(applicationInfo.targetSdkVersion);
+        }
+
+        NativeCore.init(Build.VERSION.SDK_INT);
+        NativeCore.setGuestPackageForStealth(packageName);
+
+        StealthClassLoaderHelper.replaceIfNeeded(loadedApk, packageName, realAppInfo);
+        GuestPathContext.patchLoadedApk(loadedApk, packageName, guestUserId, guestAppInfo, realAppInfo);
+        GuestPathContext.wrapIfNeeded(packageContext, packageName);
+        IOCore.get().enableRedirect(packageContext);
 
         int targetSdkVersion = applicationInfo.targetSdkVersion;
         if (targetSdkVersion < Build.VERSION_CODES.GINGERBREAD) {
@@ -309,17 +346,21 @@ public class BActivityThread extends IBActivityThread.Stub {
             WebView.setDataDirectorySuffix(getUserId() + ":" + packageName + ":" + processName);
         }
 
-        VirtualRuntime.setupRuntime(processName, applicationInfo);
-
-        BRVMRuntime.get(BRVMRuntime.get().getRuntime()).setTargetSdkVersion(applicationInfo.targetSdkVersion);
-        if (BuildCompat.isS()) {
-            BRCompatibility.get().setTargetSdkVersion(applicationInfo.targetSdkVersion);
+        final boolean stealthAc = VirtualPathSpoof.isStealthAcPackage(packageName);
+        if (stealthAc) {
+            int hostUid = android.os.Process.myUid();
+            VirtualPathSpoof.setProcSpoofUid(hostUid);
+            NativeCore.setGuestProcSpoofUid(hostUid);
+            NativeCore.setGuestProcessComm(packageName);
+            NativeCore.hideSelfLoaderFromAc();
+            GuestResourceLayout.prepare(packageName, guestUserId);
+            Slog.i(TAG, "stealth armed pkg=" + packageName + " spoofUid=" + hostUid);
+        } else {
+            VirtualPathSpoof.setProcSpoofUid(0);
+            NativeCore.setGuestProcSpoofUid(0);
         }
 
-        NativeCore.init(Build.VERSION.SDK_INT);
         com.anubis.loader.core.device.DeviceSpoofManager.get().reload();
-        assert packageContext != null;
-        IOCore.get().enableRedirect(packageContext);
         if (AnubisCore.get().isHideXposed()
                 && com.anubis.loader.core.device.DeviceSpoofManager.shouldSpoofCurrentProcess()) {
             NativeCore.hideXposed();
@@ -332,7 +373,8 @@ public class BActivityThread extends IBActivityThread.Stub {
         bindData.providers = mProviders;
 
         ActivityThreadAppBindDataContext activityThreadAppBindData = BRActivityThreadAppBindData.get(boundApplication);
-        activityThreadAppBindData._set_instrumentationName(new ComponentName(bindData.appInfo.packageName, Instrumentation.class.getName()));
+        activityThreadAppBindData._set_instrumentationName(new ComponentName(
+                AnubisCore.getHostPkg(), AppInstrumentation.class.getName()));
         activityThreadAppBindData._set_appInfo(bindData.appInfo);
         activityThreadAppBindData._set_info(bindData.info);
         activityThreadAppBindData._set_processName(bindData.processName);
@@ -369,7 +411,11 @@ public class BActivityThread extends IBActivityThread.Stub {
             onBeforeApplicationOnCreate(packageName, processName, application);
             AppInstrumentation.get().callApplicationOnCreate(application);
             onAfterApplicationOnCreate(packageName, processName, application);
-            NativeCore.init_seccomp();
+            if (VirtualPathSpoof.isStealthAcPackage(packageName)) {
+                NativeCore.hideSelfLoaderFromAc();
+            } else {
+                NativeCore.init_seccomp();
+            }
             HookManager.get().checkEnv(HCallbackProxy.class);
         } catch (Exception e) {
             e.printStackTrace();

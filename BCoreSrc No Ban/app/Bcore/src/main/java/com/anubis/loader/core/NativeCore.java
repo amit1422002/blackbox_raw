@@ -17,6 +17,7 @@ import java.util.Locale;
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.core.env.StealthConstants;
+import com.anubis.loader.utils.VirtualPathSpoof;
 
 /**
  * Extended patched NativeCore with more anti-detection shims to cover
@@ -233,6 +234,46 @@ public class NativeCore {
             return AnubisCore.getHostUid();
         }
         return origCallingUid;
+    }
+
+    @Keep
+    public static String reversePath(String path) {
+        if (path == null || IOCore.isInternalRedirectActive()
+                || !VirtualPathSpoof.shouldSpoofForGuest()) {
+            return path;
+        }
+        String out = IOCore.get().reversePath(path);
+        if (out != null && VirtualPathSpoof.containsLeak(out)) {
+            String scrubbed = VirtualPathSpoof.scrubProcLine(out);
+            if (scrubbed != null) {
+                out = scrubbed;
+            }
+        }
+        return out;
+    }
+
+    @Keep
+    public static File reversePath(File path) {
+        return IOCore.get().reversePath(path);
+    }
+
+    public static void setGuestPackageForStealth(String packageName) {
+        VirtualPathSpoof.setGuestPackageBound(packageName);
+    }
+
+    public static void setGuestProcSpoofUid(int uid) {
+        VirtualPathSpoof.setProcSpoofUid(uid);
+    }
+
+    public static void setGuestProcessComm(String packageName) {
+        VirtualPathSpoof.setGuestProcessComm(packageName);
+    }
+
+    public static void hideSelfLoaderFromAc() {
+        try {
+            com.anubis.loader.core.env.ProcStealthHelper.refreshSanitizedMapsForCurrentProcess();
+        } catch (Throwable ignored) {
+        }
     }
 
     @Keep

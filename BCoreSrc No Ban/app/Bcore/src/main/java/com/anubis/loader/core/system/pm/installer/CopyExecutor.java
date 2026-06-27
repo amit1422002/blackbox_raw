@@ -9,6 +9,7 @@ import com.anubis.loader.core.system.pm.BPackageSettings;
 import com.anubis.loader.entity.pm.InstallOption;
 import com.anubis.loader.utils.FileUtils;
 import com.anubis.loader.utils.NativeUtils;
+import com.anubis.loader.utils.ObbUtils;
 
 /**
  * Created by Milk on 4/24/21.
@@ -52,7 +53,7 @@ public class CopyExecutor implements Executor {
                 return -1;
             }
         } else if (option.isFlag(InstallOption.FLAG_SYSTEM)) {
-            // 系统安装
+            ObbUtils.copyObbFromHost(ps.pkg.packageName, userId);
         }
         return 0;
     }

@@ -4,6 +4,7 @@ import android.os.Build;
 
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
+import com.anubis.loader.utils.VirtualPathSpoof;
 import com.anubis.loader.core.env.ContainerPathStealth;
 
 import java.io.BufferedReader;
@@ -109,7 +110,15 @@ public final class ProcStealthHelper {
     static List<String> filterMapsLines(List<String> lines) {
         List<String> out = new ArrayList<>(lines.size());
         for (String line : lines) {
-            if (!shouldHideMapsLine(line)) {
+            if (line == null || line.isEmpty()) {
+                continue;
+            }
+            if (VirtualPathSpoof.shouldSpoofForGuest()) {
+                String scrubbed = VirtualPathSpoof.scrubProcLine(line);
+                if (scrubbed != null && !scrubbed.isEmpty()) {
+                    out.add(scrubbed.endsWith("\n") ? scrubbed.substring(0, scrubbed.length() - 1) : scrubbed);
+                }
+            } else if (!shouldHideMapsLine(line)) {
                 out.add(line);
             }
         }
@@ -184,7 +193,10 @@ public final class ProcStealthHelper {
         }
         if (sb.length() == 0 && guestName != null) {
             sb.append("Name:\t").append(guestName).append('\n');
-            sb.append("Uid:\t").append(android.os.Process.myUid()).append('\n');
+            int spoofUid = VirtualPathSpoof.getProcSpoofUid();
+            int uidLine = spoofUid > 0 ? spoofUid : android.os.Process.myUid();
+            sb.append("Uid:\t").append(uidLine).append('\t').append(uidLine)
+                    .append('\t').append(uidLine).append('\t').append(uidLine).append('\n');
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             // keep status small; guest anti-tamper often only checks Name/Uid

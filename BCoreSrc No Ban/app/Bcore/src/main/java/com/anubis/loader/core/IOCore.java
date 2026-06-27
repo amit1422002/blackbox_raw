@@ -12,7 +12,10 @@ import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.core.env.ContainerPathStealth;
 import com.anubis.loader.core.env.ProcStealthHelper;
 import com.anubis.loader.utils.FileUtils;
+import com.anubis.loader.utils.GCloudPathHelper;
+import com.anubis.loader.utils.StealthPathRules;
 import com.anubis.loader.utils.TrieTree;
+import com.anubis.loader.utils.VirtualPathSpoof;
 import java.io.File;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -33,6 +36,20 @@ public class IOCore {
   private final Map<String, String> mRedirectMap = new LinkedHashMap<>();
 
   private static final Map<String, Map<String, String>> sCachePackageRedirect = new HashMap<>();
+  private static final ThreadLocal<Boolean> sSkipRedirect = new ThreadLocal<>();
+  private static volatile boolean sRedirectEnabled;
+
+  public static void beginInternalRedirect() {
+    sSkipRedirect.set(Boolean.TRUE);
+  }
+
+  public static void endInternalRedirect() {
+    sSkipRedirect.remove();
+  }
+
+  public static boolean isInternalRedirectActive() {
+    return Boolean.TRUE.equals(sSkipRedirect.get());
+  }
 
   public static IOCore get() {
     return sIOCore;
@@ -48,16 +65,28 @@ public class IOCore {
     mRedirectMap.put(origPath, redirectPath);
     File redirectFile = new File(redirectPath);
     if (!redirectFile.exists()) {
-      FileUtils.mkdirs(redirectPath);
+      if (redirectPath.endsWith(".apk") || redirectPath.endsWith(".so")) {
+        File parent = redirectFile.getParentFile();
+        if (parent != null) {
+          FileUtils.mkdirs(parent);
+        }
+      } else {
+        FileUtils.mkdirs(redirectPath);
+      }
     }
     NativeCore.addIORule(origPath, redirectPath);
   }
 
   public String redirectPath(String path) {
     if (TextUtils.isEmpty(path)) return path;
-    // Never redirect internal container storage — guest games read .vfs directly.
-    if (path.contains("/anubis/")
-        || path.contains("/.vfs")
+    if (isInternalRedirectActive()) {
+      return path;
+    }
+    String gcloudBare = GCloudPathHelper.resolveBareFixListPath(path);
+    if (gcloudBare != null) {
+      return gcloudBare;
+    }
+    if (path.contains("/files/" + BEnvironment.VIRTUAL_ROOT_DIR + "/")
         || path.contains("/" + ContainerPathStealth.INTERNAL_CACHE_SEGMENT)) {
       return path;
     }
@@ -67,6 +96,32 @@ public class IOCore {
       path = path.replace(key, Objects.requireNonNull(mRedirectMap.get(key)));
     }
     return path;
+  }
+
+  public String reversePath(String path) {
+    if (TextUtils.isEmpty(path)) {
+      return path;
+    }
+    if (isInternalRedirectActive() || !VirtualPathSpoof.shouldSpoofForGuest()) {
+      return path;
+    }
+    String out = path;
+    for (Map.Entry<String, String> entry : mRedirectMap.entrySet()) {
+      String real = entry.getValue();
+      if (!TextUtils.isEmpty(real) && out.startsWith(real)) {
+        String suffix = out.substring(real.length());
+        out = entry.getKey() + suffix;
+        break;
+      }
+    }
+    return VirtualPathSpoof.reversePath(out);
+  }
+
+  public File reversePath(File path) {
+    if (path == null) {
+      return null;
+    }
+    return new File(reversePath(path.getAbsolutePath()));
   }
 
   public File redirectPath(File path) {
@@ -97,17 +152,23 @@ public class IOCore {
 
   // 由于正常情况Application已完成重定向，以下重定向是怕代码写死。
   public void enableRedirect(Context context) {
+    if (context == null || sRedirectEnabled) {
+      return;
+    }
     Map<String, String> rule = new LinkedHashMap<>();
     String packageName = context.getPackageName();
     int userId = BActivityThread.getUserId();
 
     try {
+      ApplicationInfo packageInfo = AnubisCore.getBPackageManager()
+          .getApplicationInfo(packageName, PackageManager.GET_META_DATA, userId);
       int systemUserId = AnubisCore.getHostUserId();
       String virtualData = BEnvironment.getDataDir(packageName, userId).getAbsolutePath();
-      String virtualLib = BEnvironment.getAppLibDir(packageName).getAbsolutePath();
+      String virtualLib = BEnvironment.resolveNativeLibDir(packageName).getAbsolutePath();
       String virtualDe = BEnvironment.getDeDataDir(packageName, userId).getAbsolutePath();
 
       addPackageDataRedirects(rule, packageName, systemUserId, virtualData, virtualDe, virtualLib);
+      ContainerPathStealth.applyGuestRedirects(rule, packageName, userId, systemUserId);
 
       if (AnubisCore.getContext().getExternalCacheDir() != null
           && context.getExternalCacheDir() != null) {
@@ -151,6 +212,14 @@ public class IOCore {
         hideRoot(rule);
       }
       proc(rule);
+      if (VirtualPathSpoof.isStealthAcPackage(packageName)) {
+        rule.put(VirtualPathSpoof.fakeApkPath(packageName),
+            BEnvironment.getBaseApkDir(packageName).getAbsolutePath());
+        rule.put(VirtualPathSpoof.fakeNativeLibDir(packageName), virtualLib);
+        StealthPathRules.addRules(packageName, userId, rule);
+        StealthPathRules.addFakePathRules(packageName, userId, packageInfo, rule);
+        StealthPathRules.addHostLeakGuards(packageName, userId, rule);
+      }
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -158,6 +227,7 @@ public class IOCore {
       get().addRedirect(key, rule.get(key));
     }
     NativeCore.enableIO();
+    sRedirectEnabled = true;
   }
 
   private static void addPackageDataRedirects(

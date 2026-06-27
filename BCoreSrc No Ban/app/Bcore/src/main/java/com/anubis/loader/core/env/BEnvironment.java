@@ -1,6 +1,7 @@
 package com.anubis.loader.core.env;
 
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.os.Build;
 import android.os.Environment;
 
@@ -217,6 +218,64 @@ public class BEnvironment {
         return new File(getAppDir(packageName), "lib");
     }
 
+    public static File resolveNativeLibDir(String packageName) {
+        File base = getAppLibDir(packageName);
+        String[] abis = {Build.CPU_ABI, "arm64", "arm64-v8a", "armeabi-v7a", "armeabi"};
+        for (String abi : abis) {
+            if (abi == null || abi.isEmpty()) {
+                continue;
+            }
+            File sub = new File(base, abi);
+            if (sub.isDirectory() && hasNativeLibs(sub)) {
+                return sub;
+            }
+        }
+        if (hasNativeLibs(base)) {
+            return base;
+        }
+        File preferred = new File(base, preferAbiSubdir());
+        FileUtils.mkdirs(preferred);
+        return preferred;
+    }
+
+    private static String preferAbiSubdir() {
+        String abi = Build.CPU_ABI != null ? Build.CPU_ABI : "arm64-v8a";
+        if (abi.startsWith("arm64") || abi.contains("64")) {
+            return "arm64";
+        }
+        return "arm";
+    }
+
+    private static boolean hasNativeLibs(File dir) {
+        File[] sos = dir.listFiles((d, name) -> name != null && name.endsWith(".so"));
+        return sos != null && sos.length > 0;
+    }
+
+    public static ApplicationInfo resolveVirtualApplicationInfo(ApplicationInfo src, String packageName) {
+        if (src == null || packageName == null) {
+            return src;
+        }
+        ApplicationInfo ai = new ApplicationInfo(src);
+        File baseApk = getBaseApkDir(packageName);
+        if (baseApk.isFile()) {
+            ai.sourceDir = baseApk.getAbsolutePath();
+            ai.publicSourceDir = ai.sourceDir;
+        }
+        File appDir = getAppDir(packageName);
+        File[] splits = appDir.listFiles((dir, name) -> name != null && name.endsWith(".apk")
+                && !"base.apk".equals(name));
+        if (splits != null && splits.length > 0) {
+            java.util.ArrayList<String> splitPaths = new java.util.ArrayList<>();
+            for (File split : splits) {
+                splitPaths.add(split.getAbsolutePath());
+            }
+            ai.splitSourceDirs = splitPaths.toArray(new String[0]);
+        }
+        ai.nativeLibraryDir = resolveNativeLibDir(packageName).getAbsolutePath();
+        ai.flags |= ApplicationInfo.FLAG_EXTRACT_NATIVE_LIBS;
+        return ai;
+    }
+
     public static File getXSharedPreferences(String packageName, String prefFileName) {
         return new File(
                 BEnvironment.getDataDir(packageName, BActivityThread.getUserId()),
@@ -251,7 +310,7 @@ public class BEnvironment {
             String suffix = userId + ":" + packageName + ":" + processName;
             FileUtils.mkdirs(new File(data, "app_webview_" + suffix));
         }
-        ensurePubgResourceDirs(data, extData);
+        ensureGameResourceDirs(packageName, data, extData);
         FileUtils.mkdirs(getObbDir(packageName));
     }
 
@@ -317,19 +376,57 @@ public class BEnvironment {
         ensureGuestDataLayout(packageName, userId, packageName);
     }
 
-    /** BGMI / PUBG resource download + patch cache paths (pre-login updater). */
-    private static void ensurePubgResourceDirs(File data, File extData) {
-        String[] rel = new String[] {
-                "files/UE4Game/ShadowTrackerExtra/Saved",
-                "files/UE4Game/ShadowTrackerExtra/Saved/Paks",
-                "files/UE4Game/ShadowTrackerExtra/Saved/Paks/pakcache",
-                "files/UE4Game/ShadowTrackerExtra/Saved/Config",
-                "files/UE4Game/ShadowTrackerExtra/Saved/SaveGames",
-                "files/UE4Game/ShadowTrackerExtra/Saved/Logs",
-                "files/ProgramBinaryCache",
-                "cache/UnityShaderCache",
-                "cache/oat",
-        };
+    /** Per-game UE4 resource download + patch cache paths (same idea as BGMI). */
+    private static void ensureGameResourceDirs(String packageName, File data, File extData) {
+        String[] rel;
+        if (GamePackages.isBgmi(packageName)) {
+            rel = new String[] {
+                    "files/UE4Game/ShadowTrackerExtra/Saved",
+                    "files/UE4Game/ShadowTrackerExtra/Saved/Paks",
+                    "files/UE4Game/ShadowTrackerExtra/Saved/Paks/pakcache",
+                    "files/UE4Game/ShadowTrackerExtra/Saved/Config",
+                    "files/UE4Game/ShadowTrackerExtra/Saved/SaveGames",
+                    "files/UE4Game/ShadowTrackerExtra/Saved/Logs",
+                    "files/ProgramBinaryCache",
+                    "cache/UnityShaderCache",
+                    "cache/oat",
+            };
+        } else if (GamePackages.isFarlight(packageName)) {
+            rel = new String[] {
+                    "files/BasePaks",
+                    "files/SolarDownloader",
+                    "files/SolarDownloader/Caches",
+                    "files/UE4Game/Farlight84/Saved",
+                    "files/UE4Game/Farlight84/Saved/Paks",
+                    "files/UE4Game/Farlight84/Saved/Paks/pakcache",
+                    "files/UE4Game/Farlight84/Saved/Config",
+                    "files/ProgramBinaryCache",
+                    "cache/oat",
+            };
+        } else if (GamePackages.isArenaBreakout(packageName)) {
+            rel = new String[] {
+                    "files/UE4Game/UAGame/Saved",
+                    "files/UE4Game/UAGame/Saved/Paks",
+                    "files/UE4Game/UAGame/Saved/Paks/pakcache",
+                    "files/UE4Game/UAGame/Saved/Config",
+                    "files/ProgramBinaryCache",
+                    "cache/oat",
+            };
+        } else if (GamePackages.isDeltaForce(packageName)) {
+            rel = new String[] {
+                    "files/UE4Game/DeltaForce/DeltaForce/Saved",
+                    "files/UE4Game/DeltaForce/DeltaForce/Saved/Dolphin",
+                    "files/UE4Game/DeltaForce/DeltaForce/Saved/Puffer",
+                    "files/UE4Game/DeltaForce/DeltaForce/Saved/Paks",
+                    "files/UE4Game/DeltaForce/DeltaForce/Saved/Paks/pakcache",
+                    "files/UE4Game/DeltaForce/DeltaForce/Saved/Config",
+                    "files/UE4Game/DeltaForce/DeltaForce/Content",
+                    "files/ProgramBinaryCache",
+                    "cache/oat",
+            };
+        } else {
+            return;
+        }
         for (String path : rel) {
             FileUtils.mkdirs(new File(data, path));
             if (extData != null) {

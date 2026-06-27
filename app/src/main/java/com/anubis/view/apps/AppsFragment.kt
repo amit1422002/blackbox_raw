@@ -37,6 +37,7 @@ import com.anubis.util.ShortcutUtil
 import com.anubis.skin.AnubisLoaderImportHelper
 import com.anubis.loader.utils.StoragePermissionHelper
 import com.anubis.skin.BgmiSkin
+import com.anubis.skin.GameCompat
 import com.anubis.skin.DeviceSpoofHelper
 import com.anubis.skin.CloneDataHelper
 import com.anubis.skin.GuestAccountBackupHelper
@@ -366,9 +367,11 @@ class AppsFragment : Fragment() {
                 try {
                     popupMenu = PopupMenu(requireContext(),view).also {
                         it.inflate(R.menu.app_menu)
+                        val hasObbCopy = GameCompat.hasObbCopyMenu(data.packageName)
+                        val hasDataCopy = GameCompat.hasDataCopyMenu(data.packageName)
                         val isBgmi = BgmiSkin.isBgmi(data.packageName)
-                        it.menu.findItem(R.id.app_copy_obb)?.isVisible = isBgmi
-                        it.menu.findItem(R.id.app_copy_data)?.isVisible = isBgmi
+                        it.menu.findItem(R.id.app_copy_obb)?.isVisible = hasObbCopy
+                        it.menu.findItem(R.id.app_copy_data)?.isVisible = hasDataCopy
                         it.menu.findItem(R.id.app_logout_account)?.isVisible = isBgmi
                         it.menu.findItem(R.id.app_reset_guest)?.isVisible = isBgmi
                         it.menu.findItem(R.id.app_recover_guest)?.isVisible = isBgmi
@@ -596,6 +599,9 @@ class AppsFragment : Fragment() {
     }
 
     private fun requestObbCopy(info: AppInfo) {
+        if (!GameCompat.hasObbCopyMenu(info.packageName)) {
+            return
+        }
         try {
             val sourcePath = AnubisLoaderImportHelper.getObbSourceDir().absolutePath
             MaterialDialog(requireContext()).show {
@@ -616,7 +622,7 @@ class AppsFragment : Fragment() {
     }
 
     private fun requestCopyData(info: AppInfo) {
-        if (!BgmiSkin.isBgmi(info.packageName)) {
+        if (!GameCompat.hasDataCopyMenu(info.packageName)) {
             return
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R

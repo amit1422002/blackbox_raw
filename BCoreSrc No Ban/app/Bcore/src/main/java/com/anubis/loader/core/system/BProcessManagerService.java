@@ -25,6 +25,7 @@ import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.IBActivityThread;
 import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.core.env.ProcStealthHelper;
+import com.anubis.loader.utils.VirtualPathSpoof;
 import com.anubis.loader.core.system.notification.BNotificationManagerService;
 import com.anubis.loader.core.system.pm.BPackageManagerService;
 import com.anubis.loader.core.system.user.BUserHandle;
@@ -459,9 +460,12 @@ public class BProcessManagerService implements ISystemService {
     private static void createProc(ProcessRecord record) {
         File procDir = BEnvironment.getProcDir(record.bpid);
         try {
-            ProcStealthHelper.writeCmdline(procDir, record.processName);
-            ProcStealthHelper.writeComm(procDir, record.processName);
+            String visible = VirtualPathSpoof.guestVisibleProcessName(
+                    record.getPackageName(), record.processName);
+            ProcStealthHelper.writeCmdline(procDir, visible);
+            ProcStealthHelper.writeComm(procDir, visible);
             ProcStealthHelper.writeSanitizedMaps(procDir);
+            ProcStealthHelper.writeExtendedProcFiles(procDir);
         } catch (IOException ignored) {
         }
     }

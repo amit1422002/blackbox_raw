@@ -42,6 +42,9 @@ public interface LoadedApk {
     String mLibDir();
 
     @BField
+    ClassLoader mClassLoader();
+
+    @BField
     boolean mSecurityViolation();
 
     @BField

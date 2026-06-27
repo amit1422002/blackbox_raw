@@ -23,6 +23,7 @@ import java.util.Set;
 
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.env.BEnvironment;
+import com.anubis.loader.core.env.GamePackages;
 
 public final class ObbUtils {
     private static final String TAG = "ObbUtils";
@@ -187,6 +188,12 @@ public final class ObbUtils {
     }
 
     public static boolean needsObbCopy(String packageName) {
+        if (GamePackages.isPackageDataGame(packageName)) {
+            return false;
+        }
+        if (GamePackages.isBgmi(packageName)) {
+            return true;
+        }
         return hasHostObb(packageName) || hasSavedObbUri(packageName) || hasGlobalObbUri();
     }
 

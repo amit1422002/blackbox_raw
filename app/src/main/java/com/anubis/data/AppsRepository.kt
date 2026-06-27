@@ -11,6 +11,7 @@ import com.anubis.loader.AnubisCore
 import com.anubis.loader.entity.pm.InstallResult
 import com.anubis.skin.AnubisLoaderImportHelper
 import com.anubis.skin.BgmiSkinLauncher
+import com.anubis.skin.GameCompat
 import com.anubis.skin.BgmiLuaStaging
 import com.anubis.skin.BgmiLogoutHelper
 import com.anubis.skin.BgmiSkin
@@ -447,7 +448,14 @@ class AppsRepository {
                     Log.w(TAG, "forceReinitialize after install: ${e.message}")
                 }
                 val packageName = installResult.packageName
-                if (AnubisCore.get().needsObbCopy(packageName)) {
+                if (GameCompat.isPackageDataGame(packageName)) {
+                    try {
+                        AnubisCore.prepareGuestLaunch(packageName, userId)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "prepareGuestLaunch: ${e.message}")
+                    }
+                    resultLiveData.postValue(getString(R.string.install_success))
+                } else if (AnubisCore.get().needsObbCopy(packageName)) {
                     val progressListener = createObbProgressListener(obbProgressLiveData)
                     try {
                         var copied = false
@@ -496,6 +504,9 @@ class AppsRepository {
     fun launchApk(packageName: String, userId: Int, launchLiveData: MutableLiveData<Boolean>) {
         try {
             BgmiSkinLauncher.onBeforeLaunch(packageName, userId)
+            if (GameCompat.isPackageDataGame(packageName)) {
+                AnubisCore.prepareGuestLaunch(packageName, userId)
+            }
             val result = AnubisCore.get().launchApk(packageName, userId)
             launchLiveData.postValue(result)
         } catch (e: Exception) {

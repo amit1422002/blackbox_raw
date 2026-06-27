@@ -29,6 +29,7 @@ struct {
     jclass NativeCoreClass;
     jmethodID getCallingUidId;
     jmethodID redirectPathString;
+    jmethodID reversePathString;
     jmethodID redirectPathFile;
     jmethodID loadEmptyDex;
     jmethodID loadEmptyDexL;
@@ -79,6 +80,18 @@ jobject BoxCore::redirectPathFile(JNIEnv *env, jobject path) {
     return env->CallStaticObjectMethod(VMEnv.NativeCoreClass, VMEnv.redirectPathFile, path);
 }
 
+jstring BoxCore::reversePathString(JNIEnv *env, jstring path) {
+    env = ensureEnvCreated();
+    if (VMEnv.reversePathString == nullptr) {
+        return path;
+    }
+    return (jstring) env->CallStaticObjectMethod(VMEnv.NativeCoreClass, VMEnv.reversePathString, path);
+}
+
+bool BoxCore::isPathScrubJniReady() {
+    return VMEnv.NativeCoreClass != nullptr && VMEnv.reversePathString != nullptr;
+}
+
 jlongArray BoxCore::loadEmptyDex(JNIEnv *env) {
     env = ensureEnvCreated();
     return (jlongArray) env->CallStaticObjectMethod(VMEnv.NativeCoreClass, VMEnv.loadEmptyDex);
@@ -113,6 +126,7 @@ void initNative(JNIEnv *env, jclass clazz, jint api_level, jclass jni_hook_class
     VMEnv.NativeCoreClass = (jclass) env->NewGlobalRef(env->FindClass(VMCORE_CLASS));
     VMEnv.getCallingUidId = env->GetStaticMethodID(VMEnv.NativeCoreClass, "getCallingUid", "(I)I");
     VMEnv.redirectPathString = env->GetStaticMethodID(VMEnv.NativeCoreClass, "redirectPath","(Ljava/lang/String;)Ljava/lang/String;");
+    VMEnv.reversePathString = env->GetStaticMethodID(VMEnv.NativeCoreClass, "reversePath","(Ljava/lang/String;)Ljava/lang/String;");
     VMEnv.redirectPathFile = env->GetStaticMethodID(VMEnv.NativeCoreClass, "redirectPath","(Ljava/io/File;)Ljava/io/File;");
     JniHook::InitJniHook(env, api_level, jni_hook_class, method_utils_class);
 }

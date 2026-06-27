@@ -26,6 +26,8 @@ public:
 
     static jstring redirectPath(JNIEnv *env, jstring path);
 
+    static jstring reversePath(JNIEnv *env, jstring path);
+
     static jobject redirectPath(JNIEnv *env, jobject path);
 
     static const char *redirectPath(const char *__path);
