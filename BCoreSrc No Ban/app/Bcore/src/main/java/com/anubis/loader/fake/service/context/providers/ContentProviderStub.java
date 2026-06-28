@@ -6,7 +6,6 @@ import java.lang.reflect.Method;
 
 import black.android.content.BRAttributionSource;
 import com.anubis.loader.AnubisCore;
-import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.fake.hook.ClassInvocationStub;
 import com.anubis.loader.utils.compat.ContextCompat;
 
@@ -53,7 +52,7 @@ public class ContentProviderStub extends ClassInvocationStub implements BContent
         if (args != null && args.length > 0) {
             Object arg = args[0];
             if (arg instanceof String) {
-                args[0] = mAppPkg;
+                args[0] = mAppPkg != null ? mAppPkg : AnubisCore.getHostPkg();
             } else if (arg.getClass().getName().equals(BRAttributionSource.getRealClass().getName())) {
                 ContextCompat.fixAttributionSourceState(arg, AnubisCore.getHostUid());
             }

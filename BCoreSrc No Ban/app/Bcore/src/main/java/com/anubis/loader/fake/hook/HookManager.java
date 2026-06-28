@@ -116,6 +116,9 @@ public class HookManager {
             addInjector(AppInstrumentation.get());
             addInjector(new IWifiManagerProxy());
             addInjector(new IWifiScannerProxy());
+            addInjector(new WebViewProxy());
+            addInjector(new WebViewFactoryProxy());
+            addInjector(new IWebViewUpdateServiceProxy());
             
             // 15.0
             if (BuildCompat.isVivo()){

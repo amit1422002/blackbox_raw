@@ -83,7 +83,13 @@ public class AppSystemEnv {
                 "com.dual.clone.space",
                 "com.lody.virtual",
                 "io.va.exposed",
-                "com.vphonegaga.titan"));
+                "com.vphonegaga.titan",
+                "com.anubis",
+                "top.anubis",
+                "com.ayan.box",
+                "com.parallel.space",
+                "com.excelliance.multaccount",
+                "com.cloneapp.parallelspace"));
     }
 
     public static boolean isOpenPackage(String packageName) {
@@ -127,7 +133,10 @@ public class AppSystemEnv {
                 || lower.contains("clone")
                 || lower.contains("vspace")
                 || lower.contains("niunaijun")
-                || lower.contains("anubis.loader");
+                || lower.contains("anubis.loader")
+                || lower.contains("gspace")
+                || lower.contains("dualaid")
+                || lower.contains("vphonegaga");
     }
 
     public static List<String> getPreInstallPackages() {

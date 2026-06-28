@@ -12,6 +12,7 @@ import com.anubis.loader.fake.hook.ClassInvocationStub;
 import com.anubis.loader.fake.hook.MethodHook;
 import com.anubis.loader.fake.hook.ProxyMethod;
 import com.anubis.loader.utils.Reflector;
+import com.anubis.loader.utils.VirtualPathSpoof;
 
 /**
  * Created by Milk on 4/9/21.
@@ -95,9 +96,12 @@ public class OsStub extends ClassInvocationStub {
     private static int getFakeUid(int callUid) {
         if (callUid > 0 && callUid <= Process.FIRST_APPLICATION_UID)
             return callUid;
-//            Log.d(TAG, "getuid: " + BActivityThread.getAppPackageName() + ", " + BActivityThread.getAppUid());
         if (BActivityThread.isThreadInit() && BActivityThread.currentActivityThread().isInit()) {
-            return BActivityThread.getBAppId();
+            int spoofUid = VirtualPathSpoof.getProcSpoofUid();
+            if (spoofUid > 0) {
+                return spoofUid;
+            }
+            return AnubisCore.getHostUid();
         } else {
             return AnubisCore.getHostUid();
         }

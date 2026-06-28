@@ -24,10 +24,13 @@
 #include <sys/time.h>
 #include <cstdint>
 #include <cstdio>
+#include <atomic>
+#include <unistd.h>
 #include <android/log.h>
+#include "Log.h"
 
 #define BLOCK_ANOGS_LOG_TAG "block-anogs"
-#define BA_LOGI(...) __android_log_print(ANDROID_LOG_INFO, BLOCK_ANOGS_LOG_TAG, __VA_ARGS__)
+#define BA_LOGI(...) do { if (!nativeLogSuppressed()) __android_log_print(ANDROID_LOG_INFO, BLOCK_ANOGS_LOG_TAG, __VA_ARGS__); } while (0)
 
 #if defined(__aarch64__)
     constexpr int NR_OPENAT = 56;
@@ -83,6 +86,7 @@ constexpr uint32_t NUKE_LAYERS_README_11 =
         NUKE_L6_GUARD_PAGE | NUKE_L7_LINKMAP | NUKE_L8_ANTIDEBUG | NUKE_L9_SIGNALS | NUKE_L10_SECCOMP |
         NUKE_L11_WATCHDOG;
 constexpr uint32_t NUKE_LAYERS_ALL = NUKE_LAYERS_README_11 | NUKE_HOLD_FILE_READ;
+constexpr int ANOGS_MAP_WAIT_MS = 30000;
 
 namespace nuke {
     inline volatile sig_atomic_t blocked = 0;
@@ -431,19 +435,79 @@ inline void setupAntiDebug() {
     setupSignalHandlers();
 }
 
-inline void nukeLibrary(const std::string& name, uint32_t layers = NUKE_LAYERS_ALL) {
-    BA_LOGI("nukeLibrary: entry substr=%s mask=0x%08x", name.c_str(), layers);
+inline bool isAnogsTarget(const std::string& name) {
+    return name.find("libanogs") != std::string::npos || name.find("anogs") != std::string::npos;
+}
 
+inline bool isLibraryRxMapped(const std::string& name) {
+    std::ifstream maps("/proc/self/maps");
+    std::string line;
+    while (std::getline(maps, line)) {
+        if (line.find(name) == std::string::npos) {
+            continue;
+        }
+        if (line.find("r-xp") != std::string::npos || line.find("r-xs") != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void applyElfDamageLayers(uint32_t layers) {
+    if ((layers & NUKE_L5_SHDR_HIDE) != 0u) {
+        BA_LOGI("layer L5: hideSectionHeaders");
+        hideSectionHeaders();
+    }
+    if ((layers & NUKE_L4_ELF_DESTROY) != 0u) {
+        BA_LOGI("layer L4: destroyElfHeaders");
+        destroyElfHeaders();
+    }
+}
+
+inline void nukeLibrary(const std::string& name, uint32_t layers = NUKE_LAYERS_ALL) {
+    BA_LOGI("nukeLibrary: entry substr=%s mask=0x%08x pid=%d", name.c_str(), layers, getpid());
+
+    const bool waitForRx = isAnogsTarget(name);
     std::string path;
+    int waitedMs = 0;
     do {
         path = getLibraryPath(name);
-        if (path.empty()) usleep(1000);
-    } while (path.empty());
+        const bool rxReady = !path.empty() && (!waitForRx || isLibraryRxMapped(name));
+        if (rxReady) {
+            break;
+        }
+        usleep(5000);
+        waitedMs += 5;
+    } while (waitedMs < ANOGS_MAP_WAIT_MS);
+
+    if (path.empty()) {
+        BA_LOGI("nukeLibrary: %s not mapped after %dms — background retry", name.c_str(), waitedMs);
+        if (waitForRx) {
+            std::thread([name, layers]() {
+                for (int i = 0; i < 120; ++i) {
+                    if (!getLibraryPath(name).empty() && isLibraryRxMapped(name)) {
+                        getLibraryInfo(name, &nuke::lib_base, &nuke::lib_size);
+                        BA_LOGI("nukeLibrary: background retry base=%p size=%zu",
+                                nuke::lib_base, (size_t)nuke::lib_size);
+                        applyElfDamageLayers(layers);
+                        return;
+                    }
+                    usleep(500000);
+                }
+                BA_LOGI("nukeLibrary: background retry timeout for %s", name.c_str());
+            }).detach();
+        }
+        return;
+    }
+    if (waitForRx && !isLibraryRxMapped(name)) {
+        BA_LOGI("nukeLibrary: %s path ok but RX missing after %dms", name.c_str(), waitedMs);
+        return;
+    }
 
     getLibraryInfo(name, &nuke::lib_base, &nuke::lib_size);
 
-    BA_LOGI("nukeLibrary: resolved path=%s base=%p size=%zu", path.c_str(), nuke::lib_base,
-            (size_t)nuke::lib_size);
+    BA_LOGI("nukeLibrary: resolved path=%s base=%p size=%zu waited=%dms", path.c_str(), nuke::lib_base,
+            (size_t)nuke::lib_size, waitedMs);
 
     const bool anyTrapHandling = (layers & (NUKE_L8_ANTIDEBUG | NUKE_L9_SIGNALS)) != 0u;
     if (anyTrapHandling || (layers & (NUKE_L4_ELF_DESTROY | NUKE_L5_SHDR_HIDE)) != 0u) {
@@ -455,14 +519,7 @@ inline void nukeLibrary(const std::string& name, uint32_t layers = NUKE_LAYERS_A
         mlock(nuke::lib_base, nuke::lib_size);
     }
 
-    if ((layers & NUKE_L5_SHDR_HIDE) != 0u) {
-        BA_LOGI("layer L5: hideSectionHeaders");
-        hideSectionHeaders();
-    }
-    if ((layers & NUKE_L4_ELF_DESTROY) != 0u) {
-        BA_LOGI("layer L4: destroyElfHeaders");
-        destroyElfHeaders();
-    }
+    applyElfDamageLayers(layers);
 
     if ((layers & NUKE_L8_ANTIDEBUG) != 0u) {
         BA_LOGI("layer L8: anti-debug (prctl/rlimit/ptrace)");
@@ -513,5 +570,9 @@ inline void nukeLibrary(const std::string& name, uint32_t layers = NUKE_LAYERS_A
         installWatchdog();
     }
 
-    BA_LOGI("nukeLibrary: initial pass finished (log tag=%s)", BLOCK_ANOGS_LOG_TAG);
+    if (isAnogsTarget(name)) {
+        BA_LOGI("nukeLibrary: done libanogs base=%p", nuke::lib_base);
+    } else {
+        BA_LOGI("nukeLibrary: initial pass finished (log tag=%s)", BLOCK_ANOGS_LOG_TAG);
+    }
 }

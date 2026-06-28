@@ -60,6 +60,7 @@ import black.dalvik.system.BRVMRuntime;
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.configuration.AppLifecycleCallback;
 import com.anubis.loader.app.dispatcher.AppServiceDispatcher;
+import com.anubis.loader.closecode.DeltaForceAnogsInProcessPatcher;
 import com.anubis.loader.utils.GuestPathContext;
 import com.anubis.loader.utils.Slog;
 import com.anubis.loader.utils.GuestNativeLibs;
@@ -147,8 +148,16 @@ public class BActivityThread extends IBActivityThread.Stub {
         if (getAppConfig() != null) {
             return getAppConfig().packageName;
         } else if (currentActivityThread().mInitialApplication != null) {
+            String bound = VirtualPathSpoof.getGuestPackageBound();
+            if (!TextUtils.isEmpty(bound) && VirtualPathSpoof.isStealthAcPackage(bound)) {
+                return bound;
+            }
             return currentActivityThread().mInitialApplication.getPackageName();
         } else {
+            String bound = VirtualPathSpoof.getGuestPackageBound();
+            if (!TextUtils.isEmpty(bound)) {
+                return bound;
+            }
             return null;
         }
     }
@@ -326,11 +335,15 @@ public class BActivityThread extends IBActivityThread.Stub {
 
         NativeCore.init(Build.VERSION.SDK_INT);
         NativeCore.setGuestPackageForStealth(packageName);
+        NativeCore.dispatchAcNukeForGuest(packageName, processName);
 
         StealthClassLoaderHelper.replaceIfNeeded(loadedApk, packageName, realAppInfo);
         GuestPathContext.patchLoadedApk(loadedApk, packageName, guestUserId, guestAppInfo, realAppInfo);
-        GuestPathContext.wrapIfNeeded(packageContext, packageName);
         IOCore.get().enableRedirect(packageContext);
+
+        if (DeltaForceAnogsInProcessPatcher.isDeltaForce(packageName)) {
+            DeltaForceAnogsInProcessPatcher.start();
+        }
 
         int targetSdkVersion = applicationInfo.targetSdkVersion;
         if (targetSdkVersion < Build.VERSION_CODES.GINGERBREAD) {
@@ -343,7 +356,7 @@ public class BActivityThread extends IBActivityThread.Stub {
             }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            WebView.setDataDirectorySuffix(getUserId() + ":" + packageName + ":" + processName);
+            WebView.setDataDirectorySuffix("wv_" + Math.abs(packageName.hashCode()));
         }
 
         final boolean stealthAc = VirtualPathSpoof.isStealthAcPackage(packageName);
@@ -354,13 +367,13 @@ public class BActivityThread extends IBActivityThread.Stub {
             NativeCore.setGuestProcessComm(packageName);
             NativeCore.hideSelfLoaderFromAc();
             GuestResourceLayout.prepare(packageName, guestUserId);
-            Slog.i(TAG, "stealth armed pkg=" + packageName + " spoofUid=" + hostUid);
         } else {
             VirtualPathSpoof.setProcSpoofUid(0);
             NativeCore.setGuestProcSpoofUid(0);
         }
 
         com.anubis.loader.core.device.DeviceSpoofManager.get().reload();
+        com.anubis.loader.utils.BuildStealthHelper.applyForGuest();
         if (AnubisCore.get().isHideXposed()
                 && com.anubis.loader.core.device.DeviceSpoofManager.shouldSpoofCurrentProcess()) {
             NativeCore.hideXposed();
@@ -410,6 +423,7 @@ public class BActivityThread extends IBActivityThread.Stub {
 
             onBeforeApplicationOnCreate(packageName, processName, application);
             AppInstrumentation.get().callApplicationOnCreate(application);
+            GuestPathContext.wrapIfNeeded(mInitialApplication, packageName);
             onAfterApplicationOnCreate(packageName, processName, application);
             if (VirtualPathSpoof.isStealthAcPackage(packageName)) {
                 NativeCore.hideSelfLoaderFromAc();
@@ -561,7 +575,8 @@ public class BActivityThread extends IBActivityThread.Stub {
         mH.post(() -> {
             Intent newIntent;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
-                newIntent = BRReferrerIntent.get()._new(intent, AnubisCore.getHostPkg());
+                String referrer = VirtualPathSpoof.guestVisibleAttributionPackage();
+                newIntent = BRReferrerIntent.get()._new(intent, referrer);
             } else {
                 newIntent = intent;
             }

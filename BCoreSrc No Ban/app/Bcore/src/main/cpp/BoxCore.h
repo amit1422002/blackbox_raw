@@ -26,6 +26,8 @@ public:
     static bool isPathScrubJniReady();
     static jobject redirectPathFile(JNIEnv *env, jobject path);
     static jlongArray loadEmptyDex(JNIEnv *env);
+    static jclass getNativeCoreClass();
+    static jmethodID getSpoofSystemPropertyId();
 };
 
 

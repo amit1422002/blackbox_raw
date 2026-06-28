@@ -26,6 +26,7 @@ add_library( # Sets the name of the library.
         hidden_api.cpp
         SandHook/ElfImg.cpp
         Hook/DexFileHook.cpp
+        Hook/SystemPropertiesHook.cpp
         ${SRC1}
         ${SRC2}
         ${SRC3}

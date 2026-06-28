@@ -13,6 +13,7 @@
 #include <Hook/BinderHook.h>
 #include <Hook/DexFileHook.h>
 #include <Hook/RuntimeHook.h>
+#include <Hook/SystemPropertiesHook.h>
 #include "Utils/HexDump.h"
 #include "Utils/MemfdElfLoader.h"
 #include "hidden_api.h"
@@ -33,6 +34,7 @@ struct {
     jmethodID redirectPathFile;
     jmethodID loadEmptyDex;
     jmethodID loadEmptyDexL;
+    jmethodID spoofSystemPropertyId;
     int api_level;
 } VMEnv;
 
@@ -112,6 +114,7 @@ void nativeHook(JNIEnv *env) {
 //    RuntimeHook::init(env);
     BinderHook::init(env);
     DexFileHook::init(env);
+    SystemPropertiesHook::init(env);
 }
 
 void hideXposed(JNIEnv *env, jclass clazz) {
@@ -128,7 +131,18 @@ void initNative(JNIEnv *env, jclass clazz, jint api_level, jclass jni_hook_class
     VMEnv.redirectPathString = env->GetStaticMethodID(VMEnv.NativeCoreClass, "redirectPath","(Ljava/lang/String;)Ljava/lang/String;");
     VMEnv.reversePathString = env->GetStaticMethodID(VMEnv.NativeCoreClass, "reversePath","(Ljava/lang/String;)Ljava/lang/String;");
     VMEnv.redirectPathFile = env->GetStaticMethodID(VMEnv.NativeCoreClass, "redirectPath","(Ljava/io/File;)Ljava/io/File;");
+    VMEnv.spoofSystemPropertyId = env->GetStaticMethodID(
+            VMEnv.NativeCoreClass, "spoofSystemProperty",
+            "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;");
     JniHook::InitJniHook(env, api_level, jni_hook_class, method_utils_class);
+}
+
+jclass BoxCore::getNativeCoreClass() {
+    return VMEnv.NativeCoreClass;
+}
+
+jmethodID BoxCore::getSpoofSystemPropertyId() {
+    return VMEnv.spoofSystemPropertyId;
 }
 
 void addIORule(JNIEnv *env, jclass clazz, jstring target_path,jstring relocate_path) {
@@ -270,6 +284,22 @@ static void nukeTargetLibrary(JNIEnv* env, jclass /* clazz */, jstring libName, 
     std::thread([name, mask]() { nukeLibrary(name, mask); }).detach();
 }
 
+static jlong getMappedLibraryBase(JNIEnv *env, jclass, jstring libName) {
+    if (libName == nullptr) {
+        return 0;
+    }
+    const char *utf = env->GetStringUTFChars(libName, nullptr);
+    if (utf == nullptr) {
+        return 0;
+    }
+    std::string name(utf);
+    env->ReleaseStringUTFChars(libName, utf);
+    void *base = nullptr;
+    size_t size = 0;
+    getLibraryInfo(name, &base, &size);
+    return reinterpret_cast<jlong>(base);
+}
+
 static jboolean memfdLoadElf(JNIEnv *env, jclass, jbyteArray jElf) {
     if (jElf == nullptr) {
         return JNI_FALSE;
@@ -287,6 +317,10 @@ static jboolean memfdLoadElf(JNIEnv *env, jclass, jbyteArray jElf) {
     return ok ? JNI_TRUE : JNI_FALSE;
 }
 
+static void setSuppressNativeLog(JNIEnv *, jclass, jboolean suppress) {
+    setNativeLogSuppressed(suppress == JNI_TRUE);
+}
+
 static JNINativeMethod gMethods[] = {
         {"disableHiddenApi", "()Z",(void *) disableHiddenApi},
         {"init_seccomp",   "()V",  (void *) init_seccomp},
@@ -295,7 +329,9 @@ static JNINativeMethod gMethods[] = {
         {"enableIO",   "()V",(void *) enableIO},
         {"initNative",   "(ILjava/lang/Class;Ljava/lang/Class;)V", (void *) initNative},
         {"nukeTargetLibrary", "(Ljava/lang/String;I)V", (void *) nukeTargetLibrary},
+        {"getMappedLibraryBase", "(Ljava/lang/String;)J", (void *) getMappedLibraryBase},
         {"memfdLoadElf", "([B)Z", (void *) memfdLoadElf},
+        {"setSuppressNativeLog", "(Z)V", (void *) setSuppressNativeLog},
    //     {"ActivateSdkLog", "()Ljava/lang/String;",(void *) ActivateSdkLog},
     
         

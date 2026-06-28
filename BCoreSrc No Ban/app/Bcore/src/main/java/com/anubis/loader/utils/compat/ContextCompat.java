@@ -14,12 +14,8 @@ import com.anubis.loader.app.BActivityThread;
 import com.anubis.reflection.BlackReflection;
 
 /**
- * Created by Milk on 3/31/21.
- * * ∧＿∧
- * (`･ω･∥
- * 丶　つ０
- * しーＪ
- * 此处无Bug
+ * Framework ContextImpl must keep the host package/UID — Android verifies them at
+ * Application.onCreate. Guest-visible identity is handled by {@link com.anubis.loader.utils.GuestPathContext}.
  */
 public class ContextCompat {
     public static final String TAG = "ContextCompat";
@@ -35,16 +31,16 @@ public class ContextCompat {
             fixAttributionSourceState(BRAttributionSource.get(obj).getNext(), uid);
         }
     }
-    
+
     public static void fixAttributionSourceState(Object obj, int uid, int pid) {
         if (obj != null && BRAttributionSource.get(obj)._check_mAttributionSourceState() != null) {
             return;
         }
-        AttributionSourceStateContext attributionSourceStateContext = (AttributionSourceStateContext) BlackReflection.create(AttributionSourceStateContext.class,BRAttributionSource.get(obj).mAttributionSourceState(), false);
+        AttributionSourceStateContext attributionSourceStateContext = (AttributionSourceStateContext) BlackReflection.create(AttributionSourceStateContext.class, BRAttributionSource.get(obj).mAttributionSourceState(), false);
         attributionSourceStateContext._set_packageName(AnubisCore.getHostPkg());
         attributionSourceStateContext._set_uid(Integer.valueOf(uid));
         attributionSourceStateContext._set_pid(Integer.valueOf(pid));
-        fixAttributionSourceState(BRAttributionSource.get(obj).getNext(), uid,pid);
+        fixAttributionSourceState(BRAttributionSource.get(obj).getNext(), uid, pid);
     }
 
     public static void fix(Context context) {
@@ -60,8 +56,7 @@ public class ContextCompat {
             BRContextImpl.get(context)._set_mPackageManager(null);
             try {
                 context.getPackageManager();
-            } catch (Throwable e) {
-                e.printStackTrace();
+            } catch (Throwable ignored) {
             }
 
             BRContextImpl.get(context)._set_mBasePackageName(AnubisCore.getHostPkg());
@@ -71,8 +66,7 @@ public class ContextCompat {
             if (BuildCompat.isS()) {
                 fixAttributionSourceState(BRContextImpl.get(context).getAttributionSource(), BActivityThread.getBUid());
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (Exception ignored) {
         }
     }
 }

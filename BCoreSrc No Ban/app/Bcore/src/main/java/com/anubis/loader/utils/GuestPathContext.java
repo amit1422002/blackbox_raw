@@ -7,13 +7,11 @@ import android.content.pm.ApplicationInfo;
 import java.io.File;
 
 import black.android.app.BRLoadedApk;
-import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.env.BEnvironment;
 
 /**
- * Stealth AC: guest package name / APK / data paths look like a normal install.
- * File I/O uses the real anubis virtual tree ({@link BEnvironment}) — {@link com.anubis.loader.core.IOCore}
- * maps guest-visible fake paths to real files (same process — safe on Android 16 scoped storage).
+ * Guest-facing Context wrapper: package name / APK paths look like a normal install.
+ * Data paths use the real virtual tree ({@link BEnvironment}) so SQLite and native I/O work.
  */
 public final class GuestPathContext extends ContextWrapper {
 
@@ -72,7 +70,6 @@ public final class GuestPathContext extends ContextWrapper {
         }
     }
 
-    /** Old path-scrub bug could mkdir {@code libc.so} as a directory and break Crashlytics. */
     private static void repairCorruptGuestLibEntries(String packageName) {
         try {
             File libDir = BEnvironment.resolveNativeLibDir(packageName);
@@ -107,16 +104,12 @@ public final class GuestPathContext extends ContextWrapper {
         return com.anubis.loader.app.BActivityThread.getUserId();
     }
 
-    private File guestFile(String fakeAbsolutePath) {
-        return new File(fakeAbsolutePath);
+    private File realDataDir() {
+        return BEnvironment.getDataDir(mPackageName, guestUserId());
     }
 
-    private String fakeDataPath() {
-        return VirtualPathSpoof.fakeDataDir(mPackageName, guestUserId());
-    }
-
-    private String fakeExtDataPath() {
-        return VirtualPathSpoof.fakeExternalDataDir(mPackageName, guestUserId());
+    private File realFile(String relative) {
+        return new File(realDataDir(), relative);
     }
 
     @Override
@@ -150,58 +143,37 @@ public final class GuestPathContext extends ContextWrapper {
 
     @Override
     public File getDataDir() {
-        if (!mStealth) {
-            return super.getDataDir();
-        }
-        return guestFile(fakeDataPath());
+        return mStealth ? realDataDir() : super.getDataDir();
     }
 
     @Override
     public File getFilesDir() {
-        if (!mStealth) {
-            return super.getFilesDir();
-        }
-        return guestFile(fakeDataPath() + "/files");
+        return mStealth ? realFile("files") : super.getFilesDir();
     }
 
     @Override
     public File getCacheDir() {
-        if (!mStealth) {
-            return super.getCacheDir();
-        }
-        return guestFile(fakeDataPath() + "/cache");
+        return mStealth ? realFile("cache") : super.getCacheDir();
     }
 
     @Override
     public File getCodeCacheDir() {
-        if (!mStealth) {
-            return super.getCodeCacheDir();
-        }
-        return guestFile(fakeDataPath() + "/code_cache");
+        return mStealth ? realFile("code_cache") : super.getCodeCacheDir();
     }
 
     @Override
     public File getNoBackupFilesDir() {
-        if (!mStealth) {
-            return super.getNoBackupFilesDir();
-        }
-        return guestFile(fakeDataPath() + "/no_backup");
+        return mStealth ? realFile("no_backup") : super.getNoBackupFilesDir();
     }
 
     @Override
     public File getDir(String name, int mode) {
-        if (!mStealth) {
-            return super.getDir(name, mode);
-        }
-        return guestFile(fakeDataPath() + "/app_" + name);
+        return mStealth ? realFile("app_" + name) : super.getDir(name, mode);
     }
 
     @Override
     public File getDatabasePath(String name) {
-        if (!mStealth) {
-            return super.getDatabasePath(name);
-        }
-        return guestFile(fakeDataPath() + "/databases/" + name);
+        return mStealth ? realFile("databases/" + name) : super.getDatabasePath(name);
     }
 
     @Override
@@ -209,15 +181,13 @@ public final class GuestPathContext extends ContextWrapper {
         if (!mStealth) {
             return super.getObbDir();
         }
-        return guestFile(VirtualPathSpoof.fakeObbDir(mPackageName, guestUserId()));
+        return new File(BEnvironment.getExternalUserDir(guestUserId()),
+                "Android/obb/" + mPackageName);
     }
 
     @Override
     public File[] getExternalFilesDirs(String type) {
-        if (!mStealth) {
-            return super.getExternalFilesDirs(type);
-        }
-        return new File[]{getExternalFilesDir(type)};
+        return mStealth ? new File[]{getExternalFilesDir(type)} : super.getExternalFilesDirs(type);
     }
 
     @Override
@@ -225,11 +195,9 @@ public final class GuestPathContext extends ContextWrapper {
         if (!mStealth) {
             return super.getExternalFilesDir(type);
         }
-        File base = guestFile(fakeExtDataPath() + "/files");
-        if (type != null) {
-            return new File(base, type);
-        }
-        return base;
+        File base = new File(BEnvironment.getExternalUserDir(guestUserId()),
+                "Android/data/" + mPackageName + "/files");
+        return type != null ? new File(base, type) : base;
     }
 
     @Override
@@ -237,15 +205,13 @@ public final class GuestPathContext extends ContextWrapper {
         if (!mStealth) {
             return super.getExternalCacheDir();
         }
-        return guestFile(fakeExtDataPath() + "/cache");
+        return new File(BEnvironment.getExternalUserDir(guestUserId()),
+                "Android/data/" + mPackageName + "/cache");
     }
 
     @Override
     public File[] getExternalCacheDirs() {
-        if (!mStealth) {
-            return super.getExternalCacheDirs();
-        }
-        return new File[]{getExternalCacheDir()};
+        return mStealth ? new File[]{getExternalCacheDir()} : super.getExternalCacheDirs();
     }
 
     @Override
@@ -253,6 +219,7 @@ public final class GuestPathContext extends ContextWrapper {
         if (!mStealth) {
             return super.getExternalMediaDirs();
         }
-        return new File[]{guestFile(fakeExtDataPath() + "/media")};
+        return new File[]{new File(BEnvironment.getExternalUserDir(guestUserId()),
+                "Android/data/" + mPackageName + "/media")};
     }
 }

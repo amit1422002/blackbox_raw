@@ -552,8 +552,8 @@ public class AnubisCore extends ClientConfiguration {
 
     private void initNotificationManager() {
         NotificationManager nm = (NotificationManager) AnubisCore.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-        String CHANNEL_ONE_ID = AnubisCore.getContext().getPackageName() + ".anubis_core";
-        String CHANNEL_ONE_NAME = "anubis_core";
+        String CHANNEL_ONE_ID = AnubisCore.getContext().getPackageName() + ".core_svc";
+        String CHANNEL_ONE_NAME = "core_svc";
         if (BuildCompat.isOreo()) {
             NotificationChannel notificationChannel = new NotificationChannel(CHANNEL_ONE_ID,CHANNEL_ONE_NAME, NotificationManager.IMPORTANCE_HIGH);
             notificationChannel.enableLights(true);

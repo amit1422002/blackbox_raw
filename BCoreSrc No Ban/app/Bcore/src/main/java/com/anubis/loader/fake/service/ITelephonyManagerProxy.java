@@ -52,6 +52,62 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
         return false;
     }
 
+    @ProxyMethod("getImei")
+    public static class GetImei extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            return resolveTelephonyId();
+        }
+    }
+
+    @ProxyMethod("getSimSerialNumber")
+    public static class GetSimSerialNumber extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            return resolveSimSerial();
+        }
+    }
+
+    @ProxyMethod("getPhoneType")
+    public static class GetPhoneType extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            return TelephonyManager.PHONE_TYPE_GSM;
+        }
+    }
+
+    @ProxyMethod("getNetworkCountryIso")
+    public static class GetNetworkCountryIso extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            return "in";
+        }
+    }
+
+    @ProxyMethod("getSimCountryIso")
+    public static class GetSimCountryIso extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            return "in";
+        }
+    }
+
+    @ProxyMethod("getNetworkOperatorName")
+    public static class GetNetworkOperatorName extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            return "Jio";
+        }
+    }
+
+    @ProxyMethod("getSimOperatorName")
+    public static class GetSimOperatorName extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            return "Jio";
+        }
+    }
+
     @ProxyMethod("getDeviceId")
     public static class GetDeviceId extends MethodHook {
         @Override
@@ -109,6 +165,16 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
         }
     }
 
+    private static String resolveSimSerial() {
+        int userId = BActivityThread.getUserId();
+        String pkg = BActivityThread.getAppPackageName();
+        if (!DeviceSpoofManager.shouldSpoofCurrentProcess()) {
+            return null;
+        }
+        String serial = DeviceSpoofManager.get().resolveSerial(userId, pkg);
+        return serial != null ? serial : DeviceSpoofIds.stableSerial(userId, pkg + ":sim");
+    }
+
     private static String resolveTelephonyId() {
         int userId = BActivityThread.getUserId();
         String pkg = BActivityThread.getAppPackageName();
@@ -156,8 +222,15 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
     public static class GetNetworkOperator extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            Log.d(TAG, "getNetworkOperator");
-            return method.invoke(who, args);
+            return "405861";
+        }
+    }
+
+    @ProxyMethod("getSimOperator")
+    public static class GetSimOperator extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            return "405861";
         }
     }
 

@@ -45,6 +45,7 @@ import com.anubis.loader.fake.service.pm.VirtualPackageInstaller;
 import com.anubis.loader.utils.MethodParameterUtils;
 import com.anubis.loader.utils.Reflector;
 import com.anubis.loader.utils.Slog;
+import com.anubis.loader.utils.VirtualPathSpoof;
 import com.anubis.loader.utils.compat.BuildCompat;
 import com.anubis.loader.utils.compat.ParceledListSliceCompat;
 import org.lsposed.lsparanoid.Obfuscate;
@@ -126,7 +127,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             int flags = MethodParameterUtils.toInt(args[2]);
             ResolveInfo resolveInfo = AnubisCore.getBPackageManager().resolveIntent(intent, resolvedType, flags, BActivityThread.getUserId());
             if (resolveInfo != null) {
-                return resolveInfo;
+                return spoofResolveInfoForGuest(resolveInfo);
             }
             return method.invoke(who, args);
         }
@@ -141,7 +142,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             int flags = MethodParameterUtils.toInt(args[2]);
             ResolveInfo resolveInfo = AnubisCore.getBPackageManager().resolveService(intent, flags, resolvedType, BActivityThread.getUserId());
             if (resolveInfo != null) {
-                return resolveInfo;
+                return spoofResolveInfoForGuest(resolveInfo);
             }
             return method.invoke(who, args);
         }
@@ -188,11 +189,31 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                         .getPackageInfo(packageName, flags, BActivityThread.getUserId());
                 if (packageInfo != null) {
                     result = packageInfo;
+                } else if (shouldHideHostFromGuest()) {
+                    result = null;
                 } else {
                     result = (PackageInfo) method.invoke(who, args);
                 }
             }
-            return result;
+            return spoofPackageInfoForGuest(result);
+        }
+    }
+
+    @ProxyMethod("queryIntentActivities")
+    public static class QueryIntentActivities extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            Intent intent = (Intent) args[0];
+            String resolvedType = args.length > 1 ? (String) args[1] : null;
+            int flags = MethodParameterUtils.toInt(args.length > 2 ? args[2] : args[1]);
+            List<ResolveInfo> resolves = AnubisCore.getBPackageManager()
+                    .queryIntentActivities(intent, flags, resolvedType, BActivityThread.getUserId());
+            filterResolveInfoFromGuest(resolves);
+            spoofResolveInfoListForGuest(resolves);
+            if (BuildCompat.isN()) {
+                return ParceledListSliceCompat.create(resolves);
+            }
+            return resolves;
         }
     }
 
@@ -237,7 +258,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             int flags = MethodParameterUtils.toInt(args[1]);
             ProviderInfo providerInfo = AnubisCore.getBPackageManager().getProviderInfo(componentName, flags, BActivityThread.getUserId());
             if (providerInfo != null)
-                return providerInfo;
+                return VirtualPathSpoof.spoofProviderInfoForGuest(providerInfo, BActivityThread.getUserId());
             if (AppSystemEnv.isOpenPackage(componentName)) {
                 return method.invoke(who, args);
             }
@@ -259,7 +280,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             int flags = MethodParameterUtils.toInt(args[1]);
             ActivityInfo receiverInfo = AnubisCore.getBPackageManager().getReceiverInfo(componentName, flags, BActivityThread.getUserId());
             if (receiverInfo != null)
-                return receiverInfo;
+                return VirtualPathSpoof.spoofActivityInfoForGuest(receiverInfo, BActivityThread.getUserId());
             if (AppSystemEnv.isOpenPackage(componentName)) {
                 return method.invoke(who, args);
             }
@@ -281,7 +302,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             int flags = MethodParameterUtils.toInt(args[1]);
             ActivityInfo activityInfo = AnubisCore.getBPackageManager().getActivityInfo(componentName, flags, BActivityThread.getUserId());
             if (activityInfo != null)
-                return activityInfo;
+                return VirtualPathSpoof.spoofActivityInfoForGuest(activityInfo, BActivityThread.getUserId());
             if (AppSystemEnv.isOpenPackage(componentName)) {
                 return method.invoke(who, args);
             }
@@ -304,7 +325,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             int flags = MethodParameterUtils.toInt(args[1]);
             ServiceInfo serviceInfo = AnubisCore.getBPackageManager().getServiceInfo(componentName, flags, BActivityThread.getUserId());
             if (serviceInfo != null)
-                return serviceInfo;
+                return VirtualPathSpoof.spoofServiceInfoForGuest(serviceInfo, BActivityThread.getUserId());
             if (AppSystemEnv.isOpenPackage(componentName)) {
                 return method.invoke(who, args);
             }
@@ -322,6 +343,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                     new ArrayList<>(AnubisCore.getBPackageManager().getInstalledApplications(flags, BActivityThread.getUserId()));
             filterHiddenFromGuest(installedApplications);
             mergeHostGoogleApplications(installedApplications, flags);
+            spoofApplicationInfoListForGuest(installedApplications);
             return ParceledListSliceCompat.create(installedApplications);
         }
     }
@@ -336,6 +358,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                     new ArrayList<>(AnubisCore.getBPackageManager().getInstalledPackages(flags, BActivityThread.getUserId()));
             filterHiddenPackagesFromGuest(installedPackages);
             mergeHostGooglePackages(installedPackages, flags);
+            spoofPackageInfoListForGuest(installedPackages);
             return ParceledListSliceCompat.create(installedPackages);
         }
     }
@@ -380,9 +403,13 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             ApplicationInfo applicationInfo = AnubisCore.getBPackageManager().getApplicationInfo(packageName, flags, BActivityThread.getUserId());
             if (applicationInfo != null) {
                 applicationInfo.flags |= ApplicationInfo.FLAG_EXTERNAL_STORAGE;
-                return applicationInfo;
+                return spoofApplicationInfoForGuest(applicationInfo);
             }
-            return method.invoke(who, args);
+            if (shouldHideHostFromGuest()) {
+                return null;
+            }
+            ApplicationInfo hostInfo = (ApplicationInfo) method.invoke(who, args);
+            return spoofApplicationInfoForGuest(hostInfo);
         }
     }
 
@@ -417,7 +444,8 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             String type = MethodParameterUtils.getFirstParam(args, String.class);
             Integer flags = MethodParameterUtils.getFirstParam(args, Integer.class);
             List<ResolveInfo> resolves = AnubisCore.getBPackageManager().queryBroadcastReceivers(intent, flags, type, BActivityThread.getUserId());
-            Slog.d(TAG, "queryIntentReceivers: " + resolves);
+            filterResolveInfoFromGuest(resolves);
+            spoofResolveInfoListForGuest(resolves);
 
             // http://androidxref.com/7.0.0_r1/xref/frameworks/base/core/java/android/app/ApplicationPackageManager.java#872
             if (BuildCompat.isN()) {
@@ -445,7 +473,7 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             if (providerInfo == null) {
                 return method.invoke(who, args);
             }
-            return providerInfo;
+            return VirtualPathSpoof.spoofProviderInfoForGuest(providerInfo, BActivityThread.getUserId());
         }
     }
 
@@ -469,7 +497,6 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             if (callerPkg != null && !GmsCore.isGoogleAppOrService(callerPkg)) {
                 int hostUid = AnubisCore.getHostUid();
                 if (uid == hostUid) {
-                    Slog.d(TAG, "GetPackagesForUid(hostUid) -> [" + callerPkg + "] pid=" + callingPid);
                     return new String[]{callerPkg};
                 }
             }
@@ -479,8 +506,6 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                 uid = (int) args[0];
             }
             String[] packagesForUid = AnubisCore.getBPackageManager().getPackagesForUid(uid);
-            Slog.d(TAG, uid + " , " + BActivityThread.getAppProcessName() + " GetPackagesForUid: "
-                    + Arrays.toString(packagesForUid) + " caller=" + callerPkg + " pid=" + callingPid);
             return packagesForUid;
         }
     }
@@ -569,6 +594,93 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             ensureHostGmsMetaData(virtual.applicationInfo);
         }
         return virtual;
+    }
+
+    private static PackageInfo spoofPackageInfoForGuest(PackageInfo info) {
+        if (info == null) {
+            return null;
+        }
+        return VirtualPathSpoof.spoofPackageInfoForGuest(info, BActivityThread.getUserId());
+    }
+
+    private static ApplicationInfo spoofApplicationInfoForGuest(ApplicationInfo info) {
+        if (info == null) {
+            return null;
+        }
+        return VirtualPathSpoof.spoofApplicationInfoForGuest(info, BActivityThread.getUserId());
+    }
+
+    private static void spoofPackageInfoListForGuest(List<PackageInfo> packages) {
+        if (packages == null) {
+            return;
+        }
+        int userId = BActivityThread.getUserId();
+        for (int i = 0; i < packages.size(); i++) {
+            PackageInfo info = packages.get(i);
+            if (info != null) {
+                packages.set(i, VirtualPathSpoof.spoofPackageInfoForGuest(info, userId));
+            }
+        }
+    }
+
+    private static void spoofApplicationInfoListForGuest(List<ApplicationInfo> apps) {
+        if (apps == null) {
+            return;
+        }
+        int userId = BActivityThread.getUserId();
+        for (int i = 0; i < apps.size(); i++) {
+            ApplicationInfo info = apps.get(i);
+            if (info != null) {
+                apps.set(i, VirtualPathSpoof.spoofApplicationInfoForGuest(info, userId));
+            }
+        }
+    }
+
+    private static ResolveInfo spoofResolveInfoForGuest(ResolveInfo info) {
+        if (info == null) {
+            return null;
+        }
+        return VirtualPathSpoof.spoofResolveInfoForGuest(info, BActivityThread.getUserId());
+    }
+
+    private static void spoofResolveInfoListForGuest(List<ResolveInfo> list) {
+        if (list == null) {
+            return;
+        }
+        int userId = BActivityThread.getUserId();
+        for (int i = 0; i < list.size(); i++) {
+            ResolveInfo info = list.get(i);
+            if (info != null) {
+                list.set(i, VirtualPathSpoof.spoofResolveInfoForGuest(info, userId));
+            }
+        }
+    }
+
+    private static void filterResolveInfoFromGuest(List<ResolveInfo> list) {
+        if (list == null || !shouldHideHostFromGuest()) {
+            return;
+        }
+        Iterator<ResolveInfo> it = list.iterator();
+        while (it.hasNext()) {
+            ResolveInfo info = it.next();
+            if (info == null) {
+                it.remove();
+                continue;
+            }
+            ActivityInfo ai = info.activityInfo;
+            ServiceInfo si = info.serviceInfo;
+            if (ai == null && si == null) {
+                continue;
+            }
+            String pkg = ai != null ? ai.packageName : si.packageName;
+            String cls = ai != null ? ai.name : si.name;
+            ComponentName cn = new ComponentName(pkg, cls);
+            if (VirtualPathSpoof.shouldHideLoaderPackageFromGuest(pkg)
+                    || AppSystemEnv.shouldHideContainerPackage(pkg)
+                    || ProxyManifest.isHostProxyComponent(cn)) {
+                it.remove();
+            }
+        }
     }
 
     private static void filterHiddenPackagesFromGuest(List<PackageInfo> packages) {

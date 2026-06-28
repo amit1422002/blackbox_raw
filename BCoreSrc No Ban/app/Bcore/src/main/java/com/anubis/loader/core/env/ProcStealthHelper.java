@@ -91,6 +91,7 @@ public final class ProcStealthHelper {
                 return;
             }
             writeSanitizedMaps(procDir);
+            writeExtendedProcFiles(procDir);
         } catch (Throwable ignored) {
         }
     }
@@ -149,6 +150,7 @@ public final class ProcStealthHelper {
                 || lower.contains("/.vfs/")
                 || lower.contains("app_webview")
                 || lower.contains("no_backup/.webview")
+                || lower.contains("webview_")
                 || lower.contains("lsparanoid")
                 || lower.contains("bcore");
     }

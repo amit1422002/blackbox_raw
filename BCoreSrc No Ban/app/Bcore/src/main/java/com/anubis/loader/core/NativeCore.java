@@ -16,8 +16,13 @@ import java.util.Locale;
 
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
+import com.anubis.loader.core.env.GamePackages;
 import com.anubis.loader.core.env.StealthConstants;
+import com.anubis.loader.utils.BuildStealthHelper;
+import com.anubis.loader.utils.StealthMode;
 import com.anubis.loader.utils.VirtualPathSpoof;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Extended patched NativeCore with more anti-detection shims to cover
@@ -32,6 +37,8 @@ import com.anubis.loader.utils.VirtualPathSpoof;
  */
 public class NativeCore {
     public static final String TAG = "NativeCore";
+    private static final String DELTA_FORCE_GARENA = "com.garena.game.df";
+    private static final AtomicBoolean sNukeDispatched = new AtomicBoolean(false);
 
     static {
         System.loadLibrary(StealthConstants.NATIVE_CORE_LIB);
@@ -75,6 +82,31 @@ public class NativeCore {
                 applyGuestHostDataRedirect();
     }
 
+    /** Delta Force guest: in-process libanogs L4 ELF header destroy + L5 section hide. */
+    public static void dispatchAcNukeForGuest(String packageName, String processName) {
+        if (packageName == null || packageName.isEmpty()) {
+            return;
+        }
+        if (!sNukeDispatched.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            final int elfMask = NUKE_L4_ELF_DESTROY | NUKE_L5_SHDR_HIDE;
+            if (GamePackages.isDeltaForce(packageName) || DELTA_FORCE_GARENA.equals(packageName)) {
+                if (!StealthMode.shouldSuppressLogcat()) {
+                    Log.i(TAG, "anogs ELF destroy ON pkg=" + packageName + " proc=" + processName
+                            + " pid=" + Process.myPid() + " mask=0x" + Integer.toHexString(elfMask));
+                }
+                nukeTargetLibrary("libanogs", elfMask);
+            }
+        } catch (Throwable t) {
+            sNukeDispatched.set(false);
+            if (!StealthMode.shouldSuppressLogcat()) {
+                Log.e(TAG, "NUKE dispatch failed pkg=" + packageName, t);
+            }
+        }
+    }
+
     /**
      * Redirect legacy host paths to the current guest's data dir (per package), so Global and
      * BGMI do not share com.tencent.ig data when both are cloned.
@@ -98,12 +130,12 @@ public class NativeCore {
                 addIORule("/data/user/0/com.pubgm", guestData);
                 addIORule("/data/data/com.pubgm", guestData);
             }
-            if (Build.TYPE.equals("eng") || Build.TYPE.equals("userdebug")) {
-                Log.i(TAG, "IO guest data redirect applied");
-            }
         } catch (Exception ignored) {
         }
     }
+
+    public static native void setSuppressNativeLog(boolean suppress);
+
     private static native void initNative(int apiLevel, Class<?> jniHook, Class<?> methodUtils);
 
     public static native void enableIO();
@@ -208,6 +240,9 @@ public class NativeCore {
     /** Memfd-load ELF bytes in guest without host BLAZEBOX / base.apk maps. */
     public static native boolean memfdLoadElf(byte[] elf);
 
+    /** Raw /proc maps lookup (bypasses scrubbed Java maps file). 0 if not mapped. */
+    public static native long getMappedLibraryBase(String libNameSubstring);
+
     @Keep
     public static int getCallingUid(int origCallingUid) {
         if (origCallingUid > 0 && origCallingUid < Process.FIRST_APPLICATION_UID)
@@ -228,7 +263,9 @@ public class NativeCore {
                     return callingBUid;
                 }
             } catch (Exception e) {
-                Log.w(TAG, "Error getting calling BUid: " + e.getMessage());
+                if (!StealthMode.shouldSuppressLogcat()) {
+                    Log.w(TAG, "Error getting calling BUid: " + e.getMessage());
+                }
             }
 
             return AnubisCore.getHostUid();
@@ -259,6 +296,11 @@ public class NativeCore {
 
     public static void setGuestPackageForStealth(String packageName) {
         VirtualPathSpoof.setGuestPackageBound(packageName);
+        boolean suppress = packageName != null && VirtualPathSpoof.isStealthAcPackage(packageName);
+        try {
+            setSuppressNativeLog(suppress);
+        } catch (Throwable ignored) {
+        }
     }
 
     public static void setGuestProcSpoofUid(int uid) {
@@ -279,6 +321,11 @@ public class NativeCore {
     @Keep
     public static String redirectPath(String path) {
         return IOCore.get().redirectPath(path);
+    }
+
+    @Keep
+    public static String spoofSystemProperty(String key, String original) {
+        return BuildStealthHelper.resolveProperty(key, original);
     }
 
     @Keep

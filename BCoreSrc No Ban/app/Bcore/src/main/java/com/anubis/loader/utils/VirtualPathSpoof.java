@@ -1,7 +1,11 @@
 package com.anubis.loader.utils;
 
+import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
+import android.content.pm.ProviderInfo;
+import android.content.pm.ResolveInfo;
+import android.content.pm.ServiceInfo;
 import android.text.TextUtils;
 
 import java.util.Arrays;
@@ -286,8 +290,6 @@ public final class VirtualPathSpoof {
             String collapsed = collapseToGuestExternalRoot(out, guestPkg, hostUserId);
             if (!containsLeak(collapsed)) {
                 out = collapsed;
-            } else {
-                Slog.w(TAG, "reverse_incomplete req=" + path + " out=" + out);
             }
         }
         return out;
@@ -509,9 +511,6 @@ public final class VirtualPathSpoof {
         if (out.contains("anubis")) {
             out = out.replace("anubis", "android");
         }
-        if (containsLeak(out)) {
-            Slog.w(TAG, "proc_line leak before=" + line + " after=" + out);
-        }
         return out;
     }
 
@@ -523,7 +522,8 @@ public final class VirtualPathSpoof {
         return path.contains(hostPkg)
                 || path.contains("/.vfs/")
                 || path.contains("anubis")
-                || path.contains("anubis")
+                || path.contains("blackbox")
+                || path.contains("bcore")
                 || path.contains("UEDump3r")
                 || path.contains("libUEDump3r")
                 || path.contains("uedump_trigger")
@@ -532,11 +532,7 @@ public final class VirtualPathSpoof {
     }
 
     public static void logGuestPath(String field, String packageName, String value) {
-        if (containsLeak(value)) {
-            Slog.w(TAG, "guest leak " + field + " pkg=" + packageName + " val=" + value);
-        } else {
-            Slog.d(TAG, "guest " + field + " pkg=" + packageName + " -> " + value);
-        }
+        // Intentionally silent — logcat must not expose path spoof state to guest / AC.
     }
 
     /** Guest-visible copy — keep real paths in {@link com.anubis.loader.core.system.pm.PackageManagerCompat}. */
@@ -617,6 +613,50 @@ public final class VirtualPathSpoof {
         PackageInfo pi = src;
         pi.applicationInfo = spoofApplicationInfoRuntimeVisible(pi.applicationInfo, userId);
         return pi;
+    }
+
+    public static ActivityInfo spoofActivityInfoForGuest(ActivityInfo src, int userId) {
+        if (src == null || !shouldSpoofForGuest()) {
+            return src;
+        }
+        ActivityInfo ai = new ActivityInfo(src);
+        ai.applicationInfo = spoofApplicationInfoRuntimeVisible(ai.applicationInfo, userId);
+        return ai;
+    }
+
+    public static ServiceInfo spoofServiceInfoForGuest(ServiceInfo src, int userId) {
+        if (src == null || !shouldSpoofForGuest()) {
+            return src;
+        }
+        ServiceInfo si = new ServiceInfo(src);
+        si.applicationInfo = spoofApplicationInfoRuntimeVisible(si.applicationInfo, userId);
+        return si;
+    }
+
+    public static ProviderInfo spoofProviderInfoForGuest(ProviderInfo src, int userId) {
+        if (src == null || !shouldSpoofForGuest()) {
+            return src;
+        }
+        ProviderInfo pi = new ProviderInfo(src);
+        pi.applicationInfo = spoofApplicationInfoRuntimeVisible(pi.applicationInfo, userId);
+        return pi;
+    }
+
+    public static ResolveInfo spoofResolveInfoForGuest(ResolveInfo src, int userId) {
+        if (src == null || !shouldSpoofForGuest()) {
+            return src;
+        }
+        ResolveInfo ri = new ResolveInfo(src);
+        if (ri.activityInfo != null) {
+            ri.activityInfo = spoofActivityInfoForGuest(ri.activityInfo, userId);
+        }
+        if (ri.serviceInfo != null) {
+            ri.serviceInfo = spoofServiceInfoForGuest(ri.serviceInfo, userId);
+        }
+        if (ri.providerInfo != null) {
+            ri.providerInfo = spoofProviderInfoForGuest(ri.providerInfo, userId);
+        }
+        return ri;
     }
 
     public static String fakeObbDir(String packageName, int userId) {

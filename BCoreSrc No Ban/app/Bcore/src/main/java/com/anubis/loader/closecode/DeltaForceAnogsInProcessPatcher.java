@@ -1,5 +1,6 @@
 package com.anubis.loader.closecode;
 
+import com.anubis.loader.core.NativeCore;
 import com.anubis.loader.utils.Slog;
 
 import java.io.BufferedReader;
@@ -8,10 +9,8 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Guest-side libanogs.so patch via /proc/self/mem — no root (same process as the game).
@@ -34,19 +33,12 @@ public final class DeltaForceAnogsInProcessPatcher {
     };
 
     private static final Patch[] PATCHES = {
-            new Patch(0x500AC0L, PATCH_RET),
-            new Patch(0x2E5228L, PATCH_RET),
-            new Patch(0x1F23E8L, PATCH_RET),
-            new Patch(0x200F1CL, PATCH_RET),
-            new Patch(0x20E784L, PATCH_RET),
-            new Patch(0x265868L, PATCH_RET),
-            new Patch(0x283824L, PATCH_RET),
-            new Patch(0x427358L, PATCH_RET),
-            new Patch(0x4948F0L, PATCH_NOP),
+            //new Patch(0x500AC0L, PATCH_RET),
+           
     };
 
     private static volatile boolean workerRunning;
-    private static final Set<String> seenInodes = new HashSet<>();
+    private static volatile boolean baseLogged;
 
     private DeltaForceAnogsInProcessPatcher() {
     }
@@ -99,27 +91,27 @@ public final class DeltaForceAnogsInProcessPatcher {
     }
 
     private static int patchAllMappings(int polls) {
-        List<Mapping> targets = findAllMappings(LIB_ANOGS, MIN_MAPPED_BYTES);
+        long base = NativeCore.getMappedLibraryBase(LIB_ANOGS);
+        if (base == 0) {
+            return 0;
+        }
+        if (!baseLogged) {
+            baseLogged = true;
+            Slog.i(TAG, "libanogs base=0x" + Long.toHexString(base) + " (native maps)");
+        }
         int writes = 0;
-        for (Mapping m : targets) {
-            if (!seenInodes.contains(m.inode)) {
-                seenInodes.add(m.inode);
-                Slog.i(TAG, "libanogs mapped inode=" + m.inode
-                        + " base=0x" + Long.toHexString(m.minStart));
+        for (Patch p : PATCHES) {
+            long patchAddr = base + p.offset;
+            if (!needsPatch(patchAddr, p.bytes)) {
+                continue;
             }
-            for (Patch p : PATCHES) {
-                long patchAddr = m.minStart + p.offset;
-                if (!needsPatch(patchAddr, p.bytes)) {
-                    continue;
-                }
-                if (writeSelf(patchAddr, p.bytes) && verifySelf(patchAddr, p.bytes)) {
-                    writes++;
-                    Slog.i(TAG, "PATCH_OK offset=0x" + Long.toHexString(p.offset)
-                            + " addr=0x" + Long.toHexString(patchAddr) + " poll#" + polls);
-                } else {
-                    Slog.e(TAG, "PATCH_FAIL offset=0x" + Long.toHexString(p.offset)
-                            + " addr=0x" + Long.toHexString(patchAddr));
-                }
+            if (writeSelf(patchAddr, p.bytes) && verifySelf(patchAddr, p.bytes)) {
+                writes++;
+                Slog.i(TAG, "PATCH_OK offset=0x" + Long.toHexString(p.offset)
+                        + " addr=0x" + Long.toHexString(patchAddr) + " poll#" + polls);
+            } else {
+                Slog.e(TAG, "PATCH_FAIL offset=0x" + Long.toHexString(p.offset)
+                        + " addr=0x" + Long.toHexString(patchAddr));
             }
         }
         return writes;

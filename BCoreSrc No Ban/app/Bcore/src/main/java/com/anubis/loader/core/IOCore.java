@@ -211,6 +211,7 @@ public class IOCore {
       if (AnubisCore.get().isHideRoot()) {
         hideRoot(rule);
       }
+      hideEmulatorTraces(rule);
       proc(rule);
       if (VirtualPathSpoof.isStealthAcPackage(packageName)) {
         rule.put(VirtualPathSpoof.fakeApkPath(packageName),
@@ -257,6 +258,17 @@ public class IOCore {
     rule.put("/su/bin/su", "/su/bin/su-fake");
   }
 
+  private void hideEmulatorTraces(Map<String, String> rule) {
+    rule.put("/dev/qemu_pipe", "/dev/qemu_pipe-fake");
+    rule.put("/dev/goldfish_pipe", "/dev/goldfish_pipe-fake");
+    rule.put("/dev/socket/qemud", "/dev/socket/qemud-fake");
+    rule.put("/system/lib/libc_malloc_debug_qemu.so", "/system/lib/libc_malloc_debug_qemu.so-fake");
+    rule.put("/system/lib64/libc_malloc_debug_qemu.so", "/system/lib64/libc_malloc_debug_qemu.so-fake");
+    rule.put("/system/bin/qemu-props", "/system/bin/qemu-props-fake");
+    rule.put("/sys/qemu_trace", "/sys/qemu_trace-fake");
+    rule.put("/system/bin/microvirt-prop", "/system/bin/microvirt-prop-fake");
+  }
+
   private void proc(Map<String, String> rule) {
     int appPid = BActivityThread.getAppPid();
     if (appPid < 0) {
@@ -274,5 +286,11 @@ public class IOCore {
     rule.put("/proc/self/status", procBase + "status");
     rule.put("/proc/" + pid + "/maps", procBase + "maps");
     rule.put("/proc/self/maps", procBase + "maps");
+    rule.put("/proc/" + pid + "/mountinfo", procBase + "mountinfo");
+    rule.put("/proc/self/mountinfo", procBase + "mountinfo");
+    rule.put("/proc/" + pid + "/cgroup", procBase + "cgroup");
+    rule.put("/proc/self/cgroup", procBase + "cgroup");
+    rule.put("/proc/" + pid + "/environ", procBase + "environ");
+    rule.put("/proc/self/environ", procBase + "environ");
   }
 }

@@ -102,7 +102,9 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
     }
 
     private void checkActivity(Activity activity) {
-        Log.d(TAG, "callActivityOnCreate: " + activity.getClass().getName());
+        if (!com.anubis.loader.utils.StealthMode.shouldSuppressLogcat()) {
+            Log.d(TAG, "callActivityOnCreate: " + activity.getClass().getName());
+        }
         HackAppUtils.enableQQLogOutput(activity.getPackageName(), activity.getClassLoader());
         checkHCallback();
         HookManager.get().checkEnv(IActivityClientProxy.class);
