@@ -158,6 +158,13 @@ public final class StealthPathRules {
         rule.put(fakeDe, realDe.getAbsolutePath());
         if (packageInfo.nativeLibraryDir != null) {
             rule.put(fakeLib, packageInfo.nativeLibraryDir);
+            File libDir = new File(packageInfo.nativeLibraryDir);
+            File[] libs = libDir.listFiles((dir, name) -> name != null && name.endsWith(".so"));
+            if (libs != null) {
+                for (File lib : libs) {
+                    rule.put(fakeLib + "/" + lib.getName(), lib.getAbsolutePath());
+                }
+            }
         }
     }
 
@@ -197,6 +204,10 @@ public final class StealthPathRules {
         File virtAppDir = BEnvironment.getAppDir(packageName);
         FileUtils.mkdirs(virtAppDir);
         rule.put("/data/app/" + packageName, virtAppDir.getAbsolutePath());
+        rule.put(VirtualPathSpoof.fakeApkPath(packageName), virtApk.getAbsolutePath());
+        rule.put(VirtualPathSpoof.fakeApkPath(packageName) + "/", virtApk.getParentFile().getAbsolutePath() + "/");
+        rule.put(VirtualPathSpoof.fakeNativeLibDir(packageName),
+                BEnvironment.resolveNativeLibDir(packageName).getAbsolutePath());
         File hostInstallDir = hostApkFile.getParentFile();
         if (hostInstallDir != null) {
             rule.put(hostInstallDir.getAbsolutePath(), virtAppDir.getAbsolutePath());

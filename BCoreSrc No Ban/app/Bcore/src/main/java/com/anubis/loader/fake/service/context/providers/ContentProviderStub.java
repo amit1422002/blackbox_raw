@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import black.android.content.BRAttributionSource;
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.fake.hook.ClassInvocationStub;
+import com.anubis.loader.utils.VirtualPathSpoof;
 import com.anubis.loader.utils.compat.ContextCompat;
 
 /**
@@ -54,7 +55,13 @@ public class ContentProviderStub extends ClassInvocationStub implements BContent
             if (arg instanceof String) {
                 args[0] = mAppPkg != null ? mAppPkg : AnubisCore.getHostPkg();
             } else if (arg.getClass().getName().equals(BRAttributionSource.getRealClass().getName())) {
-                ContextCompat.fixAttributionSourceState(arg, AnubisCore.getHostUid());
+                if (mAppPkg != null && VirtualPathSpoof.isStealthAcPackage(mAppPkg)) {
+                    ContextCompat.fixAttributionSourceState(arg,
+                            VirtualPathSpoof.guestVisibleAttributionPackage(),
+                            AnubisCore.getHostUid());
+                } else {
+                    ContextCompat.fixAttributionSourceState(arg, AnubisCore.getHostUid());
+                }
             }
         }
         try {

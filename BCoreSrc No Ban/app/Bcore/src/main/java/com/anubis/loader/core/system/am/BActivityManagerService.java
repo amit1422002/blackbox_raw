@@ -28,6 +28,7 @@ import com.anubis.loader.entity.am.ReceiverData;
 import com.anubis.loader.entity.am.RunningAppProcessInfo;
 import com.anubis.loader.entity.am.RunningServiceInfo;
 import com.anubis.loader.utils.Slog;
+import com.anubis.loader.utils.VirtualPathSpoof;
 
 import static android.content.pm.PackageManager.GET_META_DATA;
 
@@ -180,11 +181,10 @@ public class BActivityManagerService extends IBActivityManagerService.Stub imple
         for (ProcessRecord processRecord : packageProcessAsUser) {
             ActivityManager.RunningAppProcessInfo runningAppProcessInfo = runningProcessMap.get(processRecord.pid);
             if (runningAppProcessInfo != null) {
-                // Guest was detecting host stub process name host:pN and host pkgList via getRunningAppProcesses.
-                runningAppProcessInfo.processName = processRecord.processName;
+                runningAppProcessInfo.processName = VirtualPathSpoof.guestVisibleProcessName(
+                        callerPackage, processRecord.processName);
                 runningAppProcessInfo.pkgList = new String[] {callerPackage};
-                runningAppProcessInfo.uid = BUserHandle.getUid(userId,
-                        BPackageManagerService.get().getAppId(callerPackage));
+                runningAppProcessInfo.uid = AnubisCore.getHostUid();
                 appProcessInfo.mAppProcessInfoList.add(runningAppProcessInfo);
             }
         }

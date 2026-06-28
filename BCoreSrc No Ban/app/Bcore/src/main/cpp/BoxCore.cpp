@@ -14,6 +14,7 @@
 #include <Hook/DexFileHook.h>
 #include <Hook/RuntimeHook.h>
 #include <Hook/SystemPropertiesHook.h>
+#include <Hook/ProcFsHook.h>
 #include "Utils/HexDump.h"
 #include "Utils/MemfdElfLoader.h"
 #include "hidden_api.h"
@@ -21,6 +22,8 @@
 
 #include <string>
 #include <thread>
+#include <stdlib.h>
+#include <cstring>
 
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define LOG_TAG "BthreadMain"
@@ -115,6 +118,7 @@ void nativeHook(JNIEnv *env) {
     BinderHook::init(env);
     DexFileHook::init(env);
     SystemPropertiesHook::init(env);
+    ProcFsHook::init(env);
 }
 
 void hideXposed(JNIEnv *env, jclass clazz) {
@@ -222,28 +226,38 @@ void sig_callback(int signo, siginfo_t *info, void *data){
             const char *pathname = (const char *) SYSARG_2;
             int flags = (int) SYSARG_3;
             int mode = (int) SYSARG_4;
-            /* Never log here: SIGSYS runs as async signal context; ALOG/log locks are unsafe and
-               can corrupt stacks under heavy open() traffic (libc stack-protector abort). */
+            const char *open_path = pathname;
+            const char *redirected = nullptr;
+            // Only redirect /proc reads — full IO::redirectPath on game paths breaks UE4 I/O.
+            if (pathname != nullptr && strncmp(pathname, "/proc/", 6) == 0) {
+                redirected = IO::redirectPath(pathname);
+                if (redirected != nullptr) {
+                    open_path = redirected;
+                }
+            }
 #if defined(__aarch64__)
-            ((ucontext_t *) data)->uc_mcontext.regs[0] = (uint64_t)fd;
-            ((ucontext_t *) data)->uc_mcontext.regs[1] = (uint64_t)pathname;
-            ((ucontext_t *) data)->uc_mcontext.regs[2] = (uint64_t)flags;
-            ((ucontext_t *) data)->uc_mcontext.regs[3] = (uint64_t)mode;
+            long ret = OriSyscall(__NR_openat, fd, (uint64_t) open_path, flags, mode, SECMAGIC, SECMAGIC);
+            ((ucontext_t *) data)->uc_mcontext.regs[0] = (uint64_t) ret;
 #elif defined(__arm__)
-            ((ucontext_t *) data)->uc_mcontext.arm_r0 = (uint32_t)fd;
-            ((ucontext_t *) data)->uc_mcontext.arm_r1 = (uint32_t)pathname;
-            ((ucontext_t *) data)->uc_mcontext.arm_r2 = (uint32_t)flags;
-            ((ucontext_t *) data)->uc_mcontext.arm_r3 = (uint32_t)mode;
+            long ret = OriSyscall(__NR_openat, fd, (uint32_t) open_path, flags, mode, SECMAGIC, SECMAGIC);
+            ((ucontext_t *) data)->uc_mcontext.arm_r0 = (uint32_t) ret;
 #endif
+            if (redirected != nullptr && redirected != pathname) {
+                free((void *) redirected);
+            }
+            break;
+        }
+        default: {
+            // Should not trap — re-execute if it happens.
 #if defined(__aarch64__)
-            ((ucontext_t *) data)->uc_mcontext.regs[0] = OriSyscall(__NR_openat, fd, (uint64_t)pathname, flags, mode, SECMAGIC, SECMAGIC);
+            long ret = OriSyscall(syscall_number, SYSARG_1, SYSARG_2, SYSARG_3, SYSARG_4, SYSARG_5, SYSARG_6);
+            ((ucontext_t *) data)->uc_mcontext.regs[0] = (uint64_t) ret;
 #elif defined(__arm__)
-            ((ucontext_t *) data)->uc_mcontext.arm_r0 = OriSyscall(__NR_openat, fd, (uint32_t)pathname, flags, mode, SECMAGIC, SECMAGIC);
+            long ret = OriSyscall(syscall_number, SYSARG_1, SYSARG_2, SYSARG_3, SYSARG_4, SYSARG_5, SYSARG_6);
+            ((ucontext_t *) data)->uc_mcontext.arm_r0 = (uint32_t) ret;
 #endif
             break;
         }
-        default:
-            break;
     }
 }
 
@@ -321,6 +335,14 @@ static void setSuppressNativeLog(JNIEnv *, jclass, jboolean suppress) {
     setNativeLogSuppressed(suppress == JNI_TRUE);
 }
 
+static jstring readRealProcSelfMaps(JNIEnv *env, jclass) {
+    std::string maps = ProcFsHook::readFileBypass("/proc/self/maps");
+    if (maps.empty()) {
+        return env->NewStringUTF("");
+    }
+    return env->NewStringUTF(maps.c_str());
+}
+
 static JNINativeMethod gMethods[] = {
         {"disableHiddenApi", "()Z",(void *) disableHiddenApi},
         {"init_seccomp",   "()V",  (void *) init_seccomp},
@@ -332,6 +354,7 @@ static JNINativeMethod gMethods[] = {
         {"getMappedLibraryBase", "(Ljava/lang/String;)J", (void *) getMappedLibraryBase},
         {"memfdLoadElf", "([B)Z", (void *) memfdLoadElf},
         {"setSuppressNativeLog", "(Z)V", (void *) setSuppressNativeLog},
+        {"readRealProcSelfMaps", "()Ljava/lang/String;", (void *) readRealProcSelfMaps},
    //     {"ActivateSdkLog", "()Ljava/lang/String;",(void *) ActivateSdkLog},
     
         

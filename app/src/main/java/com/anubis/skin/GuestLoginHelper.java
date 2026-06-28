@@ -126,6 +126,13 @@ public final class GuestLoginHelper {
         }
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream(512 * 1024);
+            try (InputStream in = context.getAssets().open("hook/libguestloginhook.so")) {
+                copyStream(in, out);
+                if (out.size() > 1024) {
+                    return out.toByteArray();
+                }
+            } catch (Throwable ignored) {
+            }
             ApplicationInfo ai = context.getApplicationInfo();
             if (ai != null && ai.nativeLibraryDir != null) {
                 File flat = new File(ai.nativeLibraryDir, HOOK_FILE);

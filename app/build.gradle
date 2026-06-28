@@ -59,6 +59,13 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
+            excludes += ['**/libguestloginhook.so']
+        }
+    }
+
+    sourceSets {
+        main {
+            assets.srcDirs += ["${layout.buildDirectory.get()}/generated/guesthook-assets"]
         }
     }
     compileOptions {
@@ -80,6 +87,30 @@ android {
         variant.outputs.configureEach { output ->
             output.outputFileName = "Anubis_${variant.versionName}_${output.baseName}.apk"
         }
+        def variantCapped = variant.name.capitalize()
+        def stageHook = tasks.register("stageGuestHook${variantCapped}") {
+            doLast {
+                def buildDir = layout.buildDirectory.get().asFile
+                def matches = fileTree(buildDir.path + "/intermediates/cxx").matching {
+                    include '**/libguestloginhook.so'
+                }.files
+                if (matches.isEmpty()) {
+                    matches = fileTree(buildDir.path + "/intermediates/cmake").matching {
+                        include '**/libguestloginhook.so'
+                    }.files
+                }
+                def outDir = new File(buildDir, "generated/guesthook-assets/hook")
+                outDir.mkdirs()
+                if (!matches.isEmpty()) {
+                    copy {
+                        from matches.first()
+                        into outDir
+                        rename { 'libguestloginhook.so' }
+                    }
+                }
+            }
+        }
+        tasks.named("merge${variantCapped}Assets").configure { dependsOn(stageHook) }
     }
 }
 

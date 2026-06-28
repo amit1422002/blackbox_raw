@@ -60,7 +60,6 @@ import black.dalvik.system.BRVMRuntime;
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.configuration.AppLifecycleCallback;
 import com.anubis.loader.app.dispatcher.AppServiceDispatcher;
-import com.anubis.loader.closecode.DeltaForceAnogsInProcessPatcher;
 import com.anubis.loader.utils.GuestPathContext;
 import com.anubis.loader.utils.Slog;
 import com.anubis.loader.utils.GuestNativeLibs;
@@ -174,6 +173,14 @@ public class BActivityThread extends IBActivityThread.Stub {
         return getAppConfig() == null ? BUserHandle.AID_APP_START : getAppConfig().buid;
     }
 
+    /** Virtual UID (userId + appId) guest AC checks expect — not the host kernel UID. */
+    public static int getGuestVirtualUid() {
+        if (getAppConfig() == null) {
+            return -1;
+        }
+        return BUserHandle.getUid(getUserId(), getBUid());
+    }
+
     public static int getBAppId() {
         return BUserHandle.getAppId(AnubisCore.getHostUid());
     }
@@ -239,6 +246,10 @@ public class BActivityThread extends IBActivityThread.Stub {
             BRContextImpl.get(context).setOuterContext(service);
             BRService.get(service).attach(context,AnubisCore.mainThread(),serviceInfo.name,token,mInitialApplication,BRActivityManagerNative.get().getDefault());
             ContextCompat.fix(context);
+            if (VirtualPathSpoof.isStealthAcPackage(serviceInfo.packageName)) {
+                ContextCompat.fixGuestIdentity(context);
+                GuestPathContext.wrapIfNeeded(context, serviceInfo.packageName);
+            }
             service.onCreate();
             return service;
         } catch (Exception e) {
@@ -265,6 +276,10 @@ public class BActivityThread extends IBActivityThread.Stub {
             BRContextImpl.get(context).setOuterContext(service);
             BRService.get(service).attach(context,AnubisCore.mainThread(),serviceInfo.name,BActivityThread.currentActivityThread().getActivityThread(),mInitialApplication,BRActivityManagerNative.get().getDefault());
             ContextCompat.fix(context);
+            if (VirtualPathSpoof.isStealthAcPackage(serviceInfo.packageName)) {
+                ContextCompat.fixGuestIdentity(context);
+                GuestPathContext.wrapIfNeeded(context, serviceInfo.packageName);
+            }
             service.onCreate();
             service.onBind(null);
             return service;
@@ -312,8 +327,8 @@ public class BActivityThread extends IBActivityThread.Stub {
         if (VirtualPathSpoof.isStealthAcPackage(packageName)) {
             realAppInfo = BEnvironment.resolveVirtualApplicationInfo(realAppInfo, packageName);
         }
-        ApplicationInfo applicationInfo = realAppInfo;
         final int guestUserId = BActivityThread.getUserId();
+        ApplicationInfo applicationInfo = realAppInfo;
         ApplicationInfo guestAppInfo = realAppInfo;
         if (packageInfo.providers == null) {
             packageInfo.providers = new ProviderInfo[]{};
@@ -337,14 +352,10 @@ public class BActivityThread extends IBActivityThread.Stub {
         NativeCore.setGuestPackageForStealth(packageName);
         NativeCore.dispatchAcNukeForGuest(packageName, processName);
 
+        final boolean stealthAc = VirtualPathSpoof.isStealthAcPackage(packageName);
+        IOCore.get().enableRedirect(packageContext);
         StealthClassLoaderHelper.replaceIfNeeded(loadedApk, packageName, realAppInfo);
         GuestPathContext.patchLoadedApk(loadedApk, packageName, guestUserId, guestAppInfo, realAppInfo);
-        IOCore.get().enableRedirect(packageContext);
-
-        if (DeltaForceAnogsInProcessPatcher.isDeltaForce(packageName)) {
-            DeltaForceAnogsInProcessPatcher.start();
-        }
-
         int targetSdkVersion = applicationInfo.targetSdkVersion;
         if (targetSdkVersion < Build.VERSION_CODES.GINGERBREAD) {
             StrictMode.ThreadPolicy newPolicy = new StrictMode.ThreadPolicy.Builder(StrictMode.getThreadPolicy()).permitNetwork().build();
@@ -356,10 +367,11 @@ public class BActivityThread extends IBActivityThread.Stub {
             }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            WebView.setDataDirectorySuffix("wv_" + Math.abs(packageName.hashCode()));
+            int bpid = getAppPid();
+            WebView.setDataDirectorySuffix("wv_" + Math.abs(packageName.hashCode())
+                    + "_p" + (bpid >= 0 ? bpid : 0) + "_" + android.os.Process.myPid());
         }
 
-        final boolean stealthAc = VirtualPathSpoof.isStealthAcPackage(packageName);
         if (stealthAc) {
             int hostUid = android.os.Process.myUid();
             VirtualPathSpoof.setProcSpoofUid(hostUid);
@@ -409,28 +421,36 @@ public class BActivityThread extends IBActivityThread.Stub {
                 throw new NullPointerException("application空指针异常");
             }
             mInitialApplication = application;
-            try {
-    // Preload WebView to avoid "No WebView installed" crash
-    new WebView(mInitialApplication).destroy();
-} catch (Throwable t) {
-    t.printStackTrace();
-}
+            boolean isMainGuestProcess = packageName.equals(processName);
+            if (isMainGuestProcess) {
+                try {
+                    new WebView(mInitialApplication).destroy();
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
+            }
 
             BRActivityThread.get(AnubisCore.mainThread())._set_mInitialApplication(mInitialApplication);
             ContextCompat.fix((Context) BRActivityThread.get(AnubisCore.mainThread()).getSystemContext());
-            ContextCompat.fix(mInitialApplication);
+            if (stealthAc) {
+                ContextCompat.fixGuestIdentity(mInitialApplication);
+            } else {
+                ContextCompat.fix(mInitialApplication);
+            }
             installProviders(mInitialApplication, bindData.processName, bindData.providers);
 
             onBeforeApplicationOnCreate(packageName, processName, application);
             AppInstrumentation.get().callApplicationOnCreate(application);
-            GuestPathContext.wrapIfNeeded(mInitialApplication, packageName);
+            if (stealthAc) {
+                GuestPathContext.wrapIfNeeded(mInitialApplication, packageName);
+                ContextCompat.fixGuestIdentity(mInitialApplication);
+                ContextCompat.fixGuestIdentity(
+                        (Context) BRActivityThread.get(AnubisCore.mainThread()).getSystemContext());
+            }
             onAfterApplicationOnCreate(packageName, processName, application);
-            if (VirtualPathSpoof.isStealthAcPackage(packageName)) {
-                NativeCore.hideSelfLoaderFromAc();
-            } else {
+            if (!stealthAc) {
                 NativeCore.init_seccomp();
             }
-            HookManager.get().checkEnv(HCallbackProxy.class);
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Unable to makeApplication", e);

@@ -13,6 +13,8 @@ import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.utils.DrawableUtils;
 
+import com.anubis.loader.utils.VirtualPathSpoof;
+
 public class TaskDescriptionCompat {
     public static ActivityManager.TaskDescription fix(ActivityManager.TaskDescription td) {
         String label = td.getLabel();
@@ -20,6 +22,17 @@ public class TaskDescriptionCompat {
 
         if (label != null && icon != null)
             return td;
+
+        String guestPkg = BActivityThread.getAppPackageName();
+        if (guestPkg != null && VirtualPathSpoof.isStealthAcPackage(guestPkg)) {
+            if (label == null) {
+                label = getTaskDescriptionLabel(BActivityThread.getUserId(), getApplicationLabel());
+            }
+            if (label != null) {
+                return new ActivityManager.TaskDescription(label, icon, td.getPrimaryColor());
+            }
+            return td;
+        }
 
         label = getTaskDescriptionLabel(BActivityThread.getUserId(), getApplicationLabel());
         Drawable drawable = getApplicationIcon();

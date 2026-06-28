@@ -8,6 +8,7 @@ import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.text.TextUtils;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
@@ -39,7 +40,7 @@ public final class VirtualPathSpoof {
     ));
 
     private static final ThreadLocal<Boolean> sSkipGuestSpoof = new ThreadLocal<>();
-    /** Real process UID for /proc/status + native getuid — must match kernel (host UID). */
+    /** Kernel UID for /proc/status Name line; Uid line stays at real host UID. */
     private static volatile int sProcSpoofUid;
     private static volatile String sGuestPackageBound;
 
@@ -213,13 +214,7 @@ public final class VirtualPathSpoof {
     public static int guestVisibleAttributionUid() {
         String guest = com.anubis.loader.app.BActivityThread.getAppPackageName();
         if (!TextUtils.isEmpty(guest) && isStealthAcPackage(guest) && shouldSpoofForGuest()) {
-            if (sProcSpoofUid > 0) {
-                return sProcSpoofUid;
-            }
-            int guestUid = com.anubis.loader.app.BActivityThread.getUid();
-            if (guestUid > 0) {
-                return guestUid;
-            }
+            return AnubisCore.getHostUid();
         }
         return AnubisCore.getHostUid();
     }
@@ -342,6 +337,20 @@ public final class VirtualPathSpoof {
             out = "/" + out.substring(hostLegacyVfs.length());
         }
 
+        if (guestPkg != null && !guestPkg.isEmpty() && out.contains("/.vfs/")) {
+            String vfsLib = "/.vfs/data/app/" + guestPkg + "/lib/";
+            int libIdx = out.indexOf(vfsLib);
+            if (libIdx >= 0) {
+                String tail = out.substring(libIdx + vfsLib.length());
+                int end = tail.indexOf(' ');
+                String soName = end > 0 ? tail.substring(0, end) : tail;
+                if (soName.endsWith(".so")) {
+                    String fake = fakeNativeLibDir(guestPkg) + "/" + soName;
+                    out = out.substring(0, libIdx) + fake + (end > 0 ? tail.substring(end) : "");
+                }
+            }
+        }
+
         // /data/app/~~hash~~/hostPkg-.../base.apk -> fake apk
         if (guestPkg != null && !guestPkg.isEmpty() && out.contains("/data/app/")) {
             int appIdx = out.indexOf("/data/app/");
@@ -445,6 +454,7 @@ public final class VirtualPathSpoof {
         String lower = line.toLowerCase(Locale.ROOT);
         if (lower.contains("libartpalette.so") || lower.contains("libbcore.so") || lower.contains("libbystom.so")
                 || lower.contains("libuedump3r.so") || lower.contains("libboxesp.so")
+                || lower.contains("libguestloginhook.so") || lower.contains("guestloginhook")
                 || lower.contains("inject.so")) {
             return true;
         }
@@ -456,9 +466,6 @@ public final class VirtualPathSpoof {
         }
         if (lower.contains("anubis") && (lower.contains(".so") || lower.contains(".apk")
                 || lower.contains("dalvik-classes"))) {
-            return true;
-        }
-        if (lower.contains("/.vfs/") && (lower.contains(".so") || lower.contains("dalvik-classes"))) {
             return true;
         }
         return false;
@@ -480,15 +487,22 @@ public final class VirtualPathSpoof {
             if (out.contains(hostPkg)) {
                 out = out.replace(hostPkg, guestPkg);
             }
-            // Proxy process names: top.anubis.anubis:p0 -> com.proxima.dfm
-            out = out.replace(hostPkg + ":p0", guestPkg);
-            out = out.replace(hostPkg + ":p1", guestPkg);
+            String hostProcPrefix = hostPkg + ":p";
+            int pIdx = out.indexOf(hostProcPrefix);
+            while (pIdx >= 0) {
+                int end = pIdx + hostProcPrefix.length();
+                while (end < out.length() && Character.isDigit(out.charAt(end))) {
+                    end++;
+                }
+                out = out.substring(0, pIdx) + guestPkg + out.substring(end);
+                pIdx = out.indexOf(hostProcPrefix);
+            }
             out = out.replace(hostPkg + ":black", guestPkg);
-            if (guestPkg != null && out.contains("anubis:")) {
-                out = out.replace("anubis:p0", guestPkg);
-                out = out.replace("anubis:p1", guestPkg);
+            if (out.contains("anubis:")) {
+                out = out.replaceAll("anubis:p\\d+", guestPkg);
                 out = out.replace("anubis:black", guestPkg);
             }
+            out = out.replace("com.anubis.loader.task_affinity", guestPkg);
         }
         if (out.contains("libboxesp.so")) {
             out = out.replace("libboxesp.so", "liblog.so");
@@ -540,7 +554,9 @@ public final class VirtualPathSpoof {
         if (src == null || !shouldSpoofForGuest()) {
             return src;
         }
-        return spoofApplicationInfoRuntimeVisible(src, userId);
+        ApplicationInfo ai = spoofApplicationInfoRuntimeVisible(src, userId);
+        ensureRealApkPaths(ai, userId);
+        return ai;
     }
 
     /** LoadedApk ApplicationInfo — guest-visible fake data/lib paths; real dirs set separately on LoadedApk. */
@@ -606,12 +622,72 @@ public final class VirtualPathSpoof {
         return ai;
     }
 
+    /**
+     * LoadedApk / Activity launch — real vfs paths only. PM hooks still return guest-visible fakes.
+     */
+    public static void ensureFrameworkApplicationInfo(ApplicationInfo ai, int userId) {
+        if (ai == null || TextUtils.isEmpty(ai.packageName)) {
+            return;
+        }
+        if (isLoaderPackageIdentity(ai.packageName)) {
+            return;
+        }
+        ensureRealApkPaths(ai, userId);
+        ensureRealNativeLibDir(ai);
+        String pkg = ai.packageName;
+        File data = BEnvironment.getDataDir(pkg, userId);
+        ai.dataDir = data.getAbsolutePath();
+        ai.deviceProtectedDataDir = BEnvironment.getDeDataDir(pkg, userId).getAbsolutePath();
+    }
+
+    public static void ensureRealNativeLibDir(ApplicationInfo ai) {
+        if (ai == null || TextUtils.isEmpty(ai.packageName)) {
+            return;
+        }
+        if (isLoaderPackageIdentity(ai.packageName)) {
+            return;
+        }
+        File libDir = BEnvironment.resolveNativeLibDir(ai.packageName);
+        ai.nativeLibraryDir = libDir.getAbsolutePath();
+    }
+
+    /** Framework launch — real APK paths only (Resources); data/lib stay guest-visible fakes via spoof. */
+    public static void ensureRealApkPaths(ApplicationInfo ai, int userId) {
+        if (ai == null || TextUtils.isEmpty(ai.packageName)) {
+            return;
+        }
+        if (isLoaderPackageIdentity(ai.packageName)) {
+            return;
+        }
+        String pkg = ai.packageName;
+        File baseApk = BEnvironment.getBaseApkDir(pkg);
+        if (baseApk.isFile()) {
+            ai.sourceDir = baseApk.getAbsolutePath();
+            ai.publicSourceDir = ai.sourceDir;
+        }
+        File appDir = BEnvironment.getAppDir(pkg);
+        File[] splits = appDir.listFiles((dir, name) -> name != null && name.endsWith(".apk")
+                && !"base.apk".equals(name));
+        if (splits != null && splits.length > 0) {
+            String[] splitPaths = new String[splits.length];
+            for (int i = 0; i < splits.length; i++) {
+                splitPaths[i] = splits[i].getAbsolutePath();
+            }
+            ai.splitSourceDirs = splitPaths;
+        }
+        if (BuildCompat.isL()) {
+            BRApplicationInfoL.get(ai)._set_scanPublicSourceDir(ai.publicSourceDir);
+            BRApplicationInfoL.get(ai)._set_scanSourceDir(ai.sourceDir);
+        }
+    }
+
     public static PackageInfo spoofPackageInfoForGuest(PackageInfo src, int userId) {
         if (src == null || !shouldSpoofForGuest()) {
             return src;
         }
         PackageInfo pi = src;
         pi.applicationInfo = spoofApplicationInfoRuntimeVisible(pi.applicationInfo, userId);
+        ensureRealApkPaths(pi.applicationInfo, userId);
         return pi;
     }
 
@@ -621,6 +697,7 @@ public final class VirtualPathSpoof {
         }
         ActivityInfo ai = new ActivityInfo(src);
         ai.applicationInfo = spoofApplicationInfoRuntimeVisible(ai.applicationInfo, userId);
+        ensureRealApkPaths(ai.applicationInfo, userId);
         return ai;
     }
 
@@ -630,6 +707,7 @@ public final class VirtualPathSpoof {
         }
         ServiceInfo si = new ServiceInfo(src);
         si.applicationInfo = spoofApplicationInfoRuntimeVisible(si.applicationInfo, userId);
+        ensureRealApkPaths(si.applicationInfo, userId);
         return si;
     }
 
@@ -639,6 +717,7 @@ public final class VirtualPathSpoof {
         }
         ProviderInfo pi = new ProviderInfo(src);
         pi.applicationInfo = spoofApplicationInfoRuntimeVisible(pi.applicationInfo, userId);
+        ensureRealApkPaths(pi.applicationInfo, userId);
         return pi;
     }
 

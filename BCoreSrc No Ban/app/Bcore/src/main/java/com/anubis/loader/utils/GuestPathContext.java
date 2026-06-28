@@ -7,11 +7,13 @@ import android.content.pm.ApplicationInfo;
 import java.io.File;
 
 import black.android.app.BRLoadedApk;
+import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.env.BEnvironment;
 
 /**
  * Guest-facing Context wrapper: package name / APK paths look like a normal install.
  * Data paths use the real virtual tree ({@link BEnvironment}) so SQLite and native I/O work.
+ * PM hooks still spoof paths for external package-manager queries.
  */
 public final class GuestPathContext extends ContextWrapper {
 
@@ -115,15 +117,18 @@ public final class GuestPathContext extends ContextWrapper {
     @Override
     public ApplicationInfo getApplicationInfo() {
         ApplicationInfo info = super.getApplicationInfo();
-        if (!mStealth || info == null) {
+        if (!mStealth || info == null || !VirtualPathSpoof.shouldSpoofForGuest()) {
             return info;
         }
-        return VirtualPathSpoof.spoofApplicationInfoRuntimeVisible(info, guestUserId());
+        return VirtualPathSpoof.spoofApplicationInfoForGuest(info, guestUserId());
     }
 
     @Override
     public String getPackageCodePath() {
-        return mStealth ? VirtualPathSpoof.fakeApkPath(mPackageName) : super.getPackageCodePath();
+        if (!mStealth || !VirtualPathSpoof.shouldSpoofForGuest()) {
+            return super.getPackageCodePath();
+        }
+        return VirtualPathSpoof.fakeApkPath(mPackageName);
     }
 
     @Override
@@ -133,12 +138,19 @@ public final class GuestPathContext extends ContextWrapper {
 
     @Override
     public String getPackageName() {
-        return mStealth ? mPackageName : super.getPackageName();
+        if (!mStealth || !VirtualPathSpoof.shouldSpoofForGuest()) {
+            return super.getPackageName();
+        }
+        return mPackageName;
     }
 
     @Override
     public String getOpPackageName() {
-        return mStealth ? mPackageName : super.getOpPackageName();
+        if (!mStealth || !VirtualPathSpoof.shouldSpoofForGuest()) {
+            return super.getOpPackageName();
+        }
+        // IME / AppOps require host op package — kernel UID is still host.
+        return AnubisCore.getHostPkg();
     }
 
     @Override
@@ -173,7 +185,26 @@ public final class GuestPathContext extends ContextWrapper {
 
     @Override
     public File getDatabasePath(String name) {
-        return mStealth ? realFile("databases/" + name) : super.getDatabasePath(name);
+        if (!mStealth) {
+            return super.getDatabasePath(name);
+        }
+        if (name != null) {
+            if (name.startsWith("/")) {
+                return new File(name);
+            }
+            int noBackup = name.indexOf("/no_backup/");
+            if (noBackup >= 0) {
+                return new File(realDataDir(), name.substring(noBackup + 1));
+            }
+            int databases = name.indexOf("/databases/");
+            if (databases >= 0) {
+                return new File(realDataDir(), name.substring(databases + 1));
+            }
+            if (name.indexOf('/') >= 0) {
+                return new File(realDataDir(), name);
+            }
+        }
+        return realFile("databases/" + name);
     }
 
     @Override

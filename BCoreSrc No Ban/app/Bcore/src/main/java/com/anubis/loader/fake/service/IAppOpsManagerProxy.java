@@ -51,6 +51,7 @@ public class IAppOpsManagerProxy extends BinderInvocationStub {
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         MethodParameterUtils.replaceFirstAppPkg(args);
         MethodParameterUtils.replaceLastUid(args);
+        MethodParameterUtils.replaceFirstUid(args);
         return super.invoke(proxy, method, args);
     }
 
@@ -89,6 +90,9 @@ public class IAppOpsManagerProxy extends BinderInvocationStub {
     public static class NoteOperation extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            MethodParameterUtils.replaceFirstAppPkg(args);
+            MethodParameterUtils.replaceLastUid(args);
+            MethodParameterUtils.replaceFirstUid(args);
             return method.invoke(who, args);
         }
     }

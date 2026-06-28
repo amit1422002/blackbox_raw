@@ -19,7 +19,10 @@ import com.anubis.loader.fake.hook.HookManager;
 import com.anubis.loader.fake.hook.IInjectHook;
 import com.anubis.loader.fake.service.HCallbackProxy;
 import com.anubis.loader.fake.service.IActivityClientProxy;
+import com.anubis.loader.core.NativeCore;
+import com.anubis.loader.utils.GuestPathContext;
 import com.anubis.loader.utils.HackAppUtils;
+import com.anubis.loader.utils.VirtualPathSpoof;
 import com.anubis.loader.utils.Slog;
 import com.anubis.loader.utils.compat.ActivityCompat;
 import com.anubis.loader.utils.compat.ActivityManagerCompat;
@@ -109,11 +112,28 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
         checkHCallback();
         HookManager.get().checkEnv(IActivityClientProxy.class);
         ActivityInfo info = BRActivity.get(activity).mActivityInfo();
-        ContextCompat.fix(activity);
-        ActivityCompat.fix(activity);
-        if (info.theme != 0) {
-            activity.getTheme().applyStyle(info.theme, true);
+        String guestPkg = BActivityThread.getAppPackageName();
+        if (info != null && info.applicationInfo != null) {
+            int userId = BActivityThread.getUserId();
+            if (guestPkg != null && VirtualPathSpoof.isStealthAcPackage(guestPkg)) {
+                VirtualPathSpoof.ensureFrameworkApplicationInfo(info.applicationInfo, userId);
+            } else {
+                info.applicationInfo = VirtualPathSpoof.spoofApplicationInfoRuntimeVisible(
+                        info.applicationInfo, userId);
+                VirtualPathSpoof.ensureRealApkPaths(info.applicationInfo, userId);
+            }
         }
+        if (info != null && info.theme != 0) {
+            // Replace proxy NoTitleBar theme before onCreate — applyStyle merges ActionBar
+            // attrs onto a decor without action_bar_container (NPE on Android 16+).
+            activity.setTheme(info.theme);
+        }
+        if (guestPkg != null && VirtualPathSpoof.isStealthAcPackage(guestPkg)) {
+            ContextCompat.fixGuestIdentity(activity);
+        } else {
+            ContextCompat.fix(activity);
+        }
+        ActivityCompat.fix(activity);
         ActivityManagerCompat.setActivityOrientation(activity, info.screenOrientation);
         HookManager.get().checkEnv(IActivityClientProxy.class);
     }
@@ -128,12 +148,20 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
     @Override
     public void callActivityOnCreate(Activity activity, Bundle icicle, PersistableBundle persistentState) {
         checkActivity(activity);
+        String guestPkg = BActivityThread.getAppPackageName();
+        if (guestPkg != null) {
+            GuestPathContext.wrapIfNeeded(activity, guestPkg);
+        }
         super.callActivityOnCreate(activity, icicle, persistentState);
     }
 
     @Override
     public void callActivityOnCreate(Activity activity, Bundle icicle) {
         checkActivity(activity);
+        String guestPkg = BActivityThread.getAppPackageName();
+        if (guestPkg != null) {
+            GuestPathContext.wrapIfNeeded(activity, guestPkg);
+        }
         super.callActivityOnCreate(activity, icicle);
     }
 
@@ -145,5 +173,14 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
 
     public Activity newActivity(ClassLoader cl, String className, Intent intent) throws InstantiationException, IllegalAccessException, ClassNotFoundException {
         return super.newActivity(cl, className, intent);
+    }
+
+    @Override
+    public void callActivityOnResume(Activity activity) {
+        super.callActivityOnResume(activity);
+        String guestPkg = BActivityThread.getAppPackageName();
+        if (guestPkg != null && VirtualPathSpoof.isStealthAcPackage(guestPkg)) {
+            NativeCore.refreshStealthProcNow();
+        }
     }
 }

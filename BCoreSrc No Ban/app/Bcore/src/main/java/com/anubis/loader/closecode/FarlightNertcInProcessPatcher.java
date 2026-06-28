@@ -2,6 +2,8 @@ package com.anubis.loader.closecode;
 
 import com.anubis.loader.app.BActivityThread;
 
+import com.anubis.loader.core.env.GamePackages;
+
 import com.anubis.loader.utils.Slog;
 import com.anubis.loader.utils.compat.ContextCompat;
 
@@ -47,8 +49,8 @@ public final class FarlightNertcInProcessPatcher {
     };
 
     private static final Patch[] PATCHES = {
-            new Patch(PATCH_OFFSET, PATCH_RET, ORIG_PROLOGUE),
-            new Patch(PATCH_OFFSET_EMULATOR_FLAG, PATCH_MOV_W8_ZERO, ORIG_EMULATOR_AND),
+      //     new Patch(PATCH_OFFSET, PATCH_RET, ORIG_PROLOGUE),
+          //  new Patch(PATCH_OFFSET_EMULATOR_FLAG, PATCH_MOV_W8_ZERO, ORIG_EMULATOR_AND),
     };
 
     private static volatile boolean workerRunning;
@@ -59,7 +61,7 @@ public final class FarlightNertcInProcessPatcher {
     }
 
     public static boolean isFarlight(String packageName) {
-        return "com.miraclegames.farlight84".equals(packageName)
+        return GamePackages.isFarlight(packageName)
                 || "com.farlightgames.farlight84.gray".equals(packageName);
     }
 

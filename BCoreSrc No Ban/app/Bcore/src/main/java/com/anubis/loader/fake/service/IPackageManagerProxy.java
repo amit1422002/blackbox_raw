@@ -491,22 +491,50 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             int uid = (Integer) args[0];
+            int hostUid = AnubisCore.getHostUid();
             int callingPid = Binder.getCallingPid();
             String callerPkg = BProcessManagerService.get().getPackageNameByPid(callingPid);
 
+            if (uid == hostUid
+                    && BActivityThread.isThreadInit()
+                    && VirtualPathSpoof.shouldSpoofForGuest()) {
+                String guest = BActivityThread.getAppPackageName();
+                if (guest != null && VirtualPathSpoof.isStealthAcPackage(guest)) {
+                    return new String[]{guest};
+                }
+            }
+
             if (callerPkg != null && !GmsCore.isGoogleAppOrService(callerPkg)) {
-                int hostUid = AnubisCore.getHostUid();
                 if (uid == hostUid) {
                     return new String[]{callerPkg};
                 }
             }
 
-            if (uid == AnubisCore.getHostUid()) {
+            if (uid == hostUid) {
                 args[0] = BActivityThread.getBUid();
                 uid = (int) args[0];
             }
-            String[] packagesForUid = AnubisCore.getBPackageManager().getPackagesForUid(uid);
-            return packagesForUid;
+            return AnubisCore.getBPackageManager().getPackagesForUid(uid);
+        }
+    }
+
+    @ProxyMethod("getNameForUid")
+    public static class GetNameForUid extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            int uid = (Integer) args[0];
+            if (uid == AnubisCore.getHostUid()
+                    && BActivityThread.isThreadInit()
+                    && VirtualPathSpoof.shouldSpoofForGuest()) {
+                String guest = BActivityThread.getAppPackageName();
+                if (guest != null && VirtualPathSpoof.isStealthAcPackage(guest)) {
+                    return guest;
+                }
+            }
+            if (uid == AnubisCore.getHostUid()) {
+                args[0] = BActivityThread.getBUid();
+            }
+            return method.invoke(who, args);
         }
     }
 

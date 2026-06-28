@@ -10,6 +10,7 @@ import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.core.env.ContainerPathStealth;
+import com.anubis.loader.core.GmsCore;
 import com.anubis.loader.core.env.ProcStealthHelper;
 import com.anubis.loader.utils.FileUtils;
 import com.anubis.loader.utils.GCloudPathHelper;
@@ -55,6 +56,10 @@ public class IOCore {
     return sIOCore;
   }
 
+  public static boolean isRedirectEnabled() {
+    return sRedirectEnabled;
+  }
+
   // /data/data/com.google/  ----->  /data/data/com.virtual/data/com.google/
   public void addRedirect(String origPath, String redirectPath) {
     if (TextUtils.isEmpty(origPath)
@@ -82,13 +87,19 @@ public class IOCore {
     if (isInternalRedirectActive()) {
       return path;
     }
+    // Already redirected (native + Java must agree — GMS SQLite breaks on nested .vfs paths).
+    if (path.contains("/" + BEnvironment.VIRTUAL_ROOT_DIR + "/")
+        || path.contains("/" + ContainerPathStealth.INTERNAL_CACHE_SEGMENT)) {
+      return path;
+    }
+    for (String real : mRedirectMap.values()) {
+      if (!TextUtils.isEmpty(real) && path.startsWith(real)) {
+        return path;
+      }
+    }
     String gcloudBare = GCloudPathHelper.resolveBareFixListPath(path);
     if (gcloudBare != null) {
       return gcloudBare;
-    }
-    if (path.contains("/files/" + BEnvironment.VIRTUAL_ROOT_DIR + "/")
-        || path.contains("/" + ContainerPathStealth.INTERNAL_CACHE_SEGMENT)) {
-      return path;
     }
 
     String key = mTrieTree.search(path);
@@ -156,7 +167,10 @@ public class IOCore {
       return;
     }
     Map<String, String> rule = new LinkedHashMap<>();
-    String packageName = context.getPackageName();
+    String packageName = BActivityThread.getAppPackageName();
+    if (TextUtils.isEmpty(packageName)) {
+      packageName = context.getPackageName();
+    }
     int userId = BActivityThread.getUserId();
 
     try {
@@ -167,8 +181,11 @@ public class IOCore {
       String virtualLib = BEnvironment.resolveNativeLibDir(packageName).getAbsolutePath();
       String virtualDe = BEnvironment.getDeDataDir(packageName, userId).getAbsolutePath();
 
-      addPackageDataRedirects(rule, packageName, systemUserId, virtualData, virtualDe, virtualLib);
-      ContainerPathStealth.applyGuestRedirects(rule, packageName, userId, systemUserId);
+      // GMS uses real LoadedApk data dirs — canonical-path redirects nest .vfs paths (WorkManager).
+      if (!GmsCore.isGoogleAppOrService(packageName)) {
+        addPackageDataRedirects(rule, packageName, systemUserId, virtualData, virtualDe, virtualLib);
+        ContainerPathStealth.applyGuestRedirects(rule, packageName, userId, systemUserId);
+      }
 
       if (AnubisCore.getContext().getExternalCacheDir() != null
           && context.getExternalCacheDir() != null) {
@@ -213,7 +230,8 @@ public class IOCore {
       }
       hideEmulatorTraces(rule);
       proc(rule);
-      if (VirtualPathSpoof.isStealthAcPackage(packageName)) {
+      if (VirtualPathSpoof.isStealthAcPackage(packageName)
+          && !GmsCore.isGoogleAppOrService(packageName)) {
         rule.put(VirtualPathSpoof.fakeApkPath(packageName),
             BEnvironment.getBaseApkDir(packageName).getAbsolutePath());
         rule.put(VirtualPathSpoof.fakeNativeLibDir(packageName), virtualLib);
@@ -286,6 +304,13 @@ public class IOCore {
     rule.put("/proc/self/status", procBase + "status");
     rule.put("/proc/" + pid + "/maps", procBase + "maps");
     rule.put("/proc/self/maps", procBase + "maps");
+    rule.put("/proc/thread-self/maps", procBase + "maps");
+    rule.put("/proc/" + pid + "/smaps", procBase + "maps");
+    rule.put("/proc/self/smaps", procBase + "maps");
+    rule.put("/proc/thread-self/smaps", procBase + "maps");
+    rule.put("/proc/" + pid + "/smaps_rollup", procBase + "maps");
+    rule.put("/proc/self/smaps_rollup", procBase + "maps");
+    rule.put("/proc/thread-self/smaps_rollup", procBase + "maps");
     rule.put("/proc/" + pid + "/mountinfo", procBase + "mountinfo");
     rule.put("/proc/self/mountinfo", procBase + "mountinfo");
     rule.put("/proc/" + pid + "/cgroup", procBase + "cgroup");

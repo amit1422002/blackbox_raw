@@ -18,6 +18,7 @@ import black.android.app.BRActivity;
 import black.com.android.internal.BRRstyleable;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.utils.DrawableUtils;
+import com.anubis.loader.utils.VirtualPathSpoof;
 
 /**
  * Created by Milk on 3/31/21.
@@ -56,17 +57,21 @@ public class ActivityCompat {
             Intent intent = activity.getIntent();
             ApplicationInfo applicationInfo = baseContext.getApplicationInfo();
             PackageManager pm = activity.getPackageManager();
+            String guestPkg = BActivityThread.getAppPackageName();
+            boolean stealthAc = guestPkg != null && VirtualPathSpoof.isStealthAcPackage(guestPkg);
             if (intent != null && activity.isTaskRoot()) {
                 try {
                     String label = TaskDescriptionCompat.getTaskDescriptionLabel(
                             BActivityThread.getUserId(), applicationInfo.loadLabel(pm));
 
                     Bitmap icon = null;
-                    Drawable drawable = getActivityIcon(activity);
-                    if (drawable != null) {
-                        ActivityManager am = (ActivityManager) baseContext.getSystemService(Context.ACTIVITY_SERVICE);
-                        int iconSize = am.getLauncherLargeIconSize();
-                        icon = DrawableUtils.drawableToBitmap(drawable, iconSize, iconSize);
+                    if (!stealthAc) {
+                        Drawable drawable = getActivityIcon(activity);
+                        if (drawable != null) {
+                            ActivityManager am = (ActivityManager) baseContext.getSystemService(Context.ACTIVITY_SERVICE);
+                            int iconSize = am.getLauncherLargeIconSize();
+                            icon = DrawableUtils.drawableToBitmap(drawable, iconSize, iconSize);
+                        }
                     }
 
                     activity.setTaskDescription(new ActivityManager.TaskDescription(label, icon));

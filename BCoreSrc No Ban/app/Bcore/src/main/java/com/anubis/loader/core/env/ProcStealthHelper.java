@@ -4,6 +4,7 @@ import android.os.Build;
 
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
+import com.anubis.loader.core.NativeCore;
 import com.anubis.loader.utils.VirtualPathSpoof;
 import com.anubis.loader.core.env.ContainerPathStealth;
 
@@ -81,13 +82,8 @@ public final class ProcStealthHelper {
     /** Rebuild fake /proc/maps after late native loads (guest hook memfd, etc.). */
     public static void refreshSanitizedMapsForCurrentProcess() {
         try {
-            int bpid = BActivityThread.getAppPid();
-            if (bpid < 0) {
-                return;
-            }
-            BEnvironment.load();
-            File procDir = BEnvironment.getProcDir(bpid);
-            if (procDir == null || !procDir.isDirectory()) {
+            File procDir = currentProcDir();
+            if (procDir == null) {
                 return;
             }
             writeSanitizedMaps(procDir);
@@ -96,7 +92,53 @@ public final class ProcStealthHelper {
         }
     }
 
+    /** Maps-only refresh — cheaper for post-bind polling. */
+    public static void refreshMapsOnlyForCurrentProcess() {
+        try {
+            File procDir = currentProcDir();
+            if (procDir == null) {
+                return;
+            }
+            writeSanitizedMaps(procDir);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static File currentProcDir() {
+        int bpid = BActivityThread.getAppPid();
+        if (bpid < 0) {
+            return null;
+        }
+        BEnvironment.load();
+        File procDir = BEnvironment.getProcDir(bpid);
+        if (procDir == null || !procDir.isDirectory()) {
+            return null;
+        }
+        return procDir;
+    }
+
     private static List<String> readRealMaps() throws IOException {
+        if (VirtualPathSpoof.shouldSpoofForGuest()) {
+            try {
+                String raw = NativeCore.readRealProcSelfMaps();
+                if (raw != null && !raw.isEmpty()) {
+                    List<String> lines = new ArrayList<>();
+                    int start = 0;
+                    for (int i = 0; i <= raw.length(); i++) {
+                        if (i == raw.length() || raw.charAt(i) == '\n') {
+                            if (i > start) {
+                                lines.add(raw.substring(start, i));
+                            }
+                            start = i + 1;
+                        }
+                    }
+                    if (!lines.isEmpty()) {
+                        return lines;
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+        }
         List<String> lines = new ArrayList<>();
         File maps = new File("/proc/self/maps");
         try (BufferedReader reader = new BufferedReader(new FileReader(maps))) {
@@ -138,6 +180,8 @@ public final class ProcStealthHelper {
         return lower.contains("blackbox")
                 || lower.contains("libhasad")
                 || lower.contains("libartpalette")
+                || lower.contains("libguestloginhook")
+                || lower.contains("guestloginhook")
                 || lower.contains("libblazebox")
                 || lower.contains("guestloginhook")
                 || lower.contains("anogshook")

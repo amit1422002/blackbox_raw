@@ -39,6 +39,7 @@ import com.anubis.loader.gms.PlayStoreAuthHelper;
 import com.anubis.loader.proxy.ProxyManifest;
 import com.anubis.loader.proxy.record.ProxyActivityRecord;
 import com.anubis.loader.utils.Slog;
+import com.anubis.loader.utils.VirtualPathSpoof;
 
 import java.lang.reflect.Field;
 import com.anubis.loader.utils.compat.BuildCompat;
@@ -167,7 +168,19 @@ public class HCallbackProxy implements IInjectHook, Handler.Callback {
         }
 
         ActivityInfo activityInfo = stubRecord.mActivityInfo;
-        
+        if (activityInfo != null && activityInfo.applicationInfo != null) {
+            if (VirtualPathSpoof.isStealthAcPackage(activityInfo.packageName)) {
+                VirtualPathSpoof.ensureFrameworkApplicationInfo(
+                        activityInfo.applicationInfo, stubRecord.mUserId);
+                activityInfo.taskAffinity = activityInfo.packageName;
+                activityInfo.applicationInfo.taskAffinity = activityInfo.packageName;
+            } else {
+                activityInfo.applicationInfo = VirtualPathSpoof.spoofApplicationInfoRuntimeVisible(
+                        activityInfo.applicationInfo, stubRecord.mUserId);
+                VirtualPathSpoof.ensureRealApkPaths(activityInfo.applicationInfo, stubRecord.mUserId);
+            }
+        }
+
         if (BActivityThread.getAppConfig() == null) {
             try {
                 AnubisCore.getBActivityManager().restartProcess(

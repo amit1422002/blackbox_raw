@@ -38,12 +38,28 @@ char *replace(const char *str, const char *src, const char *dst) {
 }
 
 const char *IO::redirectPath(const char *__path) {
+    if (__path == nullptr) {
+        return __path;
+    }
+    // Already inside the virtual tree — never redirect again (prevents nested .vfs paths).
+    if (strstr(__path, "/.vfs/") != nullptr) {
+        return __path;
+    }
     list<IO::RelocateInfo>::iterator iterator;
     for (iterator = relocate_rule.begin(); iterator != relocate_rule.end(); ++iterator) {
         IO::RelocateInfo info = *iterator;
-        if (strstr(__path, info.targetPath) && !strstr(__path, "/anubis/")) {
+        if (info.targetPath == nullptr || info.relocatePath == nullptr) {
+            continue;
+        }
+        size_t targetLen = strlen(info.targetPath);
+        if (targetLen == 0) {
+            continue;
+        }
+        // Prefix match only — strstr() caused double-redirect when relocatePath still
+        // contained the target substring (e.g. GMS WorkManager SQLite paths).
+        if (strncmp(__path, info.targetPath, targetLen) == 0
+            && (__path[targetLen] == '\0' || __path[targetLen] == '/')) {
             char *ret = replace(__path, info.targetPath, info.relocatePath);
-            // ALOGD("redirectPath %s  => %s", __path, ret);
             return ret;
         }
     }

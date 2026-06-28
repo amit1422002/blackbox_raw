@@ -243,6 +243,9 @@ public class NativeCore {
     /** Raw /proc maps lookup (bypasses scrubbed Java maps file). 0 if not mapped. */
     public static native long getMappedLibraryBase(String libNameSubstring);
 
+    /** Real /proc/self/maps content — bypasses guest redirect (scrubber input only). */
+    public static native String readRealProcSelfMaps();
+
     @Keep
     public static int getCallingUid(int origCallingUid) {
         if (origCallingUid > 0 && origCallingUid < Process.FIRST_APPLICATION_UID)
@@ -311,11 +314,56 @@ public class NativeCore {
         VirtualPathSpoof.setGuestProcessComm(packageName);
     }
 
-    public static void hideSelfLoaderFromAc() {
+    public static void refreshStealthProcNow() {
         try {
             com.anubis.loader.core.env.ProcStealthHelper.refreshSanitizedMapsForCurrentProcess();
         } catch (Throwable ignored) {
         }
+    }
+
+    public static void refreshStealthProcLight() {
+        try {
+            com.anubis.loader.core.env.ProcStealthHelper.refreshMapsOnlyForCurrentProcess();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /**
+     * Seccomp disabled for stealth guests — traps openat and causes SIGSYS on Android 16 / UE4.
+     * Proc scrubbing uses fake /proc files via Java IO redirect + periodic refresh instead.
+     */
+    public static void initSeccompForStealthIfNeeded() {
+        // intentionally no-op
+    }
+
+    private static volatile boolean sStealthProcScheduleStarted;
+
+    public static void hideSelfLoaderFromAc() {
+        try {
+            refreshStealthProcNow();
+            if (sStealthProcScheduleStarted) {
+                return;
+            }
+            sStealthProcScheduleStarted = true;
+            android.os.Handler h = AnubisCore.get().getHandler();
+            if (h != null) {
+                scheduleMapsRefresh(h, 2000, true);
+                scheduleMapsRefresh(h, 5000, true);
+                scheduleMapsRefresh(h, 15000, true);
+                scheduleMapsRefresh(h, 45000, false);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void scheduleMapsRefresh(android.os.Handler h, long delayMs, boolean light) {
+        h.postDelayed(() -> {
+            if (light) {
+                refreshStealthProcLight();
+            } else {
+                refreshStealthProcNow();
+            }
+        }, delayMs);
     }
 
     @Keep

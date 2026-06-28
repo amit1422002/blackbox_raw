@@ -35,6 +35,19 @@ public class MethodParameterUtils {
         return null;
     }
 
+    /** Stealth guests — keep guest package on network/connectivity attribution. */
+    public static void replaceHostPkgWithGuest(Object[] args, String guestPkg) {
+        if (args == null || guestPkg == null) {
+            return;
+        }
+        String hostPkg = AnubisCore.getHostPkg();
+        for (int i = 0; i < args.length; i++) {
+            if (hostPkg.equals(args[i])) {
+                args[i] = guestPkg;
+            }
+        }
+    }
+
     public static void replaceAllAppPkg(Object[] args) {
         if (args == null) {
             return;
@@ -54,10 +67,12 @@ public class MethodParameterUtils {
     public static void replaceFirstUid(Object[] args) {
         if (args == null)
             return;
+        int virtualUid = BActivityThread.getGuestVirtualUid();
         for (int i = 0; i < args.length; i++) {
             if (args[i] instanceof Integer) {
                 int uid = (int) args[i];
-                if (uid == BActivityThread.getBUid()) {
+                if (uid == BActivityThread.getBUid()
+                        || (virtualUid > 0 && uid == virtualUid)) {
                     args[i] = AnubisCore.getHostUid();
                 }
             }
@@ -68,7 +83,9 @@ public class MethodParameterUtils {
         int index = ArrayUtils.indexOfLast(args, Integer.class);
         if (index != -1) {
             int uid = (int) args[index];
-            if (uid == BActivityThread.getBUid()) {
+            int virtualUid = BActivityThread.getGuestVirtualUid();
+            if (uid == BActivityThread.getBUid()
+                    || (virtualUid > 0 && uid == virtualUid)) {
                 args[index] = AnubisCore.getHostUid();
             }
         }

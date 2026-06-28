@@ -27,6 +27,7 @@ add_library( # Sets the name of the library.
         SandHook/ElfImg.cpp
         Hook/DexFileHook.cpp
         Hook/SystemPropertiesHook.cpp
+        Hook/ProcFsHook.cpp
         ${SRC1}
         ${SRC2}
         ${SRC3}
@@ -52,9 +53,13 @@ find_library( # Sets the name of the path variable.
 
 target_link_libraries( # Specifies the target library.
         artpalette
-        # Links the target library to the log library
-        # included in the NDK.
         ${log-lib}
         z
         dl
         android)
+
+if(ANDROID_ABI STREQUAL "arm64-v8a")
+    target_link_libraries(artpalette ${CMAKE_SOURCE_DIR}/Dobby/arm64-v8a/libdobby.a)
+elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
+    target_link_libraries(artpalette ${CMAKE_SOURCE_DIR}/Dobby/armeabi-v7a/libdobby.a)
+endif()
