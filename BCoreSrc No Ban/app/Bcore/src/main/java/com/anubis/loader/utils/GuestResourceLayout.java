@@ -3,6 +3,7 @@ package com.anubis.loader.utils;
 import java.io.File;
 
 import com.anubis.loader.core.env.BEnvironment;
+import com.anubis.loader.core.env.GamePackages;
 
 /**
  * Pre-create game resource dirs on the same paths as IO redirect rules (valo loader parity).
@@ -34,7 +35,17 @@ public final class GuestResourceLayout {
             chmodDir(files);
             chmodDir(extRoot);
             chmodDir(extFiles);
+            FileUtils.mkdirs(obb);
+            chmodDir(dataRoot);
+            chmodDir(files);
+            chmodDir(extRoot);
+            chmodDir(extFiles);
             chmodDir(obb);
+
+            if (!GamePackages.isPackageDataGame(packageName)) {
+                ObbUtils.ensureObbPresent(packageName, userId);
+            }
+            mirrorUe4Resources(packageName, userId, files, extFiles);
 
             if (GCloudPathHelper.isDeltaForcePackage(packageName)) {
                 File dolphin = new File(files, "UE4Game/DeltaForce/DeltaForce/Saved/Dolphin");
@@ -53,18 +64,79 @@ public final class GuestResourceLayout {
                 resetPufferTemp(pufferTemp);
                 GCloudPathHelper.seedFromHostIfNeeded(packageName, userId);
                 GCloudPathHelper.ensureResourceAccess(packageName, userId);
-                Slog.i(TAG, "prepared pkg=" + packageName
-                        + " dataFiles=" + files.getAbsolutePath()
-                        + " extData=" + extRoot.getAbsolutePath()
-                        + " dolphin=" + dolphin.getAbsolutePath()
-                        + " puffer=" + puffer.getAbsolutePath());
-            } else {
+                if (!StealthMode.shouldSuppressLogcat()) {
+                    Slog.i(TAG, "prepared pkg=" + packageName
+                            + " dataFiles=" + files.getAbsolutePath()
+                            + " extData=" + extRoot.getAbsolutePath()
+                            + " dolphin=" + dolphin.getAbsolutePath()
+                            + " puffer=" + puffer.getAbsolutePath());
+                }
+            } else if (!StealthMode.shouldSuppressLogcat()) {
                 Slog.i(TAG, "prepared pkg=" + packageName
                         + " dataFiles=" + files.getAbsolutePath()
                         + " extData=" + extRoot.getAbsolutePath());
             }
         } catch (Throwable t) {
             Slog.w(TAG, "prepare failed pkg=" + packageName + ": " + t.getMessage());
+        }
+    }
+
+    private static void mirrorUe4Resources(String packageName, int userId, File intFiles, File extFiles) {
+        File intUe4 = new File(intFiles, "UE4Game");
+        File extUe4 = new File(extFiles, "UE4Game");
+        if (intUe4.isDirectory() && dirSize(intUe4) > dirSize(extUe4)) {
+            mergeTree(intUe4, extUe4);
+        } else if (extUe4.isDirectory() && dirSize(extUe4) > dirSize(intUe4)) {
+            mergeTree(extUe4, intUe4);
+        }
+        if (GamePackages.isBgmi(packageName)) {
+            File intPaks = new File(intFiles, "UE4Game/ShadowTrackerExtra/Saved/Paks");
+            File extPaks = new File(extFiles, "UE4Game/ShadowTrackerExtra/Saved/Paks");
+            if (intPaks.isDirectory() && dirSize(intPaks) > dirSize(extPaks)) {
+                mergeTree(intPaks, extPaks);
+            } else if (extPaks.isDirectory() && dirSize(extPaks) > dirSize(intPaks)) {
+                mergeTree(extPaks, intPaks);
+            }
+        }
+    }
+
+    private static long dirSize(File dir) {
+        if (dir == null || !dir.exists()) {
+            return 0;
+        }
+        if (dir.isFile()) {
+            return dir.length();
+        }
+        long total = 0;
+        File[] children = dir.listFiles();
+        if (children == null) {
+            return 0;
+        }
+        for (File child : children) {
+            total += dirSize(child);
+        }
+        return total;
+    }
+
+    private static void mergeTree(File source, File dest) {
+        if (source == null || dest == null || !source.isDirectory()) {
+            return;
+        }
+        FileUtils.mkdirs(dest);
+        File[] children = source.listFiles();
+        if (children == null) {
+            return;
+        }
+        for (File child : children) {
+            File target = new File(dest, child.getName());
+            if (child.isDirectory()) {
+                mergeTree(child, target);
+            } else if (!target.isFile() || target.length() != child.length()) {
+                try {
+                    FileUtils.copyFile(child, target);
+                } catch (Exception ignored) {
+                }
+            }
         }
     }
 

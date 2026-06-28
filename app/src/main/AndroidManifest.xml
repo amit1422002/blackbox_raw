@@ -47,6 +47,10 @@
         <activity android:name=".view.list.ListActivity" />
         <activity android:name=".view.fake.FakeManagerActivity" />
 
+        <meta-data
+            android:name="anubis.host_package"
+            android:value="${applicationId}" />
+
         <activity
             android:name=".view.main.ShortcutActivity"
             android:excludeFromRecents="true"

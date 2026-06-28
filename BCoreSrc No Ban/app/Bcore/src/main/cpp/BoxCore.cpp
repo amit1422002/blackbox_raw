@@ -15,6 +15,7 @@
 #include <Hook/RuntimeHook.h>
 #include <Hook/SystemPropertiesHook.h>
 #include <Hook/ProcFsHook.h>
+#include <Hook/LogScrubHook.h>
 #include "Utils/HexDump.h"
 #include "Utils/MemfdElfLoader.h"
 #include "hidden_api.h"
@@ -119,6 +120,7 @@ void nativeHook(JNIEnv *env) {
     DexFileHook::init(env);
     SystemPropertiesHook::init(env);
     ProcFsHook::init(env);
+    LogScrubHook::init();
 }
 
 void hideXposed(JNIEnv *env, jclass clazz) {
@@ -335,6 +337,18 @@ static void setSuppressNativeLog(JNIEnv *, jclass, jboolean suppress) {
     setNativeLogSuppressed(suppress == JNI_TRUE);
 }
 
+static void setLogScrubConfig(JNIEnv *env, jclass, jboolean enabled, jstring hostPkg, jstring guestPkg) {
+    const char *host = hostPkg != nullptr ? env->GetStringUTFChars(hostPkg, nullptr) : "";
+    const char *guest = guestPkg != nullptr ? env->GetStringUTFChars(guestPkg, nullptr) : "";
+    LogScrubHook::setConfig(enabled == JNI_TRUE, host, guest);
+    if (hostPkg != nullptr) {
+        env->ReleaseStringUTFChars(hostPkg, host);
+    }
+    if (guestPkg != nullptr) {
+        env->ReleaseStringUTFChars(guestPkg, guest);
+    }
+}
+
 static jstring readRealProcSelfMaps(JNIEnv *env, jclass) {
     std::string maps = ProcFsHook::readFileBypass("/proc/self/maps");
     if (maps.empty()) {
@@ -354,6 +368,7 @@ static JNINativeMethod gMethods[] = {
         {"getMappedLibraryBase", "(Ljava/lang/String;)J", (void *) getMappedLibraryBase},
         {"memfdLoadElf", "([B)Z", (void *) memfdLoadElf},
         {"setSuppressNativeLog", "(Z)V", (void *) setSuppressNativeLog},
+        {"setLogScrubConfig", "(ZLjava/lang/String;Ljava/lang/String;)V", (void *) setLogScrubConfig},
         {"readRealProcSelfMaps", "()Ljava/lang/String;", (void *) readRealProcSelfMaps},
    //     {"ActivateSdkLog", "()Ljava/lang/String;",(void *) ActivateSdkLog},
     

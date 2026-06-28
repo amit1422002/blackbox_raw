@@ -16,6 +16,9 @@ public final class BcoreEmbedConfig {
 
     private static final TimeZone UTC = TimeZone.getTimeZone("UTC");
 
+    /** Default loader package when config/context is spoofed in the guest process. */
+    public static final String DEFAULT_LOADER_PACKAGE = "com.anubis";
+
     private BcoreEmbedConfig() {
     }
 

@@ -69,6 +69,7 @@ import com.anubis.loader.utils.compat.BuildCompat;
 import com.anubis.loader.utils.compat.BundleCompat;
 import com.anubis.loader.utils.compat.XposedParserCompat;
 import com.anubis.loader.utils.provider.ProviderCall;
+import com.anubis.loader.license.BcoreEmbedConfig;
 import com.anubis.loader.license.BcoreLicenseInstaller;
 
 /**
@@ -85,6 +86,12 @@ public class AnubisCore extends ClientConfiguration {
 
     private static final AnubisCore sAnubisCore = new AnubisCore();
     private static Context sContext;
+    /** Captured at attach — never the cloned guest package. */
+    private static volatile String sImmutableHostPkg;
+    /** Pinned loader identity; must never equal the bound guest package. */
+    private static volatile String sPinnedLoaderPkg;
+    /** Loader APK package resolved from UID / attach context before guest bind. */
+    private static volatile String sAttachLoaderPkg;
     private ProcessType mProcessType;
     private final Map<String, IBinder> mServices = new HashMap<>();
     private Thread.UncaughtExceptionHandler mExceptionHandler;
@@ -107,7 +114,205 @@ public class AnubisCore extends ClientConfiguration {
     }
 
     public static String getHostPkg() {
-        return get().getHostPackageName();
+        String guest = BActivityThread.getAppPackageName();
+        if (sPinnedLoaderPkg != null && guest != null && guest.equals(sPinnedLoaderPkg)) {
+            sPinnedLoaderPkg = null;
+            sImmutableHostPkg = null;
+        }
+        String loader = defaultLoaderPackage();
+        if (guest == null || !guest.equals(loader)) {
+            pinLoaderPkg(loader);
+            return loader;
+        }
+        pinLoaderPkg(loader);
+        return loader;
+    }
+
+    /** Loader APK id — obfuscation-safe literal, never the bound guest. */
+    public static String loaderPkgLiteral() {
+        return new String(new char[] {'c', 'o', 'm', '.', 'a', 'n', 'u', 'b', 'i', 's'});
+    }
+
+    /** Loader APK id — never the bound guest package. */
+    public static String defaultLoaderPackage() {
+        String guest = BActivityThread.getAppPackageName();
+        String loader = sAttachLoaderPkg;
+        if (loader == null || loader.isEmpty()) {
+            loader = loaderFromUidPackages(guest);
+        }
+        if (loader == null || loader.isEmpty()) {
+            loader = loaderPkgLiteral();
+        }
+        if (guest != null && guest.equals(loader)) {
+            loader = loaderPkgLiteral();
+        }
+        return loader;
+    }
+
+    public static String getAttachLoaderPkg() {
+        return sAttachLoaderPkg;
+    }
+
+    private static String loaderFromUidPackages(String guestPkg) {
+        Context ctx = sContext;
+        if (ctx == null) {
+            return null;
+        }
+        try {
+            String literal = loaderPkgLiteral();
+            String[] uidPkgs = ctx.getPackageManager().getPackagesForUid(Process.myUid());
+            if (uidPkgs == null) {
+                return null;
+            }
+            for (String pkg : uidPkgs) {
+                if (pkg != null && literal.equals(pkg)) {
+                    return pkg;
+                }
+            }
+            for (String pkg : uidPkgs) {
+                if (pkg == null || pkg.isEmpty()) {
+                    continue;
+                }
+                if (guestPkg != null && guestPkg.equals(pkg)) {
+                    continue;
+                }
+                return pkg;
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static String resolveAttachLoaderPackage(Context context) {
+        String guest = BActivityThread.getAppPackageName();
+        String fromUid = loaderFromUidPackages(guest);
+        if (fromUid != null && !fromUid.isEmpty()
+                && (guest == null || !guest.equals(fromUid))) {
+            return fromUid;
+        }
+        try {
+            String pkg = context.getApplicationInfo().packageName;
+            if (pkg != null && !pkg.isEmpty() && (guest == null || !guest.equals(pkg))) {
+                return pkg;
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            String pkg = context.getPackageName();
+            if (pkg != null && !pkg.isEmpty() && (guest == null || !guest.equals(pkg))) {
+                return pkg;
+            }
+        } catch (Throwable ignored) {
+        }
+        return loaderPkgLiteral();
+    }
+
+    public static String getPinnedLoaderPkg() {
+        return sPinnedLoaderPkg;
+    }
+
+    public static void pinLoaderPkg(String hostPkg) {
+        String loader = defaultLoaderPackage();
+        String guest = BActivityThread.getAppPackageName();
+        if (guest != null && !guest.equals(loader)) {
+            hostPkg = loader;
+        } else if (hostPkg == null || hostPkg.isEmpty() || (guest != null && guest.equals(hostPkg))) {
+            hostPkg = loader;
+        }
+        sPinnedLoaderPkg = hostPkg;
+        sImmutableHostPkg = hostPkg;
+    }
+
+    /**
+     * @deprecated Disk scan picked up leaked guest {@code .vfs}; use {@link #defaultLoaderPackage()}.
+     */
+    public static String discoverLoaderPackageOnDisk(String guestPkg) {
+        return defaultLoaderPackage();
+    }
+
+    private static boolean isLeakedGuestVfsRoot(String packageName, String guestPkg) {
+        if (packageName == null || guestPkg == null || !packageName.equals(guestPkg)) {
+            return false;
+        }
+        return new File(String.format(java.util.Locale.US,
+                "/data/user/0/%s/files/data/user/0/%s", packageName, guestPkg)).isDirectory();
+    }
+
+    /**
+     * Loader APK package (com.anubis) — only for on-disk VFS anchor, never shown to the guest.
+     * Recovers from process name when context was already spoofed to the guest package.
+     */
+    private static String reconcileHostAgainstGuest(String host) {
+        if (host == null || host.isEmpty()) {
+            return host;
+        }
+        String guest = BActivityThread.getAppPackageName();
+        if (guest == null || !guest.equals(host)) {
+            return host;
+        }
+        String fromProc = hostPkgFromRunningProcess();
+        if (fromProc != null && !fromProc.isEmpty() && !fromProc.equals(guest)) {
+            return fromProc;
+        }
+        fromProc = hostPkgFromProcCmdline();
+        if (fromProc != null && !fromProc.isEmpty() && !fromProc.equals(guest)) {
+            return fromProc;
+        }
+        return host;
+    }
+
+    private static String hostPkgFromProcCmdline() {
+        try {
+            byte[] buf = new byte[256];
+            int n;
+            try (java.io.FileInputStream in = new java.io.FileInputStream("/proc/self/cmdline")) {
+                n = in.read(buf);
+            }
+            if (n <= 0) {
+                return null;
+            }
+            int end = 0;
+            while (end < n && buf[end] != 0) {
+                end++;
+            }
+            String proc = new String(buf, 0, end, java.nio.charset.StandardCharsets.UTF_8);
+            int colon = proc.indexOf(':');
+            return colon > 0 ? proc.substring(0, colon) : proc;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static String hostPkgFromRunningProcess() {
+        Context ctx = sContext;
+        if (ctx == null) {
+            return null;
+        }
+        int myPid = Process.myPid();
+        ActivityManager am = (ActivityManager) ctx.getSystemService(Context.ACTIVITY_SERVICE);
+        if (am != null) {
+            for (ActivityManager.RunningAppProcessInfo info : am.getRunningAppProcesses()) {
+                if (info != null && info.pid == myPid && info.processName != null) {
+                    String proc = info.processName;
+                    int colon = proc.indexOf(':');
+                    return colon > 0 ? proc.substring(0, colon) : proc;
+                }
+            }
+        }
+        return null;
+    }
+
+    public static void reconcileStorageHostPkg(String guestPkg) {
+        if (guestPkg == null || guestPkg.isEmpty()) {
+            return;
+        }
+        if (sAttachLoaderPkg == null || sAttachLoaderPkg.isEmpty() || guestPkg.equals(sAttachLoaderPkg)) {
+            Context ctx = sContext;
+            if (ctx != null) {
+                sAttachLoaderPkg = resolveAttachLoaderPackage(ctx);
+            }
+        }
+        pinLoaderPkg(defaultLoaderPackage());
     }
 
     public static int getHostUid() {
@@ -138,6 +343,8 @@ public class AnubisCore extends ClientConfiguration {
         Reflection.unseal(context);
         sContext = context;
         mClientConfiguration = clientConfiguration;
+        sAttachLoaderPkg = resolveAttachLoaderPackage(context);
+        pinLoaderPkg(sAttachLoaderPkg);
         initNotificationManager();
 
         String processName = getProcessName(getContext());

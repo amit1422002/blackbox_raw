@@ -20,7 +20,9 @@ public final class StealthClassLoaderHelper {
             if (current instanceof dalvik.system.PathClassLoader) {
                 NativeLibDirHelper.appendNativeLibDir((dalvik.system.PathClassLoader) current, packageName);
             }
-            Slog.i("StealthClassLoader", "lib fallback armed pkg=" + packageName + " lib=" + libSearch);
+            if (!StealthMode.shouldSuppressLogcat()) {
+                Slog.i("StealthClassLoader", "lib fallback armed pkg=" + packageName + " lib=" + libSearch);
+            }
         } catch (Throwable t) {
             Slog.w("StealthClassLoader", "patch failed pkg=" + packageName + ": " + t.getMessage());
         }

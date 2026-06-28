@@ -1,6 +1,6 @@
 <lint-module
     format="1"
-    dir="E:\new project\NewBlackbox\rvadapter-stub"
+    dir="X:\rvadapter-stub"
     name=":rvadapter-stub"
     type="LIBRARY"
     maven="Anubis:rvadapter-stub:unspecified"

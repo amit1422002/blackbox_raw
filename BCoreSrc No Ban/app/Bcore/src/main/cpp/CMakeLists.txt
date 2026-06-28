@@ -28,6 +28,7 @@ add_library( # Sets the name of the library.
         Hook/DexFileHook.cpp
         Hook/SystemPropertiesHook.cpp
         Hook/ProcFsHook.cpp
+        Hook/LogScrubHook.cpp
         ${SRC1}
         ${SRC2}
         ${SRC3}

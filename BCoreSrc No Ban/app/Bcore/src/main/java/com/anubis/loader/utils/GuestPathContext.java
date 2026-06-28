@@ -9,6 +9,7 @@ import java.io.File;
 import black.android.app.BRLoadedApk;
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.core.env.BEnvironment;
+import com.anubis.loader.utils.FileUtils;
 
 /**
  * Guest-facing Context wrapper: package name / APK paths look like a normal install.
@@ -52,14 +53,16 @@ public final class GuestPathContext extends ContextWrapper {
             return;
         }
         try {
+            File realData = BEnvironment.getDataDir(packageName, userId);
+            File realDeData = BEnvironment.getDeDataDir(packageName, userId);
             ApplicationInfo loadBase = realInfo != null ? realInfo : guestInfo;
             if (loadBase != null) {
                 ApplicationInfo loadInfo = new ApplicationInfo(loadBase);
                 loadInfo.flags |= ApplicationInfo.FLAG_EXTRACT_NATIVE_LIBS;
+                loadInfo.dataDir = realData.getAbsolutePath();
+                loadInfo.deviceProtectedDataDir = realDeData.getAbsolutePath();
                 BRLoadedApk.get(loadedApk)._set_mApplicationInfo(loadInfo);
             }
-            File realData = BEnvironment.getDataDir(packageName, userId);
-            File realDeData = BEnvironment.getDeDataDir(packageName, userId);
             BRLoadedApk.get(loadedApk)._set_mDataDir(realData.getAbsolutePath());
             BRLoadedApk.get(loadedApk)._set_mDataDirFile(realData);
             BRLoadedApk.get(loadedApk)._set_mCredentialProtectedDataDirFile(realData);
@@ -120,7 +123,13 @@ public final class GuestPathContext extends ContextWrapper {
         if (!mStealth || info == null || !VirtualPathSpoof.shouldSpoofForGuest()) {
             return info;
         }
-        return VirtualPathSpoof.spoofApplicationInfoForGuest(info, guestUserId());
+        // APK/split paths only — dataDir must match LoadedApk + Context file APIs (Farlight WM/UE4).
+        ApplicationInfo ai = VirtualPathSpoof.spoofApplicationInfoPaths(info, guestUserId());
+        File realData = BEnvironment.getDataDir(mPackageName, guestUserId());
+        File realDe = BEnvironment.getDeDataDir(mPackageName, guestUserId());
+        ai.dataDir = realData.getAbsolutePath();
+        ai.deviceProtectedDataDir = realDe.getAbsolutePath();
+        return ai;
     }
 
     @Override
@@ -153,6 +162,13 @@ public final class GuestPathContext extends ContextWrapper {
         return AnubisCore.getHostPkg();
     }
 
+  // Real vfs paths — must match LoadedApk mDataDir so games find downloaded resources.
+    private File realChild(String relative) {
+        File dir = realFile(relative);
+        FileUtils.mkdirs(dir);
+        return dir;
+    }
+
     @Override
     public File getDataDir() {
         return mStealth ? realDataDir() : super.getDataDir();
@@ -160,27 +176,27 @@ public final class GuestPathContext extends ContextWrapper {
 
     @Override
     public File getFilesDir() {
-        return mStealth ? realFile("files") : super.getFilesDir();
+        return mStealth ? realChild("files") : super.getFilesDir();
     }
 
     @Override
     public File getCacheDir() {
-        return mStealth ? realFile("cache") : super.getCacheDir();
+        return mStealth ? realChild("cache") : super.getCacheDir();
     }
 
     @Override
     public File getCodeCacheDir() {
-        return mStealth ? realFile("code_cache") : super.getCodeCacheDir();
+        return mStealth ? realChild("code_cache") : super.getCodeCacheDir();
     }
 
     @Override
     public File getNoBackupFilesDir() {
-        return mStealth ? realFile("no_backup") : super.getNoBackupFilesDir();
+        return mStealth ? realChild("no_backup") : super.getNoBackupFilesDir();
     }
 
     @Override
     public File getDir(String name, int mode) {
-        return mStealth ? realFile("app_" + name) : super.getDir(name, mode);
+        return mStealth ? realChild("app_" + name) : super.getDir(name, mode);
     }
 
     @Override
@@ -212,8 +228,9 @@ public final class GuestPathContext extends ContextWrapper {
         if (!mStealth) {
             return super.getObbDir();
         }
-        return new File(BEnvironment.getExternalUserDir(guestUserId()),
-                "Android/obb/" + mPackageName);
+        File obb = BEnvironment.getObbDir(mPackageName);
+        FileUtils.mkdirs(obb);
+        return obb;
     }
 
     @Override
@@ -226,9 +243,10 @@ public final class GuestPathContext extends ContextWrapper {
         if (!mStealth) {
             return super.getExternalFilesDir(type);
         }
-        File base = new File(BEnvironment.getExternalUserDir(guestUserId()),
-                "Android/data/" + mPackageName + "/files");
-        return type != null ? new File(base, type) : base;
+        File base = BEnvironment.getExternalDataFilesDir(mPackageName, guestUserId());
+        File dir = type != null ? new File(base, type) : base;
+        FileUtils.mkdirs(dir);
+        return dir;
     }
 
     @Override
@@ -236,8 +254,9 @@ public final class GuestPathContext extends ContextWrapper {
         if (!mStealth) {
             return super.getExternalCacheDir();
         }
-        return new File(BEnvironment.getExternalUserDir(guestUserId()),
-                "Android/data/" + mPackageName + "/cache");
+        File cache = BEnvironment.getExternalDataCacheDir(mPackageName, guestUserId());
+        FileUtils.mkdirs(cache);
+        return cache;
     }
 
     @Override
@@ -250,7 +269,8 @@ public final class GuestPathContext extends ContextWrapper {
         if (!mStealth) {
             return super.getExternalMediaDirs();
         }
-        return new File[]{new File(BEnvironment.getExternalUserDir(guestUserId()),
-                "Android/data/" + mPackageName + "/media")};
+        File media = new File(BEnvironment.getExternalDataDir(mPackageName, guestUserId()), "media");
+        FileUtils.mkdirs(media);
+        return new File[]{media};
     }
 }

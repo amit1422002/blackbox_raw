@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.util.Log
 import java.io.File
+import com.anubis.BuildConfig
 import com.anubis.loader.AnubisCore
 import com.anubis.loader.app.BActivityThread
 import com.anubis.loader.app.configuration.AppLifecycleCallback
@@ -196,17 +197,13 @@ class AnubisLoader {
 
     fun attachBaseContext(context: Context) {
         try {
+            val hostPkg = BuildConfig.APPLICATION_ID
             AnubisCore.get()
                     .doAttachBaseContext(
                             context,
                             object : ClientConfiguration() {
                                 override fun getHostPackageName(): String {
-                                    return try {
-                                        context.packageName
-                                    } catch (e: Exception) {
-                                        Log.e(TAG, "Error getting package name: ${e.message}")
-                                        "unknown"
-                                    }
+                                    return hostPkg
                                 }
 
                                 override fun isHideRoot(): Boolean {

@@ -34,7 +34,8 @@ static const char *redirect_io_path(const char *path) {
         return path;
     }
     if (strstr(path, "/.vfs/") != nullptr) {
-        return path;
+        const char *redirected = IO::redirectPath(path);
+        return redirected;
     }
     if (strncmp(path, "/proc/", 6) == 0) {
         return IO::redirectPath(path);

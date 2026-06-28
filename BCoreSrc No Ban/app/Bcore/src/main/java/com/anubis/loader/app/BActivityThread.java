@@ -60,11 +60,13 @@ import black.dalvik.system.BRVMRuntime;
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.configuration.AppLifecycleCallback;
 import com.anubis.loader.app.dispatcher.AppServiceDispatcher;
+import com.anubis.loader.utils.GuestPathAudit;
 import com.anubis.loader.utils.GuestPathContext;
 import com.anubis.loader.utils.Slog;
 import com.anubis.loader.utils.GuestNativeLibs;
 import com.anubis.loader.utils.GuestResourceLayout;
 import com.anubis.loader.utils.StealthClassLoaderHelper;
+import com.anubis.loader.utils.StealthNetworkHelper;
 import com.anubis.loader.utils.VirtualPathSpoof;
 import com.anubis.loader.core.CrashHandler;
 import com.anubis.loader.core.IBActivityThread;
@@ -319,7 +321,10 @@ public class BActivityThread extends IBActivityThread.Stub {
         }
 
         processName = VirtualPathSpoof.guestVisibleProcessName(packageName, processName);
+        AnubisCore.reconcileStorageHostPkg(packageName);
         BEnvironment.ensureGuestDataLayout(packageName, BActivityThread.getUserId(), processName);
+        BEnvironment.migrateLegacyObbIfNeeded(packageName);
+        BEnvironment.load();
 
         PackageInfo packageInfo = AnubisCore.getBPackageManager().getPackageInfo(packageName, PackageManager.GET_PROVIDERS, BActivityThread.getUserId());
         GuestNativeLibs.ensureExtracted(packageName, packageInfo.applicationInfo);
@@ -350,10 +355,13 @@ public class BActivityThread extends IBActivityThread.Stub {
 
         NativeCore.init(Build.VERSION.SDK_INT);
         NativeCore.setGuestPackageForStealth(packageName);
-        NativeCore.dispatchAcNukeForGuest(packageName, processName);
 
         final boolean stealthAc = VirtualPathSpoof.isStealthAcPackage(packageName);
         IOCore.get().enableRedirect(packageContext);
+        if (stealthAc) {
+            StealthNetworkHelper.ensureRealNetwork(packageContext);
+        }
+
         StealthClassLoaderHelper.replaceIfNeeded(loadedApk, packageName, realAppInfo);
         GuestPathContext.patchLoadedApk(loadedApk, packageName, guestUserId, guestAppInfo, realAppInfo);
         int targetSdkVersion = applicationInfo.targetSdkVersion;
@@ -446,6 +454,9 @@ public class BActivityThread extends IBActivityThread.Stub {
                 ContextCompat.fixGuestIdentity(mInitialApplication);
                 ContextCompat.fixGuestIdentity(
                         (Context) BRActivityThread.get(AnubisCore.mainThread()).getSystemContext());
+                StealthNetworkHelper.ensureRealNetwork(mInitialApplication);
+                GuestPathAudit.logIfFarlight(mInitialApplication, packageName, BActivityThread.getUserId());
+                GuestPathAudit.logIfDeltaForce(mInitialApplication, packageName, BActivityThread.getUserId());
             }
             onAfterApplicationOnCreate(packageName, processName, application);
             if (!stealthAc) {

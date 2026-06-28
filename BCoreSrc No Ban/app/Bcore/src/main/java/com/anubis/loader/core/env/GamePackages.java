@@ -11,6 +11,7 @@ public final class GamePackages {
     public static final String ARENA_BREAKOUT = "com.proximabeta.mf.uamo";
     public static final String ARENA_BREAKOUT_LITE = "com.proximabeta.mf.liteuamo";
     public static final String DELTA_FORCE = "com.proxima.dfm";
+    public static final String DELTA_FORCE_GARENA = "com.garena.game.df";
 
     private GamePackages() {
     }
@@ -28,7 +29,7 @@ public final class GamePackages {
     }
 
     public static boolean isDeltaForce(String packageName) {
-        return DELTA_FORCE.equals(packageName);
+        return DELTA_FORCE.equals(packageName) || DELTA_FORCE_GARENA.equals(packageName);
     }
 
     /** Farlight / Arena / Delta store obb.png + paks in package data — no Android/obb copy. */

@@ -11,6 +11,7 @@ import java.io.File;
 import java.util.Locale;
 
 import com.anubis.loader.AnubisCore;
+import com.anubis.loader.license.BcoreEmbedConfig;
 import com.anubis.loader.app.BActivityThread;
 import com.anubis.loader.utils.FileUtils;
 
@@ -38,16 +39,67 @@ public class BEnvironment {
     public static File JUNIT_JAR;
     public static File EMPTY_JAR;
 
+    private static String resolveStorageHostPkg() {
+        return AnubisCore.defaultLoaderPackage();
+    }
+
+    private static File resolveHostFilesDir() {
+        String hostPkg = resolveStorageHostPkg();
+        int userId = AnubisCore.getHostUserId();
+        if (hostPkg != null && !hostPkg.isEmpty()) {
+            File[] candidates = new File[] {
+                    new File(String.format(Locale.US, "/data/user/%d/%s/files", userId, hostPkg)),
+                    new File("/data/data/" + hostPkg + "/files"),
+            };
+            for (File candidate : candidates) {
+                if (candidate.isDirectory()) {
+                    return candidate;
+                }
+            }
+            File primary = candidates[0];
+            FileUtils.mkdirs(primary);
+            return primary;
+        }
+        Context ctx = AnubisCore.getContext();
+        if (ctx == null) {
+            throw new IllegalStateException(
+                    "BEnvironment: AnubisCore.getContext() is null; init Anubis before BEnvironment paths.");
+        }
+        return ctx.getFilesDir();
+    }
+
+    private static boolean isCanonicalVirtualRoot(File root) {
+        if (root == null) {
+            return false;
+        }
+        String hostPkg = resolveStorageHostPkg();
+        if (hostPkg == null || hostPkg.isEmpty()) {
+            return true;
+        }
+        String path = root.getAbsolutePath();
+        return path.contains("/" + hostPkg + "/")
+                && path.endsWith("/" + VIRTUAL_ROOT_DIR);
+    }
+
+    private static void resetVirtualRootsIfNeeded() {
+        File canonical = new File(resolveHostFilesDir(), VIRTUAL_ROOT_DIR);
+        if (sVirtualRoot != null) {
+            String path = sVirtualRoot.getAbsolutePath();
+            String hostPkg = resolveStorageHostPkg();
+            boolean wrongHost = hostPkg != null && !path.contains("/" + hostPkg + "/");
+            if (!canonical.equals(sVirtualRoot) || wrongHost) {
+                migrateLeakedTrees(sVirtualRoot, canonical);
+                sVirtualRoot = null;
+                sExternalVirtualRoot = null;
+            }
+        }
+    }
+
     private static File requireVirtualRoot() {
         if (sVirtualRoot == null) {
             synchronized (BEnvironment.class) {
                 if (sVirtualRoot == null) {
-                    Context ctx = AnubisCore.getContext();
-                    if (ctx == null) {
-                        throw new IllegalStateException(
-                                "BEnvironment: AnubisCore.getContext() is null; init Anubis before BEnvironment paths.");
-                    }
-                    sVirtualRoot = new File(ctx.getFilesDir(), VIRTUAL_ROOT_DIR);
+                    sVirtualRoot = new File(resolveHostFilesDir(), VIRTUAL_ROOT_DIR);
                 }
             }
         }
@@ -68,7 +120,9 @@ public class BEnvironment {
     }
 
     public static void load() {
+        resetVirtualRootsIfNeeded();
         migrateLegacyVirtualRootIfNeeded();
+        migrateGuestPackageLeaksIfNeeded();
         FileUtils.mkdirs(requireVirtualRoot());
         FileUtils.mkdirs(requireExternalVirtualRoot());
         FileUtils.mkdirs(new File(getExternalUserDir(0), "Android/obb"));
@@ -102,6 +156,11 @@ public class BEnvironment {
 
     public static File getVirtualRoot() {
         return requireVirtualRoot();
+    }
+
+    /** Host {@code files/} dir that owns {@link #VIRTUAL_ROOT_DIR} — for diagnostics. */
+    public static File getHostFilesAnchor() {
+        return resolveHostFilesDir();
     }
 
     public static File getExternalVirtualRoot() {
@@ -316,18 +375,95 @@ public class BEnvironment {
 
     /** Guest/host was using {@code localhost} as virtual root — rename once to {@link #VIRTUAL_ROOT_DIR}. */
     private static void migrateLegacyVirtualRootIfNeeded() {
-        Context ctx = AnubisCore.getContext();
-        if (ctx == null) {
-            return;
-        }
-        File parent = ctx.getCacheDir() != null ? ctx.getCacheDir().getParentFile() : null;
+        File hostFiles = resolveHostFilesDir();
+        File parent = hostFiles.getParentFile();
         if (parent == null) {
             return;
         }
         File legacy = new File(parent, LEGACY_VIRTUAL_ROOT_DIR);
-        File target = new File(ctx.getFilesDir(), VIRTUAL_ROOT_DIR);
+        File target = new File(hostFiles, VIRTUAL_ROOT_DIR);
         if (legacy.isDirectory() && !target.exists()) {
             legacy.renameTo(target);
+        }
+        // Older leak: data tree directly under host files/ without .vfs
+        File leakedData = new File(hostFiles, "data/user");
+        if (leakedData.isDirectory()) {
+            migrateLeakedTrees(new File(hostFiles, "data"), new File(target, "data"));
+        }
+        File leakedStorage = new File(hostFiles, "storage");
+        if (leakedStorage.isDirectory()) {
+            migrateLeakedTrees(leakedStorage, new File(target, "storage/emulated"));
+        }
+    }
+
+    /** e.g. /data/user/0/com.miraclegames.farlight84/files/data/user/0/... */
+    private static void migrateGuestPackageLeaksIfNeeded() {
+        String hostPkg = resolveStorageHostPkg();
+        if (hostPkg == null) {
+            return;
+        }
+        int userId = AnubisCore.getHostUserId();
+        File userRoot = new File(String.format(Locale.US, "/data/user/%d", userId));
+        if (!userRoot.isDirectory()) {
+            return;
+        }
+        File canonicalVfs = new File(resolveHostFilesDir(), VIRTUAL_ROOT_DIR);
+        File[] children = userRoot.listFiles();
+        if (children == null) {
+            return;
+        }
+        for (File child : children) {
+            if (child == null || !child.isDirectory()) {
+                continue;
+            }
+            String name = child.getName();
+            if (hostPkg.equals(name)) {
+                continue;
+            }
+            File guestFiles = new File(child, "files");
+            File leakData = new File(guestFiles, "data/user");
+            if (leakData.isDirectory()) {
+                migrateLeakedTrees(leakData, new File(canonicalVfs, "data/user"));
+            }
+            File leakStorage = new File(guestFiles, "storage");
+            if (leakStorage.isDirectory()) {
+                migrateLeakedTrees(leakStorage, new File(canonicalVfs, "storage/emulated"));
+            }
+        }
+    }
+
+    private static void migrateLeakedTrees(File source, File target) {
+        if (source == null || target == null || !source.isDirectory()) {
+            return;
+        }
+        if (source.equals(target) || target.getAbsolutePath().startsWith(source.getAbsolutePath() + "/")) {
+            return;
+        }
+        FileUtils.mkdirs(target.getParentFile());
+        mergeTree(source, target);
+    }
+
+    private static void mergeTree(File source, File target) {
+        if (source == null || target == null || !source.exists()) {
+            return;
+        }
+        if (source.isDirectory()) {
+            FileUtils.mkdirs(target);
+            File[] children = source.listFiles();
+            if (children == null) {
+                return;
+            }
+            for (File child : children) {
+                mergeTree(child, new File(target, child.getName()));
+            }
+            return;
+        }
+        if (!target.isFile() || target.length() != source.length()) {
+            try {
+                FileUtils.mkdirs(target.getParentFile());
+                FileUtils.copyFile(source, target);
+            } catch (IOException ignored) {
+            }
         }
     }
 

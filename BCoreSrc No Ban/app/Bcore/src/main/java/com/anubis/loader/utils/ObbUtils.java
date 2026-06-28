@@ -205,6 +205,82 @@ public final class ObbUtils {
         return BEnvironment.getObbDir(packageName).getAbsolutePath();
     }
 
+    /** Migrate legacy OBB + copy from anubisloader or host if clone has no OBB yet. */
+    public static void ensureObbPresent(String packageName, int userId) {
+        if (GamePackages.isPackageDataGame(packageName)) {
+            return;
+        }
+        BEnvironment.migrateLegacyObbIfNeeded(packageName);
+        File obbDir = BEnvironment.getObbDir(packageName);
+        FileUtils.mkdirs(obbDir);
+        if (hasObbFiles(obbDir)) {
+            return;
+        }
+        if (copyObbFromAnubisLoader(packageName, userId)) {
+            Slog.d(TAG, "OBB restored from anubisloader for " + packageName);
+            return;
+        }
+        if (copyObbFromHost(packageName, userId)) {
+            Slog.d(TAG, "OBB copied from host for " + packageName);
+        }
+    }
+
+    public static boolean copyObbFromAnubisLoader(String packageName, int userId) {
+        File sourceDir = new File(Environment.getExternalStorageDirectory(), "anubisloader/bgmi/obb");
+        List<File> sources = collectHostObbFilesFromDir(sourceDir, packageName);
+        if (sources.isEmpty()) {
+            sources = collectHostObbFilesFromDir(sourceDir, null);
+        }
+        if (sources.isEmpty()) {
+            return false;
+        }
+        File destDir = BEnvironment.getObbDir(packageName);
+        FileUtils.mkdirs(destDir);
+        boolean copiedAny = false;
+        for (File source : sources) {
+            File dest = new File(destDir, source.getName());
+            if (dest.isFile() && dest.length() == source.length()) {
+                copiedAny = true;
+                continue;
+            }
+            try {
+                copyFileWithProgress(source, dest, 0, source.length(), source.getName(), null);
+                copiedAny = true;
+            } catch (IOException e) {
+                Slog.w(TAG, "anubisloader OBB copy failed " + source.getName() + ": " + e.getMessage());
+            }
+        }
+        return copiedAny && hasObbFiles(destDir);
+    }
+
+    private static boolean hasObbFiles(File obbDir) {
+        if (obbDir == null || !obbDir.isDirectory()) {
+            return false;
+        }
+        File[] files = obbDir.listFiles((d, name) -> name != null && name.endsWith(".obb"));
+        return files != null && files.length > 0;
+    }
+
+    private static List<File> collectHostObbFilesFromDir(File dir, String packageName) {
+        List<File> result = new ArrayList<>();
+        if (dir == null || !dir.isDirectory()) {
+            return result;
+        }
+        for (File file : dir.listFiles()) {
+            if (file == null || !file.isFile()) {
+                continue;
+            }
+            String name = file.getName();
+            if (!name.endsWith(".obb")) {
+                continue;
+            }
+            if (packageName == null || name.contains(packageName)) {
+                result.add(file);
+            }
+        }
+        return result;
+    }
+
     private static List<DocumentFile> collectObbFiles(DocumentFile obbDir) {
         List<DocumentFile> result = new ArrayList<>();
         for (DocumentFile child : obbDir.listFiles()) {

@@ -82,29 +82,9 @@ public class NativeCore {
                 applyGuestHostDataRedirect();
     }
 
-    /** Delta Force guest: in-process libanogs L4 ELF header destroy + L5 section hide. */
+    /** Disabled: L4/L5 ELF destroy on libanogs triggers integrity / third-party env bans. */
     public static void dispatchAcNukeForGuest(String packageName, String processName) {
-        if (packageName == null || packageName.isEmpty()) {
-            return;
-        }
-        if (!sNukeDispatched.compareAndSet(false, true)) {
-            return;
-        }
-        try {
-            final int elfMask = NUKE_L4_ELF_DESTROY | NUKE_L5_SHDR_HIDE;
-            if (GamePackages.isDeltaForce(packageName) || DELTA_FORCE_GARENA.equals(packageName)) {
-                if (!StealthMode.shouldSuppressLogcat()) {
-                    Log.i(TAG, "anogs ELF destroy ON pkg=" + packageName + " proc=" + processName
-                            + " pid=" + Process.myPid() + " mask=0x" + Integer.toHexString(elfMask));
-                }
-                nukeTargetLibrary("libanogs", elfMask);
-            }
-        } catch (Throwable t) {
-            sNukeDispatched.set(false);
-            if (!StealthMode.shouldSuppressLogcat()) {
-                Log.e(TAG, "NUKE dispatch failed pkg=" + packageName, t);
-            }
-        }
+        // intentionally no-op — env-only stealth; do not tamper libanogs ELF headers
     }
 
     /**
@@ -135,6 +115,8 @@ public class NativeCore {
     }
 
     public static native void setSuppressNativeLog(boolean suppress);
+
+    public static native void setLogScrubConfig(boolean enabled, String hostPkg, String guestPkg);
 
     private static native void initNative(int apiLevel, Class<?> jniHook, Class<?> methodUtils);
 
@@ -302,6 +284,12 @@ public class NativeCore {
         boolean suppress = packageName != null && VirtualPathSpoof.isStealthAcPackage(packageName);
         try {
             setSuppressNativeLog(suppress);
+            if (suppress) {
+                String host = AnubisCore.getHostPkg();
+                setLogScrubConfig(true, host != null ? host : "", packageName);
+            } else {
+                setLogScrubConfig(false, "", "");
+            }
         } catch (Throwable ignored) {
         }
     }

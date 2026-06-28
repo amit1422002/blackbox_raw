@@ -12,6 +12,7 @@ import com.anubis.loader.AnubisCore;
 import com.anubis.loader.fake.delegate.AppInstrumentation;
 import com.anubis.loader.fake.service.HCallbackProxy;
 import com.anubis.loader.fake.service.IAccessibilityManagerProxy;
+import com.anubis.loader.fake.service.IAudioServiceProxy;
 import com.anubis.loader.fake.service.GmsProxy;
 import com.anubis.loader.gms.GmsAccountManagerProxy;
 import com.anubis.loader.fake.service.IActivityClientProxy;
@@ -88,6 +89,7 @@ public class HookManager {
             addInjector(new ITelephonyManagerProxy());
             addInjector(new HCallbackProxy());
             addInjector(new IAppOpsManagerProxy());
+            addInjector(new IAudioServiceProxy());
             addInjector(new INotificationManagerProxy());
             addInjector(new IAlarmManagerProxy());
             addInjector(new IAppWidgetManagerProxy());
