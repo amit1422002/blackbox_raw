@@ -14,13 +14,16 @@ namespace {
 
 std::mutex g_mutex;
 bool g_enabled = false;
+bool g_hooks_installed = false;
 std::string g_hostPkg;
 std::string g_guestPkg;
 
 typedef int (*log_print_fn)(int, const char *, const char *, ...);
+typedef int (*log_vprint_fn)(int, const char *, const char *, va_list);
 typedef int (*log_buf_write_fn)(int, const char *, const char *, const char *);
 
 static log_print_fn orig_log_print = nullptr;
+static log_vprint_fn orig_log_vprint = nullptr;
 static log_buf_write_fn orig_log_buf_write = nullptr;
 
 static void replaceAll(std::string &s, const std::string &from, const std::string &to) {
@@ -37,9 +40,6 @@ static void replaceAll(std::string &s, const std::string &from, const std::strin
 static std::string scrub(const char *msg) {
     if (msg == nullptr) {
         return {};
-    }
-    if (!g_enabled) {
-        return msg;
     }
     std::string out(msg);
     if (!g_hostPkg.empty() && !g_guestPkg.empty()) {
@@ -73,7 +73,20 @@ static bool isAuditLogTag(const char *tag) {
             && (strcmp(tag, "FARLIGHT_PATH") == 0 || strcmp(tag, "DELTA_PATH") == 0
                 || strcmp(tag, "GUEST_AC_BYPASS") == 0 || strcmp(tag, "block-anogs") == 0
                 || strcmp(tag, "ANOGS_PATCH") == 0 || strcmp(tag, "NERTC_PATCH") == 0
-                || strcmp(tag, "PUBG_AYAN_F2") == 0);
+                || strcmp(tag, "PUBG_AYAN_F2") == 0
+                || strcmp(tag, "HTPROTECT_FARLIGHT") == 0);
+}
+
+static bool likelyNeedsScrub(const char *msg) {
+    if (msg == nullptr) {
+        return false;
+    }
+    return strstr(msg, "anubis") != nullptr || strstr(msg, "blackbox") != nullptr
+            || strstr(msg, "bcore") != nullptr || strstr(msg, ".vfs") != nullptr
+            || strstr(msg, "artpalette") != nullptr || strstr(msg, "guestloginhook") != nullptr
+            || strstr(msg, "niunaijun") != nullptr || strstr(msg, "loader.proxy") != nullptr
+            || strstr(msg, "/files/data/app/") != nullptr
+            || strstr(msg, "/files/storage/emulated/") != nullptr;
 }
 
 static int fake_log_print(int prio, const char *tag, const char *fmt, ...) {
@@ -82,10 +95,17 @@ static int fake_log_print(int prio, const char *tag, const char *fmt, ...) {
     }
     va_list ap;
     va_start(ap, fmt);
+  if (!g_enabled || isAuditLogTag(tag)) {
+        int ret = orig_log_vprint != nullptr
+                ? orig_log_vprint(prio, tag, fmt != nullptr ? fmt : "", ap)
+                : 0;
+        va_end(ap);
+        return ret;
+    }
     char buf[4096];
     vsnprintf(buf, sizeof(buf), fmt != nullptr ? fmt : "", ap);
     va_end(ap);
-    if (!g_enabled || isAuditLogTag(tag)) {
+    if (!likelyNeedsScrub(buf)) {
         return orig_log_print(prio, tag, "%s", buf);
     }
     std::string cleaned = scrub(buf);
@@ -96,7 +116,7 @@ static int fake_log_buf_write(int bufId, const char *prio, const char *tag, cons
     if (orig_log_buf_write == nullptr) {
         return 0;
     }
-    if (!g_enabled || msg == nullptr || isAuditLogTag(tag)) {
+    if (!g_enabled || msg == nullptr || isAuditLogTag(tag) || !likelyNeedsScrub(msg)) {
         return orig_log_buf_write(bufId, prio, tag, msg);
     }
     std::string cleaned = scrub(msg);
@@ -111,6 +131,20 @@ static bool hookSym(void *handle, const char *name, void *replace, void **orig) 
     return DobbyHook(sym, replace, orig) == 0;
 }
 
+static void ensureHooksInstalled() {
+    if (g_hooks_installed) {
+        return;
+    }
+    void *liblog = dlopen("liblog.so", RTLD_NOW);
+    if (liblog == nullptr) {
+        return;
+    }
+    orig_log_vprint = (log_vprint_fn) dlsym(liblog, "__android_log_vprint");
+    hookSym(liblog, "__android_log_print", (void *) fake_log_print, (void **) &orig_log_print);
+    hookSym(liblog, "__android_log_buf_write", (void *) fake_log_buf_write, (void **) &orig_log_buf_write);
+    g_hooks_installed = true;
+}
+
 } // namespace
 
 void LogScrubHook::setConfig(bool enabled, const char *hostPkg, const char *guestPkg) {
@@ -118,18 +152,11 @@ void LogScrubHook::setConfig(bool enabled, const char *hostPkg, const char *gues
     g_enabled = enabled;
     g_hostPkg = hostPkg != nullptr ? hostPkg : "";
     g_guestPkg = guestPkg != nullptr ? guestPkg : "";
+    if (enabled) {
+        ensureHooksInstalled();
+    }
 }
 
 void LogScrubHook::init() {
-    static bool installed = false;
-    if (installed) {
-        return;
-    }
-    void *liblog = dlopen("liblog.so", RTLD_NOW);
-    if (liblog == nullptr) {
-        return;
-    }
-    hookSym(liblog, "__android_log_print", (void *) fake_log_print, (void **) &orig_log_print);
-    hookSym(liblog, "__android_log_buf_write", (void *) fake_log_buf_write, (void **) &orig_log_buf_write);
-    installed = true;
+    // Hooks installed lazily on setConfig(true) — avoids UE4 FPS hit when scrub is off.
 }

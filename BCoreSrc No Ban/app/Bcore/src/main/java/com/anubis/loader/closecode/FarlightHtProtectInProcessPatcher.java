@@ -15,6 +15,7 @@ public final class FarlightHtProtectInProcessPatcher {
                     "com.farlightgames.farlight84.gray",
             },
             FarlightHtProtectConfig.MIN_MAPPED_BYTES,
+            true,
             FarlightHtProtectConfig.LIBRARIES
     );
 

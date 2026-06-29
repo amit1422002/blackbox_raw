@@ -9,6 +9,8 @@ public final class AyanStylePatchProfile {
     final String threadName;
     final String[] packageNames;
     final long minMappedBytes;
+    /** When true, patcher thread exits after all patches stick (Farlight / UE4 FPS). */
+    final boolean exitWhenQuiescent;
     final LibPatches[] libraries;
 
     public AyanStylePatchProfile(String logTag, String... packageNames) {
@@ -17,15 +19,21 @@ public final class AyanStylePatchProfile {
 
     public AyanStylePatchProfile(String logTag, String primaryPkg, String secondaryPkg,
                                  long minMappedBytes, LibPatches... libraries) {
-        this(logTag, new String[] {primaryPkg, secondaryPkg}, minMappedBytes, libraries);
+        this(logTag, new String[] {primaryPkg, secondaryPkg}, minMappedBytes, false, libraries);
     }
 
     public AyanStylePatchProfile(String logTag, String[] packageNames, long minMappedBytes,
                                  LibPatches... libraries) {
+        this(logTag, packageNames, minMappedBytes, false, libraries);
+    }
+
+    public AyanStylePatchProfile(String logTag, String[] packageNames, long minMappedBytes,
+                                 boolean exitWhenQuiescent, LibPatches... libraries) {
         this.logTag = logTag;
         this.threadName = logTag.toLowerCase() + "-patcher";
         this.packageNames = packageNames;
         this.minMappedBytes = minMappedBytes;
+        this.exitWhenQuiescent = exitWhenQuiescent;
         this.libraries = libraries != null ? libraries : new LibPatches[0];
     }
 

@@ -52,15 +52,25 @@ public class OsStub extends ClassInvocationStub {
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         if (args != null) {
-            for (int i = 0; i < args.length; i++) {
-                if (args[i] == null)
-                    continue;
-                if (args[i] instanceof String && ((String) args[i]).startsWith("/")) {
-                    String orig = (String) args[i];
-                    args[i] = IOCore.get().redirectPath(orig);
-//                    if (!ObjectsCompat.equals(orig, args[i])) {
-//                        Log.d(TAG, "redirectPath: " + orig + "  => " + args[i]);
-//                    }
+            String name = method.getName();
+            boolean touchesPath = name.equals("open")
+                    || name.equals("stat")
+                    || name.equals("lstat")
+                    || name.equals("access")
+                    || name.equals("chmod")
+                    || name.equals("chown")
+                    || name.equals("rename")
+                    || name.equals("mkdir")
+                    || name.equals("readlink")
+                    || name.equals("unlink");
+            if (touchesPath) {
+                for (int i = 0; i < args.length; i++) {
+                    if (args[i] instanceof String) {
+                        String orig = (String) args[i];
+                        if (orig.startsWith("/") && IOCore.pathMayNeedRedirect(orig)) {
+                            args[i] = IOCore.get().redirectPath(orig);
+                        }
+                    }
                 }
             }
         }

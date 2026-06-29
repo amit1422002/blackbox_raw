@@ -29,19 +29,34 @@ static bool is_proc_path(const char *path) {
     return path != nullptr && strncmp(path, "/proc/", 6) == 0;
 }
 
-static const char *redirect_io_path(const char *path) {
+static bool path_needs_native_redirect(const char *path) {
     if (path == nullptr) {
-        return path;
-    }
-    if (strstr(path, "/.vfs/") != nullptr) {
-        const char *redirected = IO::redirectPath(path);
-        return redirected;
+        return false;
     }
     if (strncmp(path, "/proc/", 6) == 0) {
-        return IO::redirectPath(path);
+        return true;
     }
-    const char *redirected = IO::redirectPath(path);
-    return redirected;
+    if (strstr(path, "/.vfs/") != nullptr) {
+        return false;
+    }
+    if (strncmp(path, "/storage/", 9) == 0
+            || strncmp(path, "/sdcard/", 8) == 0
+            || strncmp(path, "/data/", 6) == 0
+            || strncmp(path, "/mnt/", 5) == 0
+            || strncmp(path, "/data/app/", 10) == 0) {
+        return true;
+    }
+    if (strstr(path, "anubis") != nullptr || strstr(path, "blackbox") != nullptr) {
+        return true;
+    }
+    return false;
+}
+
+static const char *redirect_io_path(const char *path) {
+    if (path == nullptr || !path_needs_native_redirect(path)) {
+        return path;
+    }
+    return IO::redirectPath(path);
 }
 
 static const char *redirect_proc_path(const char *path) {
@@ -196,7 +211,6 @@ void ProcFsHook::init(JNIEnv *env) {
     hook_sym(libc, "open", (void *) fake_open, (void **) &orig_open);
     hook_sym(libc, "fopen", (void *) fake_fopen, (void **) &orig_fopen);
     hook_sym(libc, "readlinkat", (void *) fake_readlinkat, (void **) &orig_readlinkat);
-    hook_sym(libc, "syscall", (void *) fake_syscall, (void **) &orig_syscall);
     installed = true;
-    ALOGD("ProcFsHook installed (proc + io redirect)");
+    ALOGD("ProcFsHook installed (open/openat/fopen/readlinkat)");
 }

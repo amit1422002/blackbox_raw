@@ -20,6 +20,7 @@ import com.anubis.loader.fake.hook.IInjectHook;
 import com.anubis.loader.fake.service.HCallbackProxy;
 import com.anubis.loader.fake.service.IActivityClientProxy;
 import com.anubis.loader.core.NativeCore;
+import com.anubis.loader.core.env.GamePackages;
 import com.anubis.loader.utils.GuestPathContext;
 import com.anubis.loader.utils.HackAppUtils;
 import com.anubis.loader.utils.VirtualPathSpoof;
@@ -146,13 +147,21 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
         return super.newApplication(cl, className, context);
     }
 
+    private static boolean shouldRefreshProcForGuest(String guestPkg) {
+        if (guestPkg == null || !VirtualPathSpoof.isStealthAcPackage(guestPkg)) {
+            return false;
+        }
+        return !GamePackages.isFarlight(guestPkg)
+                && !"com.farlightgames.farlight84.gray".equals(guestPkg);
+    }
+
     @Override
     public void callActivityOnCreate(Activity activity, Bundle icicle, PersistableBundle persistentState) {
         checkActivity(activity);
         String guestPkg = BActivityThread.getAppPackageName();
         if (guestPkg != null) {
             GuestPathContext.wrapIfNeeded(activity, guestPkg);
-            if (VirtualPathSpoof.isStealthAcPackage(guestPkg)) {
+            if (shouldRefreshProcForGuest(guestPkg)) {
                 NativeCore.refreshStealthProcLightAsync();
             }
         }
@@ -165,7 +174,7 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
         String guestPkg = BActivityThread.getAppPackageName();
         if (guestPkg != null) {
             GuestPathContext.wrapIfNeeded(activity, guestPkg);
-            if (VirtualPathSpoof.isStealthAcPackage(guestPkg)) {
+            if (shouldRefreshProcForGuest(guestPkg)) {
                 NativeCore.refreshStealthProcLightAsync();
             }
         }
@@ -186,7 +195,7 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
     public void callActivityOnResume(Activity activity) {
         super.callActivityOnResume(activity);
         String guestPkg = BActivityThread.getAppPackageName();
-        if (guestPkg != null && VirtualPathSpoof.isStealthAcPackage(guestPkg)) {
+        if (shouldRefreshProcForGuest(guestPkg)) {
             NativeCore.refreshStealthProcLightAsync();
         }
     }

@@ -33,6 +33,6 @@ public final class FarlightNertcInProcessPatcher {
             Slog.w(TAG, "context re-fix failed: " + t.getMessage());
         }
         GmsBootHelper.ensureBootable(BActivityThread.getUserId());
-        NativeCore.refreshStealthProcNowAsync();
+        // Proc scrub at fork (BProcessManagerService) — skip duplicate full maps rewrite here.
     }
 }

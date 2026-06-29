@@ -59,9 +59,74 @@ final class MemPatchUtil {
         }
     }
 
+    /** Tracks applied patches so idle polls skip /proc scans. */
+    static final class PatchSession {
+        private final int expectedPatches;
+        private final java.util.Set<String> stable = new java.util.HashSet<>();
+        private String cachedMaps;
+        private long cachedMapsAt;
+
+        PatchSession(int expectedPatches) {
+            this.expectedPatches = expectedPatches;
+        }
+
+        boolean isQuiescent() {
+            return expectedPatches > 0 && stable.size() >= expectedPatches;
+        }
+
+        void clearStable() {
+            stable.clear();
+            cachedMaps = null;
+        }
+
+        void onNewInode() {
+            clearStable();
+        }
+
+        private static String key(String inode, long offset) {
+            return inode + ":" + Long.toHexString(offset);
+        }
+
+        boolean isStable(String inode, long offset) {
+            return stable.contains(key(inode, offset));
+        }
+
+        void markStable(String inode, long offset) {
+            stable.add(key(inode, offset));
+        }
+
+        String cachedMaps(long maxAgeMs) {
+            long now = System.currentTimeMillis();
+            if (cachedMaps != null && now - cachedMapsAt <= maxAgeMs) {
+                return cachedMaps;
+            }
+            return null;
+        }
+
+        void putCachedMaps(String maps) {
+            cachedMaps = maps;
+            cachedMapsAt = System.currentTimeMillis();
+        }
+    }
+
     static List<Mapping> findAllMappings(String libName, long minMappedBytes) {
+        return findAllMappings(libName, minMappedBytes, null);
+    }
+
+    static List<Mapping> findAllMappings(String libName, long minMappedBytes, PatchSession session) {
         Map<String, Mapping> groups = new HashMap<>();
-        try (BufferedReader br = new BufferedReader(new StringReader(readMapsText()))) {
+        try {
+            String mapsText = null;
+            if (session != null) {
+                mapsText = session.cachedMaps(3000L);
+            }
+            if (mapsText == null) {
+                mapsText = readMapsText();
+                if (session != null) {
+                    session.putCachedMaps(mapsText);
+                }
+            }
+            BufferedReader br = new BufferedReader(new StringReader(mapsText));
             String line;
             while ((line = br.readLine()) != null) {
                 if (!lineMatchesLib(line, libName)) {
@@ -102,22 +167,40 @@ final class MemPatchUtil {
 
     static int patchAllMappings(String libName, Patch[] patches, long minMappedBytes,
                                 java.util.Set<String> inodeSet, int polls, String logTag) {
-        List<Mapping> targets = findAllMappings(libName, minMappedBytes);
+        return patchAllMappings(libName, patches, minMappedBytes, inodeSet, polls, logTag, null);
+    }
+
+    static int patchAllMappings(String libName, Patch[] patches, long minMappedBytes,
+                                java.util.Set<String> inodeSet, int polls, String logTag,
+                                PatchSession session) {
+        List<Mapping> targets = findAllMappings(libName, minMappedBytes, session);
         int writes = 0;
         for (Mapping m : targets) {
             if (!inodeSet.contains(m.inode)) {
                 inodeSet.add(m.inode);
+                if (session != null) {
+                    session.onNewInode();
+                }
                 com.anubis.loader.utils.Slog.i(logTag, "mapped " + libName + " inode=" + m.inode
                         + " base=0x" + Long.toHexString(m.minStart)
                         + " bytes=" + m.totalBytes);
             }
             for (Patch p : patches) {
-                long patchAddr = m.minStart + p.offset;
-                if (!needsPatch(patchAddr, p.bytes)) {
+                if (session != null && session.isStable(m.inode, p.offset)) {
                     continue;
                 }
+                long patchAddr = m.minStart + p.offset;
                 if (tryNativePatchAt(patchAddr, p, libName, logTag, polls)) {
                     writes++;
+                    if (session != null) {
+                        session.markStable(m.inode, p.offset);
+                    }
+                    continue;
+                }
+                if (!needsPatch(patchAddr, p.bytes)) {
+                    if (session != null) {
+                        session.markStable(m.inode, p.offset);
+                    }
                     continue;
                 }
                 if (p.expected != null && !looksLikePatchTarget(patchAddr, p, libName, logTag)) {
@@ -126,6 +209,10 @@ final class MemPatchUtil {
                 byte[] before = readSelf(patchAddr, p.bytes.length);
                 if (writeSelf(patchAddr, p.bytes) && verifySelf(patchAddr, p.bytes)) {
                     writes++;
+                    if (session != null) {
+                        session.markStable(m.inode, p.offset);
+                        session.cachedMaps = null;
+                    }
                     com.anubis.loader.utils.Slog.w(logTag, "PATCH_OK [" + libName + "] offset=0x"
                             + Long.toHexString(p.offset)
                             + " addr=0x" + Long.toHexString(patchAddr)
@@ -183,9 +270,6 @@ final class MemPatchUtil {
                             + Long.toHexString(p.offset) + " addr=0x"
                             + Long.toHexString(patchAddr) + " poll#" + polls);
                 }
-                return false;
-            }
-            if (needsPatch(patchAddr, p.bytes)) {
                 return false;
             }
             com.anubis.loader.utils.Slog.w(logTag, "PATCH_OK [" + libName + "] offset=0x"

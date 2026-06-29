@@ -82,14 +82,35 @@ public class IOCore {
     NativeCore.addIORule(origPath, redirectPath);
   }
 
+  public static boolean pathMayNeedRedirect(String path) {
+    if (TextUtils.isEmpty(path)) {
+      return false;
+    }
+    if (path.contains("/" + BEnvironment.VIRTUAL_ROOT_DIR + "/")
+        || path.contains("/" + ContainerPathStealth.INTERNAL_CACHE_SEGMENT)) {
+      return false;
+    }
+    if (path.startsWith("/proc/")
+        || path.startsWith("/storage/")
+        || path.startsWith("/sdcard/")
+        || path.startsWith("/data/")
+        || path.startsWith("/mnt/")
+        || path.startsWith("/data/app/")) {
+      return true;
+    }
+    return path.contains("anubis") || path.contains("blackbox");
+  }
+
   public String redirectPath(String path) {
     if (TextUtils.isEmpty(path)) return path;
     if (isInternalRedirectActive()) {
       return path;
     }
-    // Already redirected (native + Java must agree — GMS SQLite breaks on nested .vfs paths).
     if (path.contains("/" + BEnvironment.VIRTUAL_ROOT_DIR + "/")
         || path.contains("/" + ContainerPathStealth.INTERNAL_CACHE_SEGMENT)) {
+      return path;
+    }
+    if (!pathMayNeedRedirect(path)) {
       return path;
     }
     for (String real : mRedirectMap.values()) {

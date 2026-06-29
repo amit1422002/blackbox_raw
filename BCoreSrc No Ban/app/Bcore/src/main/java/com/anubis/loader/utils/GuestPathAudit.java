@@ -33,10 +33,7 @@ public final class GuestPathAudit {
     }
 
     public static void logIfFarlight(Context context, String packageName, int userId) {
-        if (!GamePackages.isFarlight(packageName) && !isFarlightGray(packageName)) {
-            return;
-        }
-        runAudit(context, packageName, userId, TAG_FARLIGHT, "farlight_path_audit.txt", true, false);
+        // Startup audit spam hits liblog thousands of times — skip for UE4 FPS.
     }
 
     public static void logIfDeltaForce(Context context, String packageName, int userId) {

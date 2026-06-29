@@ -291,7 +291,7 @@ public class NativeCore {
         boolean suppress = packageName != null && VirtualPathSpoof.isStealthAcPackage(packageName);
         try {
             setSuppressNativeLog(suppress);
-            if (suppress) {
+            if (suppress && !isFarlightGuest()) {
                 String host = AnubisCore.getHostPkg();
                 setLogScrubConfig(true, host != null ? host : "", packageName);
             } else {
@@ -323,6 +323,8 @@ public class NativeCore {
         }
     }
 
+    private static volatile long sLastLightProcRefreshMs;
+
     /** Proc scrub reads/writes full /proc — never run on the main thread (UE4 ANR on loading screen). */
     public static void refreshStealthProcNowAsync() {
         android.os.Handler h = AnubisCore.get().getHandler();
@@ -334,6 +336,11 @@ public class NativeCore {
     }
 
     public static void refreshStealthProcLightAsync() {
+        long now = System.currentTimeMillis();
+        if (now - sLastLightProcRefreshMs < 30_000L) {
+            return;
+        }
+        sLastLightProcRefreshMs = now;
         android.os.Handler h = AnubisCore.get().getHandler();
         if (h != null) {
             h.post(NativeCore::refreshStealthProcLight);
@@ -354,6 +361,10 @@ public class NativeCore {
 
     public static void hideSelfLoaderFromAc() {
         try {
+            if (isFarlightGuest()) {
+                // Fake /proc written at guest fork (BProcessManagerService). No runtime scrub — UE4 FPS.
+                return;
+            }
             refreshStealthProcNowAsync();
             if (sStealthProcScheduleStarted) {
                 return;
@@ -361,15 +372,21 @@ public class NativeCore {
             sStealthProcScheduleStarted = true;
             android.os.Handler h = AnubisCore.get().getHandler();
             if (h != null) {
-                scheduleMapsRefresh(h, 2000, true);
-                scheduleMapsRefresh(h, 5000, true);
-                scheduleMapsRefresh(h, 15000, true);
-                scheduleMapsRefresh(h, 45000, false);
-                // Lobby/login loads AC late — keep scrubbing /proc/maps after early boot window.
-                schedulePeriodicMapsRefresh(h, 60_000, 20_000, 45);
+                // Timed maps scrub — disabled; caused multi-second hitches during loading/gameplay.
+                // scheduleMapsRefresh(h, 2000, true);
+                // scheduleMapsRefresh(h, 5000, true);
+                // scheduleMapsRefresh(h, 15000, true);
+                // scheduleMapsRefresh(h, 45000, false);
+                // schedulePeriodicMapsRefresh(h, 60_000, 45_000, 20);
             }
         } catch (Throwable ignored) {
         }
+    }
+
+    private static boolean isFarlightGuest() {
+        String pkg = BActivityThread.getAppPackageName();
+        return pkg != null && (GamePackages.isFarlight(pkg)
+                || "com.farlightgames.farlight84.gray".equals(pkg));
     }
 
     private static void scheduleMapsRefresh(android.os.Handler h, long delayMs, boolean light) {
