@@ -14,6 +14,7 @@ import com.anubis.app.rocker.RockerManager
 import com.anubis.biz.cache.AppSharedPreferenceDelegate
 import com.anubis.loader.utils.StealthMode
 import com.anubis.skin.GuestLoginLifecycleCallback
+import com.anubis.skin.FarlightEspLifecycleCallback
 
 
 class AnubisLoader {
@@ -125,6 +126,7 @@ class AnubisLoader {
     fun addLifecycleCallback() {
         try {
             AnubisCore.get().addAppLifecycleCallback(GuestLoginLifecycleCallback())
+            AnubisCore.get().addAppLifecycleCallback(FarlightEspLifecycleCallback())
             AnubisCore.get()
                     .addAppLifecycleCallback(
                             object : AppLifecycleCallback() {

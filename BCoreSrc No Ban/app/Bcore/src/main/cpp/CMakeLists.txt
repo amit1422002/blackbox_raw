@@ -11,6 +11,7 @@ cmake_minimum_required(VERSION 3.4.1)
 # Gradle automatically packages shared libraries with your APK.
 include_directories(JniHook)
 include_directories(./)
+include_directories(./esp_protocol)
 
 aux_source_directory(./ SRC1)
 aux_source_directory(Utils SRC2)
@@ -23,6 +24,7 @@ add_library( # Sets the name of the library.
         SHARED
         # Provides a relative path to your source file(s).
         BoxCore.cpp
+        FarlightEspSocketServer.cpp
         hidden_api.cpp
         SandHook/ElfImg.cpp
         Hook/DexFileHook.cpp

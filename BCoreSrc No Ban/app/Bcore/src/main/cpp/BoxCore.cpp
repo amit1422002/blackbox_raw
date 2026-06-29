@@ -18,6 +18,8 @@
 #include <Hook/LogScrubHook.h>
 #include "Utils/HexDump.h"
 #include "Utils/MemfdElfLoader.h"
+#include "FarlightEspSocketServer.h"
+#include "esp_protocol/farlight_esp_protocol.h"
 #include "hidden_api.h"
 #include "block-anogs.hpp"
 
@@ -25,6 +27,8 @@
 #include <thread>
 #include <stdlib.h>
 #include <cstring>
+#include <dlfcn.h>
+#include <mutex>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -318,22 +322,7 @@ static jlong getMappedLibraryBase(JNIEnv *env, jclass, jstring libName) {
     return reinterpret_cast<jlong>(base);
 }
 
-static jboolean memfdLoadElf(JNIEnv *env, jclass, jbyteArray jElf) {
-    if (jElf == nullptr) {
-        return JNI_FALSE;
-    }
-    jsize len = env->GetArrayLength(jElf);
-    if (len < 1024) {
-        return JNI_FALSE;
-    }
-    jbyte *bytes = env->GetByteArrayElements(jElf, nullptr);
-    if (bytes == nullptr) {
-        return JNI_FALSE;
-    }
-    bool ok = hasad_load_elf_from_memory(bytes, static_cast<size_t>(len));
-    env->ReleaseByteArrayElements(jElf, bytes, JNI_ABORT);
-    return ok ? JNI_TRUE : JNI_FALSE;
-}
+static jboolean memfdLoadElf(JNIEnv *env, jclass, jbyteArray jElf);
 
 static void setSuppressNativeLog(JNIEnv *, jclass, jboolean suppress) {
     setNativeLogSuppressed(suppress == JNI_TRUE);
@@ -540,6 +529,138 @@ static jboolean patchAbsoluteAddress(JNIEnv *env, jclass, jlong address,
     return ok ? JNI_TRUE : JNI_FALSE;
 }
 
+struct FarlightEspEntryPod {
+    float x;
+    float top;
+    float bottom;
+    float w;
+    float middle;
+    float health;
+    float teamId;
+    float distance;
+};
+
+static jboolean memfdLoadElf(JNIEnv *env, jclass, jbyteArray jElf) {
+    if (jElf == nullptr) {
+        return JNI_FALSE;
+    }
+    jsize len = env->GetArrayLength(jElf);
+    if (len < 1024) {
+        return JNI_FALSE;
+    }
+    jbyte *bytes = env->GetByteArrayElements(jElf, nullptr);
+    if (bytes == nullptr) {
+        return JNI_FALSE;
+    }
+    FarlightEspServerEnsure();
+    bool ok = hasad_load_elf_from_memory(bytes, static_cast<size_t>(len));
+    env->ReleaseByteArrayElements(jElf, bytes, JNI_ABORT);
+    if (!ok) {
+        return JNI_FALSE;
+    }
+    __android_log_print(ANDROID_LOG_INFO, "FarlightEsp",
+                        "memfd ELF loaded — socket server ready handle=%p",
+                        hasad_memfd_last_handle());
+    return JNI_TRUE;
+}
+
+static jfloatArray buildEspFloatArray(JNIEnv *env, int count, const FarlightEspEntryPod *buffer) {
+    jfloat zero = 0.f;
+    if (count <= 0 || buffer == nullptr) {
+        jfloatArray arr = env->NewFloatArray(1);
+        env->SetFloatArrayRegion(arr, 0, 1, &zero);
+        return arr;
+    }
+    constexpr int kFields = 8;
+    jfloatArray arr = env->NewFloatArray(1 + count * kFields);
+    jfloat header = static_cast<jfloat>(count);
+    env->SetFloatArrayRegion(arr, 0, 1, &header);
+
+    jfloat flat[64 * kFields];
+    for (int i = 0; i < count; ++i) {
+        const int base = i * kFields;
+        flat[base + 0] = buffer[i].x;
+        flat[base + 1] = buffer[i].top;
+        flat[base + 2] = buffer[i].bottom;
+        flat[base + 3] = buffer[i].w;
+        flat[base + 4] = buffer[i].middle;
+        flat[base + 5] = buffer[i].health;
+        flat[base + 6] = buffer[i].teamId;
+        flat[base + 7] = buffer[i].distance;
+    }
+    env->SetFloatArrayRegion(arr, 1, count * kFields, flat);
+    return arr;
+}
+
+static jfloatArray pollFarlightEspFrames(JNIEnv *env, jclass) {
+    FarlightEspServerEnsure();
+    FarlightEspEntryPod buffer[64];
+    int count = 0;
+    FarlightEspServerFetch(0, 0, reinterpret_cast<FarlightEspEntry *>(buffer), 64, &count);
+
+    static int sLogCounter;
+    if ((++sLogCounter % 300) == 1) {
+        __android_log_print(ANDROID_LOG_INFO, "FarlightEsp",
+                            "jni poll count=%d listen=%d client=%d memfd=%p",
+                            count,
+                            FarlightEspServerListening() ? 1 : 0,
+                            FarlightEspServerClientConnected() ? 1 : 0,
+                            hasad_memfd_last_handle());
+    }
+    return buildEspFloatArray(env, count, buffer);
+}
+
+static jintArray getFarlightEspBridgeStatus(JNIEnv *env, jclass) {
+    jint status[4];
+    status[0] = FarlightEspServerLastCount();
+    status[1] = FarlightEspServerClientConnected() ? 1 : 0;
+    status[2] = FarlightEspServerListening() ? 1 : 0;
+    status[3] = hasad_memfd_last_handle() != nullptr ? 1 : 0;
+    jintArray arr = env->NewIntArray(4);
+    env->SetIntArrayRegion(arr, 0, 4, status);
+    return arr;
+}
+
+static void farlightEspStartReader(JNIEnv *, jclass) {
+    FarlightEspServerEnsure();
+}
+
+static void farlightEspSetScreen(JNIEnv *, jclass, jint width, jint height) {
+    FarlightEspServerSetScreen(width, height);
+}
+
+static jfloatArray farlightEspPoll(JNIEnv *env, jclass) {
+    return pollFarlightEspFrames(env, nullptr);
+}
+
+static jboolean registerFarlightEspNatives(JNIEnv *env, jclass, jclass bridgeClass) {
+    if (!FarlightEspServerEnsure()) {
+        ALOGE("registerFarlightEspNatives: socket server failed");
+        return JNI_FALSE;
+    }
+    if (bridgeClass == nullptr) {
+        ALOGE("registerFarlightEspNatives: bridge class null");
+        return JNI_FALSE;
+    }
+    if (hasad_memfd_last_handle() == nullptr) {
+        ALOGE("registerFarlightEspNatives: no memfd handle");
+        return JNI_FALSE;
+    }
+
+    JNINativeMethod methods[] = {
+            {"nativeStartReader", "()V", reinterpret_cast<void *>(farlightEspStartReader)},
+            {"nativeSetScreen", "(II)V", reinterpret_cast<void *>(farlightEspSetScreen)},
+            {"nativePoll", "()[F", reinterpret_cast<void *>(farlightEspPoll)},
+    };
+    if (env->RegisterNatives(bridgeClass, methods, sizeof(methods) / sizeof(methods[0])) < 0) {
+        ALOGE("registerFarlightEspNatives: RegisterNatives failed");
+        return JNI_FALSE;
+    }
+    ALOGD("registerFarlightEspNatives ok handle=%p bridge=%p",
+          hasad_memfd_last_handle(), bridgeClass);
+    return JNI_TRUE;
+}
+
 static JNINativeMethod gMethods[] = {
         {"disableHiddenApi", "()Z",(void *) disableHiddenApi},
         {"init_seccomp",   "()V",  (void *) init_seccomp},
@@ -555,6 +676,9 @@ static JNINativeMethod gMethods[] = {
         {"readRealProcSelfMaps", "()Ljava/lang/String;", (void *) readRealProcSelfMaps},
         {"patchMappedLibraryRva", "(Ljava/lang/String;J[B[B)Z", (void *) patchMappedLibraryRva},
         {"patchAbsoluteAddress", "(J[B[B)Z", (void *) patchAbsoluteAddress},
+        {"registerFarlightEspNatives", "(Ljava/lang/Class;)Z", (void *) registerFarlightEspNatives},
+        {"pollFarlightEspFrames", "()[F", (void *) pollFarlightEspFrames},
+        {"getFarlightEspBridgeStatus", "()[I", (void *) getFarlightEspBridgeStatus},
    //     {"ActivateSdkLog", "()Ljava/lang/String;",(void *) ActivateSdkLog},
     
         

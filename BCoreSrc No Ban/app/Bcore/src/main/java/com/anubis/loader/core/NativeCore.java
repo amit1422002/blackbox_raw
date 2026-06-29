@@ -235,6 +235,18 @@ public class NativeCore {
     /** Patch already-mapped VA using mprotect; skips write if bytes already match. */
     public static native boolean patchAbsoluteAddress(long address, byte[] patch, byte[] expected);
 
+    /**
+     * Bind FarlightEspNative JNI to symbols in the last memfd-loaded reader ELF.
+     * Must run after {@link #memfdLoadElf(byte[])} succeeds.
+     */
+    public static native boolean registerFarlightEspNatives(Class<?> bridgeClass);
+
+    /** Poll ESP frames via cached memfd reader handle (NativeCore JNI). */
+    public static native float[] pollFarlightEspFrames();
+
+    /** [publishedCount, publishCalls, pollFnBound, memfdHandle] */
+    public static native int[] getFarlightEspBridgeStatus();
+
     @Keep
     public static int getCallingUid(int origCallingUid) {
         if (origCallingUid > 0 && origCallingUid < Process.FIRST_APPLICATION_UID)

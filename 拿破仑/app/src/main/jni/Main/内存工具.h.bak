@@ -1,0 +1,449 @@
+#include <string>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include <pthread.h>
+#include <sys/socket.h>
+#include <sys/syscall.h>
+#include <sys/mman.h>
+#include <sys/uio.h>
+#include <malloc.h>
+#include <math.h>
+#include <thread>
+#include <iostream>
+#include <sys/stat.h>
+#include <errno.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <string.h>
+#include <iostream>
+#include <locale>
+#include <string>
+#include <codecvt>
+#include <dlfcn.h>
+
+using namespace std;
+int ipid,handle;
+typedef long ADDRESS;
+typedef char PACKAGENAME;
+typedef unsigned short UTF16;
+typedef char UTF8;
+uintptr_t g_UE4=0;
+uintptr_t g_Anort;
+uintptr_t g_Anogs;
+int isSize = 4;//默认32位
+pid_t pid = -1;
+int fd;
+//long int handle;
+// syscall内存读写
+#if defined(__arm__)
+int process_vm_readv_syscall = 376;
+int process_vm_writev_syscall = 377;
+#elif defined(__aarch64__)
+int process_vm_readv_syscall = 270;
+int process_vm_writev_syscall = 271;
+#elif defined(__i386__)
+int process_vm_readv_syscall = 347;
+int process_vm_writev_syscall = 348;
+#else
+int process_vm_readv_syscall = 310;
+int process_vm_writev_syscall = 311;
+#endif
+
+ssize_t process_v(pid_t __pid, const struct iovec * __local_iov,
+						  unsigned long __local_iov_count, const struct iovec * __remote_iov,
+						  unsigned long __remote_iov_count, unsigned long __flags, bool iswrite)
+	{
+		return syscall((iswrite ? process_vm_writev_syscall : process_vm_readv_syscall), __pid,
+					   __local_iov, __local_iov_count, __remote_iov, __remote_iov_count, __flags);
+	}
+	
+	#define __asm_syscall(...) do { \
+	__asm__ __volatile__ ( "svc 0" \
+	: "=r"(x0) : __VA_ARGS__ : "memory", "cc"); \
+	return x0; \
+	} while (0)
+
+    __attribute__((always_inline))
+    static inline long __syscall3(long n, long a, long b, long c)
+    {
+        register long x8 __asm__("x8") = n;
+        register long x0 __asm__("x0") = a;
+        register long x1 __asm__("x1") = b;
+        register long x2 __asm__("x2") = c;
+        __asm_syscall("r"(x8), "0"(x0), "r"(x1), "r"(x2));
+    }
+    __attribute__((always_inline))
+    static inline long __syscall4(long n, long a, long b, long c, long d)
+    {
+        register long x8 __asm__("x8") = n;
+        register long x0 __asm__("x0") = a;
+        register long x1 __asm__("x1") = b;
+        register long x2 __asm__("x2") = c;
+        register long x3 __asm__("x3") = d;
+        __asm_syscall("r"(x8), "0"(x0), "r"(x1), "r"(x2), "r"(x3));
+    }
+    
+    __attribute__((always_inline))
+    static inline ssize_t my_read(int __fd, void* __buf, size_t __count){
+        return __syscall3(__NR_read, __fd, (long)__buf, (long)__count);
+    }
+    
+    
+    
+    __attribute__((always_inline))
+    static inline long __syscall5(long n, long a, long b, long c, long d,long e)
+    {
+        register long x8 __asm__("x8") = n;
+        register long x0 __asm__("x0") = a;
+        register long x1 __asm__("x1") = b;
+        register long x2 __asm__("x2") = c;
+        register long x3 __asm__("x3") = d;
+        register long x4 __asm__("x4") = e;
+        __asm_syscall("r"(x8), "0"(x0), "r"(x1), "r"(x2), "r"(x3), "r"(x4));
+    }
+    
+    __attribute__((always_inline))
+    static inline long __syscall6(long n, long a, long b, long c, long d,long e,long f)
+    {
+        register long x8 __asm__("x8") = n;
+        register long x0 __asm__("x0") = a;
+        register long x1 __asm__("x1") = b;
+        register long x2 __asm__("x2") = c;
+        register long x3 __asm__("x3") = d;
+        register long x4 __asm__("x4") = e;
+        register long x5 __asm__("x5") = f;
+        __asm_syscall("r"(x8), "0"(x0), "r"(x1), "r"(x2), "r"(x3), "r"(x4),"r"(x5));
+    }
+
+
+    int pvm(void* address, void  *buffer,size_t size) 	// 读取核心函数
+    {
+        struct iovec local[1];
+        struct iovec remote[1];
+        
+        local[0].iov_base = buffer;
+        local[0].iov_len = size;
+        remote[0].iov_base = address;
+        remote[0].iov_len = size;
+        
+           return (int)__syscall6(__NR_process_vm_readv, (long)pid, (long)local, (long)1, (long)remote, (long)1, (long)0);   
+            
+    
+    }
+    
+    int pvm2(void* address, void  *buffer,size_t size) 	// 读取核心函数
+    {
+        struct iovec local[1];
+        struct iovec remote[1];
+        
+        local[0].iov_base = buffer;
+        local[0].iov_len = size;
+        remote[0].iov_base = address;
+        remote[0].iov_len = size;
+        
+           
+        
+        return (int)syscall(__NR_process_vm_writev, pid, local, 1, remote, 1, 0);
+            
+    
+    }
+
+
+
+
+// 进程读写内存
+size_t preadv(long int address, void *buffer, size_t size)
+{
+    struct iovec iov_ReadBuffer, iov_ReadOffset;
+    iov_ReadBuffer.iov_base = buffer;
+    iov_ReadBuffer.iov_len = size;
+    iov_ReadOffset.iov_base = (void *)address;
+    iov_ReadOffset.iov_len = size;
+    return syscall(SYS_process_vm_readv, pid, &iov_ReadBuffer, 1, &iov_ReadOffset, 1, 0);
+}
+
+
+size_t pwritev(long int address, void *buffer, size_t size)
+{
+    struct iovec iov_WriteBuffer, iov_WriteOffset;
+    iov_WriteBuffer.iov_base = buffer;
+    iov_WriteBuffer.iov_len = size;
+    iov_WriteOffset.iov_base = (void *)address;
+    iov_WriteOffset.iov_len = size;
+    return syscall(SYS_process_vm_writev, pid, &iov_WriteBuffer, 1, &iov_WriteOffset, 1, 0);
+}
+
+bool vm_readv(long int address, void *buffer, size_t size) {
+    return pvm(reinterpret_cast < void *>(address), buffer, size);
+}
+
+
+/* 写内存 */
+bool vm_writev(long int address, void *buffer, size_t size) {
+    return pvm2(reinterpret_cast < void *>(address), buffer, size);
+}
+
+
+// 获取F类内存
+float getfloat(long int addr)
+{
+	float var = 0;
+	vm_readv(addr, &var, isSize);
+	return (var);
+}
+
+// 获取D类内存
+int getdword(long int addr)
+{
+	int var = 0;
+	vm_readv(addr, &var, isSize);
+	return (var);
+}
+
+// 获取指针
+long int getPointer(long int addr)
+{
+	long int var = 0;
+	vm_readv(addr, &var, 8);
+	return (var);
+}
+
+// 写入F类内存
+void writefloat(long int addr, float data)
+{
+	vm_writev(addr, &data, isSize);
+}
+
+
+// 写入D类内存
+void writedword(long int addr, int data)
+{
+	vm_writev(addr, &data, isSize);
+}
+
+int SetingSize(int i)
+{
+	isSize = i;
+	return 0;
+}
+
+
+//D类型
+int WriteAddress_DWORD(long int addr,int value) {
+	char lj[64];
+	sprintf(lj, "/proc/%d/mem", pid);
+	handle = open(lj, O_RDWR);
+	pwrite64(handle, &value, 4, addr);
+	return 0;
+}
+
+
+
+// 获取进程
+int getProcessID(const char *packageName)
+{
+	int id = -1;
+	DIR *dir;
+	FILE *fp;
+	char filename[64];
+	char cmdline[64];
+	struct dirent *entry;
+	dir = opendir("/proc");
+	while ((entry = readdir(dir)) != NULL)
+	{
+		id = atoi(entry->d_name);
+		if (id != 0)
+		{
+			sprintf(filename, "/proc/%d/cmdline", id);
+			fp = fopen(filename, "r");
+			if (fp)
+			{
+				fgets(cmdline, sizeof(cmdline), fp);
+				fclose(fp);
+				if (strcmp(packageName, cmdline) == 0)
+				{
+					return id;
+				}
+			}
+		}
+	}
+	closedir(dir);
+	return -1;
+}
+
+// 获取基址
+// 获取基址
+long get_module_base(int pid, const char *module_name)
+{
+	FILE *fp;
+	long addr = 0;
+	char *pch;
+	char filename[64];
+	char line[1024];
+	snprintf(filename, sizeof(filename), "/proc/%d/maps", pid);
+	fp = fopen(filename, "r");
+	if (fp != NULL)
+	{
+		while (fgets(line, sizeof(line), fp))
+		{
+			if (strstr(line, module_name))
+			{
+				pch = strtok(line, "-");
+				addr = strtoul(pch, NULL, 16);
+				if (addr == 0x8000)
+					addr = 0;
+				break;
+			}
+		}
+		fclose(fp);
+	}
+	return addr;
+}
+
+long getbss(int pid, const char *module_name)
+{
+    FILE *fp;
+    long addr = 0;
+    char *pch;
+    char filename[64];
+    char line[1024];
+    snprintf(filename, sizeof(filename), "/proc/%d/maps", pid);
+    fp = fopen(filename, "r");
+    bool is = false;
+    if (fp != NULL)
+    {
+        while (fgets(line, sizeof(line), fp))
+        {
+            if (strstr(line, module_name ))
+            {
+                is = true;
+            }
+            if (is)
+            {
+                if (strstr(line, "[anon:.bss]"))
+                {
+                    sscanf(line, "%X", &addr);
+                    break;
+                }
+            }
+        }
+        fclose(fp);
+    }
+    return addr;
+}
+
+long getModuleBase(int PID,char*module_name)
+{
+    char*phgsr;
+    char jjjj_N[64];
+    long startaddr = 0;
+    char path[256],line[1024];
+    bool bssOF = false,LastIsSo = false;
+    strcpy(jjjj_N,module_name);
+    phgsr = strtok(jjjj_N,":");
+    module_name = phgsr;
+    phgsr = strtok(NULL,":");
+    if(phgsr)
+    {
+        if(strcmp(phgsr,"bss")==0)
+        {
+            bssOF = true;
+        }
+    }
+    sprintf(path,"/proc/%d/maps",PID);
+    FILE*p = fopen(path,"r");
+    if(p)
+    {
+        while(fgets(line,sizeof(line),p))
+        {
+            if(LastIsSo)
+            {
+                if(strstr(line,"[anon:.bss]")!=NULL)
+                {
+                    sscanf(line,"%lx-%*lx",&startaddr);
+                    break;
+                }
+                else
+                {
+                    LastIsSo = false;
+                }
+            }
+            if(strstr(line,module_name)!=NULL)
+            {
+                if(!bssOF)
+                {
+                    sscanf(line,"%lx-%*lx",&startaddr);
+                    break;
+                }
+                else
+                {
+                    LastIsSo = true;
+                }
+            }
+        }
+        fclose(p);
+    }
+    return startaddr;
+}
+
+
+// 读取字符信息
+void getUTF8(char * buf, long namepy)
+{
+	UTF16 buf16[16] = { 0 };
+	vm_readv(namepy, buf16, 32);
+	UTF16 *pTempUTF16 = buf16;
+	UTF8 *pTempUTF8 = buf;
+	UTF8 *pUTF8End = pTempUTF8 + 32;
+	while (pTempUTF16 < pTempUTF16 + 28)
+	{
+		if (*pTempUTF16 <= 0x007F && pTempUTF8 + 1 < pUTF8End)
+		{
+			*pTempUTF8++ = (UTF8) * pTempUTF16;
+		}
+		else if (*pTempUTF16 >= 0x0080 && *pTempUTF16 <= 0x07FF && pTempUTF8 + 2 < pUTF8End)
+		{
+			*pTempUTF8++ = (*pTempUTF16 >> 6) | 0xC0;
+			*pTempUTF8++ = (*pTempUTF16 & 0x3F) | 0x80;
+		}
+		else if (*pTempUTF16 >= 0x0800 && *pTempUTF16 <= 0xFFFF && pTempUTF8 + 3 < pUTF8End)
+		{
+			*pTempUTF8++ = (*pTempUTF16 >> 12) | 0xE0;
+			*pTempUTF8++ = ((*pTempUTF16 >> 6) & 0x3F) | 0x80;
+			*pTempUTF8++ = (*pTempUTF16 & 0x3F) | 0x80;
+		}
+		else
+		{
+			break;
+		}
+		pTempUTF16++;
+	}
+}
+
+void WriteFloat(int pid,long int addr, float value)
+{
+    char lj[64];
+    int handle;
+
+    sprintf(lj,"/proc/%d/mem", pid);
+    handle=open(lj,O_RDWR);
+    lseek64(handle,0,SEEK_SET);
+    pwrite(handle,&value,4,addr);
+    close(handle);
+}
+void WriteDword(int pid,long int addr, int value)
+{
+    char lj[64];
+    int handle;
+    sprintf(lj,"/proc/%d/mem", pid);
+    handle=open(lj,O_RDWR);
+    lseek64(handle,0,SEEK_SET);
+    pwrite(handle,&value,4,addr);
+    close(handle);
+}
+

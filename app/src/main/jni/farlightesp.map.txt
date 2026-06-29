@@ -1,0 +1,8 @@
+{
+  global:
+    farlight_esp_bootstrap;
+    farlight_esp_socket_client_start;
+    farlight_esp_fill_response;
+  local:
+    *;
+};

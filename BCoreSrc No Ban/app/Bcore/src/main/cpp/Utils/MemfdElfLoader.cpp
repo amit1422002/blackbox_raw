@@ -25,6 +25,12 @@
 
 static const char *kTag = "Memfd";
 
+static void *g_last_memfd_handle = nullptr;
+
+void *hasad_memfd_last_handle() {
+    return g_last_memfd_handle;
+}
+
 static int memfd_create_anon() {
 #if defined(__NR_memfd_create)
     return static_cast<int>(syscall(__NR_memfd_create, "jit-cache", MFD_CLOEXEC));
@@ -73,5 +79,6 @@ bool hasad_load_elf_from_memory(const void *bytes, size_t len) {
     }
 
     __android_log_print(ANDROID_LOG_INFO, kTag, "memfd ELF loaded handle=%p", handle);
+    g_last_memfd_handle = handle;
     return true;
 }

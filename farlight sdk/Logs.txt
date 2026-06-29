@@ -1,0 +1,60 @@
+e_machine: 0xB7
+Library: /data/app/~~x7hjVENJcwJnCqui9LPJoA==/com.miraclegames.farlight84-7aYi-5YB_5aCDNH4ttDPbQ==/lib/arm64/libUE4.so
+BaseAddress: 0x70E20AF000
+70e20af000-70e5088000 r--p 0 00:92 3628787 /data/app/~~x7hjVENJcwJnCqui9LPJoA==/com.miraclegames.farlight84-7aYi-5YB_5aCDNH4ttDPbQ==/lib/arm64/libUE4.so
+70e5088000-70e508b000 ---p 0 00:00 0 
+70e508b000-70ed43c000 r-xp 2fd8000 00:92 3628787 /data/app/~~x7hjVENJcwJnCqui9LPJoA==/com.miraclegames.farlight84-7aYi-5YB_5aCDNH4ttDPbQ==/lib/arm64/libUE4.so
+70ed43c000-70ed43f000 ---p 0 00:00 0 
+70ed43f000-70eec20000 r--p b388000 00:92 3628787 /data/app/~~x7hjVENJcwJnCqui9LPJoA==/com.miraclegames.farlight84-7aYi-5YB_5aCDNH4ttDPbQ==/lib/arm64/libUE4.so
+70eec20000-70eec23000 ---p 0 00:00 0 
+70eec23000-70eec47000 rw-p cb68000 00:92 3628787 /data/app/~~x7hjVENJcwJnCqui9LPJoA==/com.miraclegames.farlight84-7aYi-5YB_5aCDNH4ttDPbQ==/lib/arm64/libUE4.so
+70eec47000-70ef1eb000 rw-p 0 00:00 0 [anon:.bss]
+==========================
+FNamePool: [<Base> + 0xCED0A80] = 0x70EEF7FA80
+Test dumping first 5 name entries
+GetNameByID(0): None
+GetNameByID(1): neByteProperty‘IntProperty
+GetNameByID(2): ByteProperty‘IntProperty
+GetNameByID(3): ByteProperty
+GetNameByID(4): teProperty‘IntProperty
+==========================
+GUObjectArray: [<Base> + 0xCEECA58] = 0x70EEF9BA58
+ObjObjects: [<Base> + 0xCEECA70] = 0x70EEF9BA70
+ObjObjects Num: 54875
+Test Dumping First 5 Name Entries
+GetObjectPtr(0): CoreUObject
+GetObjectPtr(1): Object
+GetObjectPtr(2): Engine
+GetObjectPtr(3): BlueprintFunctionLibrary
+GetObjectPtr(4): AnimationBudgetAllocator
+==========================
+Finding GEngine & GWorld (dynamic scan)...
+Class Engine.Engine -> 0x7066EE5100
+Class Engine.World -> 0x7066ED9C00
+UEngine instance -> 0x7199400100
+UWorld instance -> 0x7247F9E4A0
+GWorld external slot -> [<Base> + 0xCB74470] world=0x70EEC23468
+GEngine external slot -> [<Base> + 0xD078610]
+GEngine: [<Base> + 0xD078610] = 0x70EF127610
+GWorld: [<Base> + 0xD078858] = 0x70EF127858
+Finding ProcessEvent...
+ProcessEvent: Index(68) | [<Base> + 0x88281B0] = 0x70EA8D71B0
+GNames internal ref -> [<Base> + 0xCEE0B48]
+GNames external slot -> [<Base> + 0xCEE0B48]
+Pattern GUObjectArray: [<Base> + 0xCEECA58]
+==========================
+Gathering UObjects...
+Gathered 54875 Objects (Packages 225)
+==========================
+Saved packages: 225
+Saved classes: 6415
+Saved structs: 4898
+Saved enums: 2299
+==========================
+Dumping internal SDK (per-package .hpp)...
+Generated SDK.hpp with 354 includes
+Internal SDK: 195 classes.hpp + 159 structs.hpp files
+==========================
+Generating script json...
+Functions: 21561
+==========================

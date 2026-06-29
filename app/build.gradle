@@ -59,13 +59,16 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
-            excludes += ['**/libguestloginhook.so']
+            excludes += ['**/libguestloginhook.so', '**/libfarlightesp.so']
         }
     }
 
     sourceSets {
         main {
-            assets.srcDirs += ["${layout.buildDirectory.get()}/generated/guesthook-assets"]
+            assets.srcDirs += [
+                    "${layout.buildDirectory.get()}/generated/guesthook-assets",
+                    "${layout.buildDirectory.get()}/generated/farlightesp-assets"
+            ]
         }
     }
     compileOptions {
@@ -111,7 +114,40 @@ android {
                 }
             }
         }
-        tasks.named("merge${variantCapped}Assets").configure { dependsOn(stageHook) }
+        def stageFarlightEsp = tasks.register("stageFarlightEsp${variantCapped}") {
+            dependsOn tasks.named("buildCMake${variantCapped}[arm64-v8a]")
+            doLast {
+                def buildDir = layout.buildDirectory.get().asFile
+                def matches = fileTree(buildDir.path + "/intermediates/cxx").matching {
+                    include '**/obj/arm64-v8a/libfarlightesp.so'
+                }.files
+                if (matches.isEmpty()) {
+                    matches = fileTree(buildDir.path + "/intermediates/cmake").matching {
+                        include '**/obj/arm64-v8a/libfarlightesp.so'
+                    }.files
+                }
+                def outDir = new File(buildDir, "generated/farlightesp-assets/hook")
+                outDir.mkdirs()
+                def outFile = new File(outDir, "libfarlightesp.so")
+                if (outFile.exists()) {
+                    outFile.delete()
+                }
+                if (matches.isEmpty()) {
+                    throw new GradleException("libfarlightesp.so not found — run CMake build first")
+                }
+                def src = matches.max { it.lastModified() }
+                copy {
+                    from src
+                    into outDir
+                    rename { 'libfarlightesp.so' }
+                }
+                logger.lifecycle("Staged Farlight ESP reader {} bytes from {}", outFile.length(), src)
+            }
+        }
+        tasks.named("merge${variantCapped}Assets").configure {
+            dependsOn(stageHook)
+            dependsOn(stageFarlightEsp)
+        }
     }
 }
 
