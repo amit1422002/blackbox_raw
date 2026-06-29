@@ -133,6 +133,21 @@ public final class GuestPathAudit {
                     logLine("CTX appInfo.dataDir=" + ai.dataDir);
                     logLine("CTX appInfo.nativeLibraryDir=" + ai.nativeLibraryDir);
                     logLine("CTX appInfo.sourceDir=" + ai.sourceDir);
+                    logLine("CTX appInfo.publicSourceDir=" + ai.publicSourceDir);
+                }
+                try {
+                    Object at = com.anubis.loader.AnubisCore.mainThread();
+                    Object bound = black.android.app.BRActivityThread.get(at).mBoundApplication();
+                    if (bound != null) {
+                        Object loadedApk = black.android.app.BRActivityThreadAppBindData.get(bound).info();
+                        if (loadedApk != null) {
+                            ApplicationInfo lai = black.android.app.BRLoadedApk.get(loadedApk).mApplicationInfo();
+                            if (lai != null) {
+                                logLine("LoadedApk sourceDir=" + lai.sourceDir);
+                            }
+                        }
+                    }
+                } catch (Throwable ignored) {
                 }
             } catch (Throwable t) {
                 Log.w(currentTag(), "CTX audit failed: " + t.getMessage());

@@ -60,19 +60,21 @@ import black.dalvik.system.BRVMRuntime;
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.configuration.AppLifecycleCallback;
 import com.anubis.loader.app.dispatcher.AppServiceDispatcher;
+import com.anubis.loader.closecode.GuestAcBypass;
 import com.anubis.loader.utils.GuestPathAudit;
 import com.anubis.loader.utils.GuestPathContext;
 import com.anubis.loader.utils.Slog;
 import com.anubis.loader.utils.GuestNativeLibs;
 import com.anubis.loader.utils.GuestResourceLayout;
+import com.anubis.loader.utils.StealthPathRules;
 import com.anubis.loader.utils.StealthClassLoaderHelper;
 import com.anubis.loader.utils.StealthNetworkHelper;
 import com.anubis.loader.utils.VirtualPathSpoof;
 import com.anubis.loader.core.CrashHandler;
 import com.anubis.loader.core.IBActivityThread;
 import com.anubis.loader.core.IOCore;
+import com.anubis.loader.core.GmsCore;
 import com.anubis.loader.core.NativeCore;
-import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.core.env.VirtualRuntime;
 import com.anubis.loader.core.system.user.BUserHandle;
@@ -231,7 +233,19 @@ public class BActivityThread extends IBActivityThread.Stub {
 
     public Service createService(ServiceInfo serviceInfo, IBinder token) {
         if (!BActivityThread.currentActivityThread().isInit()) {
-            BActivityThread.currentActivityThread().bindApplication(serviceInfo.packageName, serviceInfo.processName);
+            try {
+                BActivityThread.currentActivityThread().bindApplication(
+                        serviceInfo.packageName, serviceInfo.processName);
+            } catch (RuntimeException e) {
+                if (GmsCore.isGoogleAppOrService(serviceInfo.packageName)) {
+                    Slog.w(TAG, "GMS bindApplication skipped for " + serviceInfo.name + ": " + e.getMessage());
+                    return null;
+                }
+                throw e;
+            }
+            if (!BActivityThread.currentActivityThread().isInit()) {
+                return null;
+            }
         }
         ClassLoader classLoader = BRLoadedApk.get(mBoundApplication.info).getClassLoader();
         Service service;
@@ -324,6 +338,9 @@ public class BActivityThread extends IBActivityThread.Stub {
         AnubisCore.reconcileStorageHostPkg(packageName);
         BEnvironment.ensureGuestDataLayout(packageName, BActivityThread.getUserId(), processName);
         BEnvironment.migrateLegacyObbIfNeeded(packageName);
+        if (VirtualPathSpoof.isStealthAcPackage(packageName)) {
+            StealthPathRules.ensureHostInstallReady(packageName, BActivityThread.getUserId());
+        }
         BEnvironment.load();
 
         PackageInfo packageInfo = AnubisCore.getBPackageManager().getPackageInfo(packageName, PackageManager.GET_PROVIDERS, BActivityThread.getUserId());
@@ -335,12 +352,23 @@ public class BActivityThread extends IBActivityThread.Stub {
         final int guestUserId = BActivityThread.getUserId();
         ApplicationInfo applicationInfo = realAppInfo;
         ApplicationInfo guestAppInfo = realAppInfo;
+        final boolean stealthAc = VirtualPathSpoof.isStealthAcPackage(packageName);
         if (packageInfo.providers == null) {
             packageInfo.providers = new ProviderInfo[]{};
         }
         mProviders.addAll(Arrays.asList(packageInfo.providers));
 
         Object boundApplication = BRActivityThread.get(AnubisCore.mainThread()).mBoundApplication();
+
+        NativeCore.init(Build.VERSION.SDK_INT);
+        NativeCore.setGuestPackageForStealth(packageName);
+        if (GmsCore.isGoogleAppOrService(packageName)) {
+            com.anubis.loader.gms.GmsBootHelper.ensureBootable(guestUserId);
+            VirtualPathSpoof.prepareGoogleBindApplicationInfo(realAppInfo, guestUserId);
+        }
+        if (stealthAc) {
+            IOCore.get().enableRedirect(AnubisCore.getContext());
+        }
 
         Context packageContext = createPackageContext(realAppInfo);
         Object loadedApk = BRContextImpl.get(packageContext).mPackageInfo();
@@ -353,11 +381,9 @@ public class BActivityThread extends IBActivityThread.Stub {
             BRCompatibility.get().setTargetSdkVersion(applicationInfo.targetSdkVersion);
         }
 
-        NativeCore.init(Build.VERSION.SDK_INT);
-        NativeCore.setGuestPackageForStealth(packageName);
-
-        final boolean stealthAc = VirtualPathSpoof.isStealthAcPackage(packageName);
-        IOCore.get().enableRedirect(packageContext);
+        if (!stealthAc) {
+            IOCore.get().enableRedirect(packageContext);
+        }
         if (stealthAc) {
             StealthNetworkHelper.ensureRealNetwork(packageContext);
         }
@@ -387,6 +413,11 @@ public class BActivityThread extends IBActivityThread.Stub {
             NativeCore.setGuestProcessComm(packageName);
             NativeCore.hideSelfLoaderFromAc();
             GuestResourceLayout.prepare(packageName, guestUserId);
+            if (GuestAcBypass.isSupportedGame(packageName)) {
+                Slog.i("GUEST_AC_BYPASS", "BActivityThread stealth bootstrap pkg=" + packageName
+                        + " pid=" + android.os.Process.myPid());
+                GuestAcBypass.arm(packageName);
+            }
         } else {
             VirtualPathSpoof.setProcSpoofUid(0);
             NativeCore.setGuestProcSpoofUid(0);
@@ -408,6 +439,7 @@ public class BActivityThread extends IBActivityThread.Stub {
         ActivityThreadAppBindDataContext activityThreadAppBindData = BRActivityThreadAppBindData.get(boundApplication);
         activityThreadAppBindData._set_instrumentationName(new ComponentName(
                 AnubisCore.getHostPkg(), AppInstrumentation.class.getName()));
+        // bindData.appInfo must keep real vfs paths — fake dataDir breaks UE4 file I/O during Application.onCreate.
         activityThreadAppBindData._set_appInfo(bindData.appInfo);
         activityThreadAppBindData._set_info(bindData.info);
         activityThreadAppBindData._set_processName(bindData.processName);
@@ -423,9 +455,33 @@ public class BActivityThread extends IBActivityThread.Stub {
         Application application;
         try {
             onBeforeCreateApplication(packageName, processName, packageContext);
+            ApplicationInfo loadInfo = BRLoadedApk.get(loadedApk).mApplicationInfo();
+            if (loadInfo != null) {
+                if (GmsCore.isGoogleAppOrService(packageName)) {
+                    VirtualPathSpoof.prepareGoogleBindApplicationInfo(loadInfo, guestUserId);
+                } else {
+                    VirtualPathSpoof.sanitizeAppComponentFactory(loadInfo);
+                }
+                BRLoadedApk.get(loadedApk)._set_mApplicationInfo(loadInfo);
+            }
+            if (GmsCore.isGoogleAppOrService(packageName)) {
+                VirtualPathSpoof.prepareGoogleBindApplicationInfo(applicationInfo, guestUserId);
+            } else {
+                VirtualPathSpoof.sanitizeAppComponentFactory(applicationInfo);
+            }
             application = BRLoadedApk.get(loadedApk).makeApplication(false, null);
-            if(application == null){
-                Log.e(TAG,"makeApplication application Error!" );
+            if (application == null && GmsCore.isGoogleAppOrService(packageName)) {
+                application = BRLoadedApk.get(loadedApk).makeApplication(false, null);
+            }
+            if (application == null) {
+                Log.e(TAG, "makeApplication null pkg=" + packageName + " sourceDir="
+                        + applicationInfo.sourceDir + " nativeLib=" + applicationInfo.nativeLibraryDir);
+                if (GmsCore.isGoogleAppOrService(packageName)) {
+                    mBoundApplication = null;
+                    mInitialApplication = null;
+                    Slog.w(TAG, "virtual GMS Application unavailable — abort bind for " + packageName);
+                    return;
+                }
                 throw new NullPointerException("application空指针异常");
             }
             mInitialApplication = application;
@@ -448,9 +504,11 @@ public class BActivityThread extends IBActivityThread.Stub {
             installProviders(mInitialApplication, bindData.processName, bindData.providers);
 
             onBeforeApplicationOnCreate(packageName, processName, application);
-            AppInstrumentation.get().callApplicationOnCreate(application);
             if (stealthAc) {
                 GuestPathContext.wrapIfNeeded(mInitialApplication, packageName);
+            }
+            AppInstrumentation.get().callApplicationOnCreate(application);
+            if (stealthAc) {
                 ContextCompat.fixGuestIdentity(mInitialApplication);
                 ContextCompat.fixGuestIdentity(
                         (Context) BRActivityThread.get(AnubisCore.mainThread()).getSystemContext());
@@ -469,10 +527,34 @@ public class BActivityThread extends IBActivityThread.Stub {
     }
 
     public static Context createPackageContext(ApplicationInfo info) {
+        if (info == null || TextUtils.isEmpty(info.packageName)) {
+            return null;
+        }
         try {
-            return AnubisCore.getContext().createPackageContext(info.packageName,Context.CONTEXT_INCLUDE_CODE | Context.CONTEXT_IGNORE_SECURITY);
-        } catch (Exception e) {
+            ApplicationInfo loadInfo = new ApplicationInfo(info);
+            int userId = BActivityThread.getUserId();
+            VirtualPathSpoof.ensureFrameworkApplicationInfo(loadInfo, userId);
+            if (GmsCore.isGoogleAppOrService(loadInfo.packageName)) {
+                VirtualPathSpoof.prepareGoogleBindApplicationInfo(loadInfo, userId);
+            }
+
+            Object mainThread = AnubisCore.mainThread();
+            Object hostLoadedApk = BRContextImpl.get(AnubisCore.getContext()).mPackageInfo();
+            Object compatInfo = black.android.app.BRLoadedApkICS.get(hostLoadedApk).mCompatibilityInfo();
+            int flags = Context.CONTEXT_INCLUDE_CODE | Context.CONTEXT_IGNORE_SECURITY;
+            Object loadedApk = BRActivityThread.get(mainThread).getPackageInfo(loadInfo, compatInfo, flags);
+
+            return (Context) Reflector.on("android.app.ContextImpl")
+                    .method("createAppContext", mainThread.getClass(), loadedApk.getClass())
+                    .call(null, mainThread, loadedApk);
+        } catch (Throwable e) {
             e.printStackTrace();
+            try {
+                return AnubisCore.getContext().createPackageContext(info.packageName,
+                        Context.CONTEXT_INCLUDE_CODE | Context.CONTEXT_IGNORE_SECURITY);
+            } catch (Exception fallback) {
+                fallback.printStackTrace();
+            }
         }
         return null;
     }

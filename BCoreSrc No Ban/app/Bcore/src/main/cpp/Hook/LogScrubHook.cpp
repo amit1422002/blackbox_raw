@@ -47,6 +47,16 @@ static std::string scrub(const char *msg) {
     }
     replaceAll(out, "/.vfs/", "/");
     replaceAll(out, "files/.vfs/data", "data");
+    if (!g_guestPkg.empty()) {
+        const std::string leak = "/files/data/app/" + g_guestPkg;
+        const std::string fake = "/data/app/" + g_guestPkg;
+        replaceAll(out, leak, fake);
+        const std::string nested = "/data/user/0/" + g_guestPkg + "/data/app/" + g_guestPkg;
+        replaceAll(out, nested, fake);
+        const std::string nestedStorage = "/data/user/0/" + g_guestPkg + "/storage/emulated/";
+        replaceAll(out, nestedStorage, "/storage/emulated/");
+    }
+    replaceAll(out, "/files/storage/emulated/", "/storage/emulated/");
     replaceAll(out, "com.anubis.loader.proxy.ProxyActivity", "android.app.Activity");
     replaceAll(out, "com.anubis.loader", "android.app");
     replaceAll(out, "libartpalette.so", "libc.so");
@@ -60,7 +70,10 @@ static std::string scrub(const char *msg) {
 
 static bool isAuditLogTag(const char *tag) {
     return tag != nullptr
-            && (strcmp(tag, "FARLIGHT_PATH") == 0 || strcmp(tag, "DELTA_PATH") == 0);
+            && (strcmp(tag, "FARLIGHT_PATH") == 0 || strcmp(tag, "DELTA_PATH") == 0
+                || strcmp(tag, "GUEST_AC_BYPASS") == 0 || strcmp(tag, "block-anogs") == 0
+                || strcmp(tag, "ANOGS_PATCH") == 0 || strcmp(tag, "NERTC_PATCH") == 0
+                || strcmp(tag, "PUBG_AYAN_F2") == 0);
 }
 
 static int fake_log_print(int prio, const char *tag, const char *fmt, ...) {

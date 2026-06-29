@@ -192,6 +192,7 @@ public final class ProcStealthHelper {
                 || lower.contains("/loader/")
                 || lower.contains("localhost")
                 || lower.contains("/.vfs/")
+                || lower.contains("/files/data/app/")
                 || lower.contains("app_webview")
                 || lower.contains("no_backup/.webview")
                 || lower.contains("webview_")

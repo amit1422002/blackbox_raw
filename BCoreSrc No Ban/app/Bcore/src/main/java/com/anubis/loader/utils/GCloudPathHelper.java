@@ -482,14 +482,19 @@ public final class GCloudPathHelper {
         addRoot(roots, seen, new File(String.format(Locale.US,
                 "/storage/emulated/%d/Android/data/%s", hostUserId, packageName)));
         try {
-            Context pkgCtx = AnubisCore.getContext()
-                    .createPackageContext(packageName, Context.CONTEXT_IGNORE_SECURITY);
-            File ext = pkgCtx.getExternalFilesDir(null);
-            if (ext != null) {
-                File root = ext.getParentFile();
-                addRoot(roots, seen, root);
+            VirtualPathSpoof.beginInternalBind();
+            try {
+                Context pkgCtx = AnubisCore.getContext()
+                        .createPackageContext(packageName, Context.CONTEXT_IGNORE_SECURITY);
+                File ext = pkgCtx.getExternalFilesDir(null);
+                if (ext != null) {
+                    File root = ext.getParentFile();
+                    addRoot(roots, seen, root);
+                }
+            } catch (PackageManager.NameNotFoundException ignored) {
             }
-        } catch (PackageManager.NameNotFoundException ignored) {
+        } finally {
+            VirtualPathSpoof.endInternalBind();
         }
         return roots;
     }
@@ -498,13 +503,18 @@ public final class GCloudPathHelper {
         List<File> roots = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
         try {
-            Context pkgCtx = AnubisCore.getContext()
-                    .createPackageContext(packageName, Context.CONTEXT_IGNORE_SECURITY);
-            File files = pkgCtx.getFilesDir();
-            if (files != null) {
-                addRoot(roots, seen, files);
+            VirtualPathSpoof.beginInternalBind();
+            try {
+                Context pkgCtx = AnubisCore.getContext()
+                        .createPackageContext(packageName, Context.CONTEXT_IGNORE_SECURITY);
+                File files = pkgCtx.getFilesDir();
+                if (files != null) {
+                    addRoot(roots, seen, files);
+                }
+            } catch (PackageManager.NameNotFoundException ignored) {
             }
-        } catch (PackageManager.NameNotFoundException ignored) {
+        } finally {
+            VirtualPathSpoof.endInternalBind();
         }
         addRoot(roots, seen, new File("/data/data/" + packageName + "/files"));
         return roots;

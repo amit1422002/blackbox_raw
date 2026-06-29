@@ -18,13 +18,37 @@ package com.anubis.loader.utils;
 
 import android.util.Log;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * @hide
  */
 public final class Slog {
+    /** Always visible in logcat during guest verify — never suppressed by {@link StealthMode}. */
+    private static final Set<String> AUDIT_TAGS = new HashSet<>(Arrays.asList(
+            "GUEST_AC_BYPASS",
+            "HTPROTECT_FARLIGHT",
+            "FARLIGHT_STEALTH",
+            "ANOGS_PATCH",
+            "NERTC_PATCH",
+            "PUBG_AYAN_F2",
+            "DELTA_PATH",
+            "FARLIGHT_PATH",
+            "block-anogs"
+    ));
+
     /** @hide */ public static final int LOG_ID_SYSTEM = 3;
 
     private Slog() {
+    }
+
+    private static boolean suppressed(String tag) {
+        if (tag != null && AUDIT_TAGS.contains(tag)) {
+            return false;
+        }
+        return StealthMode.shouldSuppressLogcat();
     }
 
     private static boolean suppressed() {
@@ -54,39 +78,39 @@ public final class Slog {
     }
 
     public static int i(String tag, String msg) {
-        if (suppressed()) return 0;
+        if (suppressed(tag)) return 0;
         return Log.println(Log.INFO, tag, msg);
     }
 
     public static int i(String tag, String msg, Throwable tr) {
-        if (suppressed()) return 0;
+        if (suppressed(tag)) return 0;
         return Log.println(Log.INFO, tag,
                 msg + '\n' + Log.getStackTraceString(tr));
     }
 
     public static int w(String tag, String msg) {
-        if (suppressed()) return 0;
+        if (suppressed(tag)) return 0;
         return Log.println(Log.WARN, tag, msg);
     }
 
     public static int w(String tag, String msg, Throwable tr) {
-        if (suppressed()) return 0;
+        if (suppressed(tag)) return 0;
         return Log.println(Log.WARN, tag,
                 msg + '\n' + Log.getStackTraceString(tr));
     }
 
     public static int w(String tag, Throwable tr) {
-        if (suppressed()) return 0;
+        if (suppressed(tag)) return 0;
         return Log.println(Log.WARN, tag, Log.getStackTraceString(tr));
     }
 
     public static int e(String tag, String msg) {
-        if (suppressed()) return 0;
+        if (suppressed(tag)) return 0;
         return Log.println(Log.ERROR, tag, msg);
     }
 
     public static int e(String tag, String msg, Throwable tr) {
-        if (suppressed()) return 0;
+        if (suppressed(tag)) return 0;
         return Log.println(Log.ERROR, tag,
                 msg + '\n' + Log.getStackTraceString(tr));
     }

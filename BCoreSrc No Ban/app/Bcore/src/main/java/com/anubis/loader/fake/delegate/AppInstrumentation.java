@@ -116,7 +116,7 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
         if (info != null && info.applicationInfo != null) {
             int userId = BActivityThread.getUserId();
             if (guestPkg != null && VirtualPathSpoof.isStealthAcPackage(guestPkg)) {
-                VirtualPathSpoof.ensureFrameworkApplicationInfo(info.applicationInfo, userId);
+                VirtualPathSpoof.ensureLoadedApkInternalInfo(info.applicationInfo, userId);
             } else {
                 info.applicationInfo = VirtualPathSpoof.spoofApplicationInfoRuntimeVisible(
                         info.applicationInfo, userId);
@@ -130,6 +130,7 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
         }
         if (guestPkg != null && VirtualPathSpoof.isStealthAcPackage(guestPkg)) {
             ContextCompat.fixGuestIdentity(activity);
+            GuestPathContext.wrapIfNeeded(activity, guestPkg);
         } else {
             ContextCompat.fix(activity);
         }
@@ -151,6 +152,9 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
         String guestPkg = BActivityThread.getAppPackageName();
         if (guestPkg != null) {
             GuestPathContext.wrapIfNeeded(activity, guestPkg);
+            if (VirtualPathSpoof.isStealthAcPackage(guestPkg)) {
+                NativeCore.refreshStealthProcLightAsync();
+            }
         }
         super.callActivityOnCreate(activity, icicle, persistentState);
     }
@@ -161,6 +165,9 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
         String guestPkg = BActivityThread.getAppPackageName();
         if (guestPkg != null) {
             GuestPathContext.wrapIfNeeded(activity, guestPkg);
+            if (VirtualPathSpoof.isStealthAcPackage(guestPkg)) {
+                NativeCore.refreshStealthProcLightAsync();
+            }
         }
         super.callActivityOnCreate(activity, icicle);
     }
@@ -180,7 +187,7 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
         super.callActivityOnResume(activity);
         String guestPkg = BActivityThread.getAppPackageName();
         if (guestPkg != null && VirtualPathSpoof.isStealthAcPackage(guestPkg)) {
-            NativeCore.refreshStealthProcNow();
+            NativeCore.refreshStealthProcLightAsync();
         }
     }
 }

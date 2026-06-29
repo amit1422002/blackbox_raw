@@ -170,7 +170,7 @@ public class HCallbackProxy implements IInjectHook, Handler.Callback {
         ActivityInfo activityInfo = stubRecord.mActivityInfo;
         if (activityInfo != null && activityInfo.applicationInfo != null) {
             if (VirtualPathSpoof.isStealthAcPackage(activityInfo.packageName)) {
-                VirtualPathSpoof.ensureFrameworkApplicationInfo(
+                VirtualPathSpoof.ensureLoadedApkInternalInfo(
                         activityInfo.applicationInfo, stubRecord.mUserId);
                 activityInfo.taskAffinity = activityInfo.packageName;
                 activityInfo.applicationInfo.taskAffinity = activityInfo.packageName;

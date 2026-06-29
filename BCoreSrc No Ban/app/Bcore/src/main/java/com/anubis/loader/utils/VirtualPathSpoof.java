@@ -6,6 +6,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.ProviderInfo;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
+import android.os.Build;
 import android.text.TextUtils;
 
 import java.io.File;
@@ -13,10 +14,12 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import black.android.content.pm.BRApplicationInfoL;
 import com.anubis.loader.AnubisCore;
 import com.anubis.loader.app.BActivityThread;
+import com.anubis.loader.core.GmsCore;
 import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.utils.compat.BuildCompat;
 import com.anubis.loader.utils.Slog;
@@ -67,7 +70,14 @@ public final class VirtualPathSpoof {
         if (TextUtils.isEmpty(packageName)) {
             return false;
         }
-        return !packageName.equals(AnubisCore.getHostPkg());
+        if (packageName.equals(AnubisCore.getHostPkg())) {
+            return false;
+        }
+        // GMS/GSF/Play Store need real host-aligned paths — stealth breaks makeApplication.
+        if (GmsCore.isGoogleAppOrService(packageName)) {
+            return false;
+        }
+        return true;
     }
 
     /** AC/GCloud games — no inject.so / libUEDump3r / uedump_trigger on guest storage. */
@@ -337,6 +347,27 @@ public final class VirtualPathSpoof {
             out = "/" + out.substring(hostLegacyVfs.length());
         }
 
+        if (guestPkg != null && !guestPkg.isEmpty()) {
+            String leakApp = "/files/data/app/" + guestPkg;
+            if (out.contains(leakApp)) {
+                out = out.replace(leakApp, "/data/app/" + guestPkg);
+            }
+            String nestedApp = "/data/app/" + guestPkg;
+            String fakeRoot = String.format(Locale.US, "/data/user/%d/%s", hostUserId, guestPkg);
+            String nestedUnderData = fakeRoot + nestedApp;
+            if (out.contains(nestedUnderData)) {
+                out = out.replace(nestedUnderData, nestedApp);
+            }
+            String leakStorage = "/files/storage/emulated/";
+            if (out.contains(leakStorage)) {
+                out = out.replace(leakStorage, "/storage/emulated/");
+            }
+            String leakStorageDirect = fakeRoot + "/storage/emulated/";
+            if (out.contains(leakStorageDirect)) {
+                out = out.replace(leakStorageDirect, "/storage/emulated/");
+            }
+        }
+
         if (guestPkg != null && !guestPkg.isEmpty() && out.contains("/.vfs/")) {
             String vfsLib = "/.vfs/data/app/" + guestPkg + "/lib/";
             int libIdx = out.indexOf(vfsLib);
@@ -528,6 +559,28 @@ public final class VirtualPathSpoof {
         return out;
     }
 
+    /** fakeDataDir + "/data/app/{guest}/..." — NERtc / AC virtual-env fingerprint. */
+    private static boolean pathContainsNestedDataAppLeak(String path) {
+        String guest = BActivityThread.getAppPackageName();
+        if (TextUtils.isEmpty(guest)) {
+            return false;
+        }
+        return path.contains("/data/user/") && path.contains("/data/app/" + guest);
+    }
+
+    static boolean pathContainsNestedStorageLeak(String path) {
+        int dataIdx = path.indexOf("/data/user/");
+        if (dataIdx < 0) {
+            return false;
+        }
+        int storageIdx = path.indexOf("/storage/emulated/", dataIdx);
+        if (storageIdx < 0) {
+            return false;
+        }
+        String mid = path.substring(dataIdx, storageIdx);
+        return !mid.contains("/.vfs/") && !mid.contains("/files/");
+    }
+
     public static boolean containsLeak(String path) {
         if (TextUtils.isEmpty(path)) {
             return false;
@@ -535,6 +588,10 @@ public final class VirtualPathSpoof {
         String hostPkg = AnubisCore.getHostPkg();
         return path.contains(hostPkg)
                 || path.contains("/.vfs/")
+                || path.contains("/files/data/app/")
+                || pathContainsNestedDataAppLeak(path)
+                || pathContainsNestedStorageLeak(path)
+                || path.contains("/files/storage/emulated/")
                 || path.contains("anubis")
                 || path.contains("blackbox")
                 || path.contains("bcore")
@@ -549,14 +606,22 @@ public final class VirtualPathSpoof {
         // Intentionally silent — logcat must not expose path spoof state to guest / AC.
     }
 
-    /** Guest-visible copy — keep real paths in {@link com.anubis.loader.core.system.pm.PackageManagerCompat}. */
+    /** Guest-visible copy — fake paths for foreign PM queries; own package keeps vfs paths for native I/O. */
     public static ApplicationInfo spoofApplicationInfoForGuest(ApplicationInfo src, int userId) {
-        if (src == null || !shouldSpoofForGuest()) {
+        if (src == null) {
             return src;
         }
-        ApplicationInfo ai = spoofApplicationInfoRuntimeVisible(src, userId);
-        ensureRealApkPaths(ai, userId);
-        return ai;
+        if (!shouldSpoofForGuest()) {
+            ensureRealApkPaths(src, userId);
+            return src;
+        }
+        String self = BActivityThread.getAppPackageName();
+        if (self != null && self.equals(src.packageName) && isStealthAcPackage(self)) {
+            ApplicationInfo ai = new ApplicationInfo(src);
+            ensureFrameworkApplicationInfo(ai, userId);
+            return ai;
+        }
+        return spoofApplicationInfoRuntimeVisible(src, userId);
     }
 
     /** LoadedApk ApplicationInfo — guest-visible fake data/lib paths; real dirs set separately on LoadedApk. */
@@ -623,7 +688,49 @@ public final class VirtualPathSpoof {
     }
 
     /**
-     * LoadedApk / Activity launch — real vfs paths only. PM hooks still return guest-visible fakes.
+     * Stealth AC: guest-visible APK paths; real vfs data + native lib dirs.
+     * Opens on fake paths are forwarded by {@link com.anubis.loader.core.IOCore}.
+     */
+    public static void ensureStealthFrameworkApplicationInfo(ApplicationInfo ai, int userId) {
+        if (ai == null || TextUtils.isEmpty(ai.packageName)) {
+            return;
+        }
+        if (isLoaderPackageIdentity(ai.packageName)) {
+            return;
+        }
+        String pkg = ai.packageName;
+        String fakeApk = fakeApkPath(pkg);
+        ai.sourceDir = fakeApk;
+        ai.publicSourceDir = fakeApk;
+        File appDir = BEnvironment.getAppDir(pkg);
+        File[] splits = appDir.listFiles((dir, name) -> name != null && name.endsWith(".apk")
+                && !"base.apk".equals(name));
+        if (splits != null && splits.length > 0) {
+            String[] fakeSplits = new String[splits.length];
+            for (int i = 0; i < splits.length; i++) {
+                fakeSplits[i] = "/data/app/" + pkg + "/" + splits[i].getName();
+            }
+            ai.splitSourceDirs = fakeSplits;
+        }
+        if (BuildCompat.isL()) {
+            BRApplicationInfoL.get(ai)._set_scanPublicSourceDir(fakeApk);
+            BRApplicationInfoL.get(ai)._set_scanSourceDir(fakeApk);
+        }
+        ai.nativeLibraryDir = fakeNativeLibDir(pkg);
+        File data = BEnvironment.getDataDir(pkg, userId);
+        ai.dataDir = data.getAbsolutePath();
+        ai.deviceProtectedDataDir = BEnvironment.getDeDataDir(pkg, userId).getAbsolutePath();
+    }
+
+    /**
+     * LoadedApk internal paths — real vfs APK for dex (marked read-only); real dataDir for I/O.
+     */
+    public static void ensureLoadedApkInternalInfo(ApplicationInfo ai, int userId) {
+        ensureFrameworkApplicationInfo(ai, userId);
+    }
+
+    /**
+     * Framework / LoadedApk — vfs APK paths for dex loading (never stale host install hash).
      */
     public static void ensureFrameworkApplicationInfo(ApplicationInfo ai, int userId) {
         if (ai == null || TextUtils.isEmpty(ai.packageName)) {
@@ -632,12 +739,80 @@ public final class VirtualPathSpoof {
         if (isLoaderPackageIdentity(ai.packageName)) {
             return;
         }
+        if (GmsCore.isGoogleAppOrService(ai.packageName)) {
+            ensureGoogleFrameworkApplicationInfo(ai, userId);
+            return;
+        }
         ensureRealApkPaths(ai, userId);
         ensureRealNativeLibDir(ai);
         String pkg = ai.packageName;
         File data = BEnvironment.getDataDir(pkg, userId);
         ai.dataDir = data.getAbsolutePath();
         ai.deviceProtectedDataDir = BEnvironment.getDeDataDir(pkg, userId).getAbsolutePath();
+    }
+
+    /** microG / Play — vfs APK paths; no androidx CoreComponentFactory on slim clones. */
+    private static void ensureGoogleFrameworkApplicationInfo(ApplicationInfo ai, int userId) {
+        prepareGoogleBindApplicationInfo(ai, userId);
+        String pkg = ai.packageName;
+        File data = BEnvironment.getDataDir(pkg, userId);
+        ai.dataDir = data.getAbsolutePath();
+        ai.deviceProtectedDataDir = BEnvironment.getDeDataDir(pkg, userId).getAbsolutePath();
+    }
+
+    /** Before LoadedApk / makeApplication for virtual Google packages. */
+    public static void prepareGoogleBindApplicationInfo(ApplicationInfo ai, int userId) {
+        if (ai == null || !GmsCore.isGoogleAppOrService(ai.packageName)) {
+            return;
+        }
+        ensureRealApkPaths(ai, userId);
+        ensureRealNativeLibDir(ai);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            ai.appComponentFactory = null;
+        }
+    }
+
+    /**
+     * Virtual GMS/microG clones often declare androidx CoreComponentFactory but ship without it —
+     * LoadedApk then fails makeApplication and post-login GMS bind kills the guest.
+     * Result is cached — must not run on every {@link android.content.Context#getApplicationInfo()}.
+     */
+    private static final ConcurrentHashMap<String, Boolean> sAppComponentFactoryProbe = new ConcurrentHashMap<>();
+
+    public static void sanitizeAppComponentFactory(ApplicationInfo ai) {
+        if (ai == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            return;
+        }
+        String factory = ai.appComponentFactory;
+        if (TextUtils.isEmpty(factory)) {
+            return;
+        }
+        String apk = ai.sourceDir;
+        if (TextUtils.isEmpty(apk)) {
+            ai.appComponentFactory = null;
+            return;
+        }
+        String pkg = ai.packageName != null ? ai.packageName : "";
+        String cacheKey = pkg + '|' + factory + '|' + apk;
+        Boolean known = sAppComponentFactoryProbe.get(cacheKey);
+        if (known != null) {
+            if (!known) {
+                ai.appComponentFactory = null;
+            }
+            return;
+        }
+        try {
+            String lib = ai.nativeLibraryDir;
+            ClassLoader probe = new dalvik.system.PathClassLoader(
+                    apk, lib != null ? lib : "", ClassLoader.getSystemClassLoader());
+            Class.forName(factory, false, probe);
+            sAppComponentFactoryProbe.put(cacheKey, true);
+        } catch (Throwable t) {
+            Slog.w(TAG, "dropping appComponentFactory " + factory + " pkg=" + ai.packageName
+                    + ": " + t.getMessage());
+            sAppComponentFactoryProbe.put(cacheKey, false);
+            ai.appComponentFactory = null;
+        }
     }
 
     public static void ensureRealNativeLibDir(ApplicationInfo ai) {
@@ -664,6 +839,20 @@ public final class VirtualPathSpoof {
         if (baseApk.isFile()) {
             ai.sourceDir = baseApk.getAbsolutePath();
             ai.publicSourceDir = ai.sourceDir;
+        } else {
+            File fallback = StealthPathRules.resolveGuestApkSource(pkg);
+            if (fallback != null && fallback.isFile()) {
+                ai.sourceDir = fallback.getAbsolutePath();
+                ai.publicSourceDir = ai.sourceDir;
+            }
+        }
+        String fakeApk = fakeApkPath(pkg);
+        if (fakeApk.equals(ai.sourceDir) || fakeApk.equals(ai.publicSourceDir)) {
+            File fallback = StealthPathRules.resolveGuestApkSource(pkg);
+            if (fallback != null && fallback.isFile()) {
+                ai.sourceDir = fallback.getAbsolutePath();
+                ai.publicSourceDir = ai.sourceDir;
+            }
         }
         File appDir = BEnvironment.getAppDir(pkg);
         File[] splits = appDir.listFiles((dir, name) -> name != null && name.endsWith(".apk")
@@ -679,10 +868,15 @@ public final class VirtualPathSpoof {
             BRApplicationInfoL.get(ai)._set_scanPublicSourceDir(ai.publicSourceDir);
             BRApplicationInfoL.get(ai)._set_scanSourceDir(ai.sourceDir);
         }
+        StealthPathRules.ensureVirtApkReadOnly(pkg);
     }
 
     public static PackageInfo spoofPackageInfoForGuest(PackageInfo src, int userId) {
-        if (src == null || !shouldSpoofForGuest()) {
+        if (src == null) {
+            return src;
+        }
+        if (!shouldSpoofForGuest()) {
+            ensureRealApkPaths(src.applicationInfo, userId);
             return src;
         }
         PackageInfo pi = src;

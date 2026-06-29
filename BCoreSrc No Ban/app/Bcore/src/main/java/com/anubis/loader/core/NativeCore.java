@@ -228,6 +228,13 @@ public class NativeCore {
     /** Real /proc/self/maps content — bypasses guest redirect (scrubber input only). */
     public static native String readRealProcSelfMaps();
 
+    /** Patch mapped .so at RVA using mprotect (works on RX pages; /proc/self/mem often cannot). */
+    public static native boolean patchMappedLibraryRva(String libName, long rva,
+            byte[] patch, byte[] expected);
+
+    /** Patch already-mapped VA using mprotect; skips write if bytes already match. */
+    public static native boolean patchAbsoluteAddress(long address, byte[] patch, byte[] expected);
+
     @Keep
     public static int getCallingUid(int origCallingUid) {
         if (origCallingUid > 0 && origCallingUid < Process.FIRST_APPLICATION_UID)
@@ -316,6 +323,25 @@ public class NativeCore {
         }
     }
 
+    /** Proc scrub reads/writes full /proc — never run on the main thread (UE4 ANR on loading screen). */
+    public static void refreshStealthProcNowAsync() {
+        android.os.Handler h = AnubisCore.get().getHandler();
+        if (h != null) {
+            h.post(NativeCore::refreshStealthProcNow);
+        } else {
+            new Thread(NativeCore::refreshStealthProcNow, "stealth-proc").start();
+        }
+    }
+
+    public static void refreshStealthProcLightAsync() {
+        android.os.Handler h = AnubisCore.get().getHandler();
+        if (h != null) {
+            h.post(NativeCore::refreshStealthProcLight);
+        } else {
+            new Thread(NativeCore::refreshStealthProcLight, "stealth-proc-light").start();
+        }
+    }
+
     /**
      * Seccomp disabled for stealth guests — traps openat and causes SIGSYS on Android 16 / UE4.
      * Proc scrubbing uses fake /proc files via Java IO redirect + periodic refresh instead.
@@ -328,7 +354,7 @@ public class NativeCore {
 
     public static void hideSelfLoaderFromAc() {
         try {
-            refreshStealthProcNow();
+            refreshStealthProcNowAsync();
             if (sStealthProcScheduleStarted) {
                 return;
             }
@@ -339,6 +365,8 @@ public class NativeCore {
                 scheduleMapsRefresh(h, 5000, true);
                 scheduleMapsRefresh(h, 15000, true);
                 scheduleMapsRefresh(h, 45000, false);
+                // Lobby/login loads AC late — keep scrubbing /proc/maps after early boot window.
+                schedulePeriodicMapsRefresh(h, 60_000, 20_000, 45);
             }
         } catch (Throwable ignored) {
         }
@@ -352,6 +380,26 @@ public class NativeCore {
                 refreshStealthProcNow();
             }
         }, delayMs);
+    }
+
+    private static void schedulePeriodicMapsRefresh(
+            android.os.Handler h, long startDelayMs, long intervalMs, int count) {
+        final int[] remaining = {count};
+        final Runnable[] tick = new Runnable[1];
+        tick[0] = () -> {
+            if (remaining[0]-- <= 0) {
+                return;
+            }
+            if (remaining[0] % 5 == 0) {
+                refreshStealthProcNow();
+            } else {
+                refreshStealthProcLight();
+            }
+            if (remaining[0] > 0) {
+                h.postDelayed(tick[0], intervalMs);
+            }
+        };
+        h.postDelayed(tick[0], startDelayMs);
     }
 
     @Keep

@@ -102,11 +102,13 @@ public class GmsProxy extends BinderInvocationStub {
                 return method.invoke(who, args);
             }
             try {
-                if (args != null && args.length > 0) {
+                if (args != null && args.length > 0 && args[0] instanceof String) {
                     String callingPackage = (String) args[0];
-                    if ("com.google.android.gms".equals(callingPackage)) {
-                        args[0] = AnubisCore.getHostPkg();
-                        Slog.d(TAG, "GmsProxy: Fixed calling package from com.google.android.gms to " + AnubisCore.getHostPkg());
+                    String hostPkg = AnubisCore.getHostPkg();
+                    if (!hostPkg.equals(callingPackage)) {
+                        args[0] = hostPkg;
+                        Slog.d(TAG, "GmsProxy: Fixed calling package from "
+                                + callingPackage + " to " + hostPkg);
                     }
                 }
                 return method.invoke(who, args);

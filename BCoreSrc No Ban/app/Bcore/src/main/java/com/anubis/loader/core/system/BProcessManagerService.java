@@ -33,6 +33,7 @@ import com.anubis.loader.entity.AppConfig;
 import com.anubis.loader.proxy.ProxyManifest;
 import com.anubis.loader.utils.FileUtils;
 import com.anubis.loader.utils.Slog;
+import com.anubis.loader.utils.StealthPathRules;
 import com.anubis.loader.utils.compat.ApplicationThreadCompat;
 import com.anubis.loader.utils.compat.BundleCompat;
 import com.anubis.loader.utils.provider.ProviderCall;
@@ -97,6 +98,9 @@ public class BProcessManagerService implements ISystemService {
 
             synchronized (mProcessMap) {
                 mProcessMap.put(buid, bProcess);
+            }
+            if (VirtualPathSpoof.isStealthAcPackage(packageName)) {
+                StealthPathRules.ensureHostInstallReady(packageName, userId);
             }
             if (!initAppProcessL(app)) {
                 //init process fail

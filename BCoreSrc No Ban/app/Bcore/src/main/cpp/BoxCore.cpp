@@ -25,6 +25,8 @@
 #include <thread>
 #include <stdlib.h>
 #include <cstring>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define LOG_TAG "BthreadMain"
@@ -357,6 +359,187 @@ static jstring readRealProcSelfMaps(JNIEnv *env, jclass) {
     return env->NewStringUTF(maps.c_str());
 }
 
+static bool patchExecBytes(void *addr, const uint8_t *patch, size_t patchLen,
+                           const uint8_t *expected, size_t expectedLen) {
+    if (addr == nullptr || patch == nullptr || patchLen == 0) {
+        return false;
+    }
+    if (memcmp(addr, patch, patchLen) == 0) {
+        return true;
+    }
+    const long pageSize = sysconf(_SC_PAGESIZE);
+    if (pageSize <= 0) {
+        return false;
+    }
+    uintptr_t start = reinterpret_cast<uintptr_t>(addr);
+    uintptr_t page = start & ~(static_cast<uintptr_t>(pageSize) - 1);
+    size_t span = static_cast<size_t>(start - page) + patchLen;
+    span = (span + static_cast<size_t>(pageSize) - 1)
+            & ~(static_cast<size_t>(pageSize) - 1);
+
+    if (mprotect(reinterpret_cast<void *>(page), span, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
+        return false;
+    }
+
+    bool ok = false;
+    if (expected != nullptr && expectedLen > 0) {
+        if (memcmp(addr, expected, expectedLen) != 0 && memcmp(addr, patch, patchLen) != 0) {
+            mprotect(reinterpret_cast<void *>(page), span, PROT_READ | PROT_EXEC);
+            return false;
+        }
+    }
+
+    memcpy(addr, patch, patchLen);
+    __builtin___clear_cache(reinterpret_cast<char *>(addr),
+                            reinterpret_cast<char *>(addr) + patchLen);
+    ok = memcmp(addr, patch, patchLen) == 0;
+    mprotect(reinterpret_cast<void *>(page), span, PROT_READ | PROT_EXEC);
+    return ok;
+}
+
+static void *findLibraryBaseBypass(const std::string &name, size_t *outSize) {
+    std::string maps = ProcFsHook::readFileBypass("/proc/self/maps");
+    if (maps.empty()) {
+        return nullptr;
+    }
+    unsigned long minStart = 0;
+    unsigned long maxEnd = 0;
+    bool found = false;
+    size_t pos = 0;
+    while (pos < maps.size()) {
+        size_t end = maps.find('\n', pos);
+        if (end == std::string::npos) {
+            end = maps.size();
+        }
+        std::string line = maps.substr(pos, end - pos);
+        pos = end + 1;
+        if (line.find(name) == std::string::npos) {
+            continue;
+        }
+        unsigned long segStart = strtoul(line.c_str(), nullptr, 16);
+        size_t dash = line.find('-');
+        if (dash == std::string::npos) {
+            continue;
+        }
+        unsigned long segEnd = strtoul(line.substr(dash + 1).c_str(), nullptr, 16);
+        if (!found) {
+            minStart = segStart;
+            maxEnd = segEnd;
+            found = true;
+        } else {
+            if (segStart < minStart) {
+                minStart = segStart;
+            }
+            if (segEnd > maxEnd) {
+                maxEnd = segEnd;
+            }
+        }
+    }
+    if (!found) {
+        return nullptr;
+    }
+    if (outSize != nullptr) {
+        *outSize = static_cast<size_t>(maxEnd - minStart);
+    }
+    return reinterpret_cast<void *>(minStart);
+}
+
+static jboolean patchMappedLibraryRva(JNIEnv *env, jclass, jstring libName, jlong rva,
+                                    jbyteArray patchArr, jbyteArray expectedArr) {
+    if (libName == nullptr || patchArr == nullptr || rva < 0) {
+        return JNI_FALSE;
+    }
+    const char *utf = env->GetStringUTFChars(libName, nullptr);
+    if (utf == nullptr) {
+        return JNI_FALSE;
+    }
+    std::string name(utf);
+    env->ReleaseStringUTFChars(libName, utf);
+
+    size_t size = 0;
+    void *base = findLibraryBaseBypass(name, &size);
+    if (base == nullptr) {
+        return JNI_FALSE;
+    }
+
+    jsize patchLen = env->GetArrayLength(patchArr);
+    if (patchLen <= 0) {
+        return JNI_FALSE;
+    }
+    jbyte *patchBytes = env->GetByteArrayElements(patchArr, nullptr);
+    if (patchBytes == nullptr) {
+        return JNI_FALSE;
+    }
+
+    const uint8_t *expected = nullptr;
+    jsize expectedLen = 0;
+    jbyte *expectedBytes = nullptr;
+    if (expectedArr != nullptr) {
+        expectedLen = env->GetArrayLength(expectedArr);
+        if (expectedLen > 0) {
+            expectedBytes = env->GetByteArrayElements(expectedArr, nullptr);
+            if (expectedBytes != nullptr) {
+                expected = reinterpret_cast<const uint8_t *>(expectedBytes);
+            }
+        }
+    }
+
+    void *target = reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(base)
+            + static_cast<uintptr_t>(rva));
+    bool ok = patchExecBytes(target,
+                             reinterpret_cast<const uint8_t *>(patchBytes),
+                             static_cast<size_t>(patchLen),
+                             expected,
+                             static_cast<size_t>(expectedLen));
+
+    if (expectedBytes != nullptr) {
+        env->ReleaseByteArrayElements(expectedArr, expectedBytes, JNI_ABORT);
+    }
+    env->ReleaseByteArrayElements(patchArr, patchBytes, JNI_ABORT);
+    return ok ? JNI_TRUE : JNI_FALSE;
+}
+
+static jboolean patchAbsoluteAddress(JNIEnv *env, jclass, jlong address,
+                                     jbyteArray patchArr, jbyteArray expectedArr) {
+    if (address <= 0 || patchArr == nullptr) {
+        return JNI_FALSE;
+    }
+    jsize patchLen = env->GetArrayLength(patchArr);
+    if (patchLen <= 0) {
+        return JNI_FALSE;
+    }
+    jbyte *patchBytes = env->GetByteArrayElements(patchArr, nullptr);
+    if (patchBytes == nullptr) {
+        return JNI_FALSE;
+    }
+
+    const uint8_t *expected = nullptr;
+    jsize expectedLen = 0;
+    jbyte *expectedBytes = nullptr;
+    if (expectedArr != nullptr) {
+        expectedLen = env->GetArrayLength(expectedArr);
+        if (expectedLen > 0) {
+            expectedBytes = env->GetByteArrayElements(expectedArr, nullptr);
+            if (expectedBytes != nullptr) {
+                expected = reinterpret_cast<const uint8_t *>(expectedBytes);
+            }
+        }
+    }
+
+    void *target = reinterpret_cast<void *>(static_cast<uintptr_t>(address));
+    bool ok = patchExecBytes(target,
+                             reinterpret_cast<const uint8_t *>(patchBytes),
+                             static_cast<size_t>(patchLen),
+                             expected,
+                             static_cast<size_t>(expectedLen));
+
+    if (expectedBytes != nullptr) {
+        env->ReleaseByteArrayElements(expectedArr, expectedBytes, JNI_ABORT);
+    }
+    env->ReleaseByteArrayElements(patchArr, patchBytes, JNI_ABORT);
+    return ok ? JNI_TRUE : JNI_FALSE;
+}
+
 static JNINativeMethod gMethods[] = {
         {"disableHiddenApi", "()Z",(void *) disableHiddenApi},
         {"init_seccomp",   "()V",  (void *) init_seccomp},
@@ -370,6 +553,8 @@ static JNINativeMethod gMethods[] = {
         {"setSuppressNativeLog", "(Z)V", (void *) setSuppressNativeLog},
         {"setLogScrubConfig", "(ZLjava/lang/String;Ljava/lang/String;)V", (void *) setLogScrubConfig},
         {"readRealProcSelfMaps", "()Ljava/lang/String;", (void *) readRealProcSelfMaps},
+        {"patchMappedLibraryRva", "(Ljava/lang/String;J[B[B)Z", (void *) patchMappedLibraryRva},
+        {"patchAbsoluteAddress", "(J[B[B)Z", (void *) patchAbsoluteAddress},
    //     {"ActivateSdkLog", "()Ljava/lang/String;",(void *) ActivateSdkLog},
     
         

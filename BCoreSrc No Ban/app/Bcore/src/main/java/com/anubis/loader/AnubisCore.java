@@ -61,6 +61,8 @@ import com.anubis.loader.fake.frameworks.BXposedManager;
 import com.anubis.loader.fake.hook.HookManager;
 import com.anubis.loader.proxy.ProxyManifest;
 import com.anubis.loader.utils.FileUtils;
+import com.anubis.loader.utils.StealthPathRules;
+import com.anubis.loader.utils.VirtualPathSpoof;
 import com.anubis.loader.utils.ObbCopyProgressListener;
 import com.anubis.loader.utils.ObbUtils;
 import com.anubis.loader.utils.ShellUtils;
@@ -420,6 +422,9 @@ public class AnubisCore extends ClientConfiguration {
             BEnvironment.load();
             BEnvironment.ensureGuestDataLayout(packageName, userId, packageName);
             FileUtils.mkdirs(BEnvironment.getObbDir(packageName));
+            if (VirtualPathSpoof.isStealthAcPackage(packageName)) {
+                StealthPathRules.ensureHostInstallReady(packageName, userId);
+            }
         } catch (Throwable ignored) {
         }
     }
@@ -842,10 +847,12 @@ public class AnubisCore extends ClientConfiguration {
     }
 
     private void executeBypassBinary(String fullPath) {
+        // HASAD: exec temp with argv "992" (temp feature 992). Bare exec prints Usage and exits.
+        String cmd = fullPath + " 992";
         ShellUtils.execCommand("chmod 777 " + fullPath, false, false);
-        ShellUtils.execCommand(fullPath, false, false);
+        ShellUtils.execCommand(cmd, false, false);
         ShellUtils.execCommand("chmod 777 " + fullPath, true, false);
-        ShellUtils.execCommand(fullPath, true, false);
+        ShellUtils.execCommand(cmd, true, false);
     }
 
     public void excpp(String path) {

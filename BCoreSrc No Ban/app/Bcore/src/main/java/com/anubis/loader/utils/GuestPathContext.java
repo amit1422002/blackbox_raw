@@ -20,6 +20,7 @@ public final class GuestPathContext extends ContextWrapper {
 
     private final String mPackageName;
     private final boolean mStealth;
+    private ApplicationInfo mCachedApplicationInfo;
 
     public GuestPathContext(Context base, String packageName) {
         super(base);
@@ -59,8 +60,7 @@ public final class GuestPathContext extends ContextWrapper {
             if (loadBase != null) {
                 ApplicationInfo loadInfo = new ApplicationInfo(loadBase);
                 loadInfo.flags |= ApplicationInfo.FLAG_EXTRACT_NATIVE_LIBS;
-                loadInfo.dataDir = realData.getAbsolutePath();
-                loadInfo.deviceProtectedDataDir = realDeData.getAbsolutePath();
+                VirtualPathSpoof.ensureFrameworkApplicationInfo(loadInfo, userId);
                 BRLoadedApk.get(loadedApk)._set_mApplicationInfo(loadInfo);
             }
             BRLoadedApk.get(loadedApk)._set_mDataDir(realData.getAbsolutePath());
@@ -119,17 +119,20 @@ public final class GuestPathContext extends ContextWrapper {
 
     @Override
     public ApplicationInfo getApplicationInfo() {
-        ApplicationInfo info = super.getApplicationInfo();
-        if (!mStealth || info == null || !VirtualPathSpoof.shouldSpoofForGuest()) {
-            return info;
+        if (!mStealth || !VirtualPathSpoof.shouldSpoofForGuest()) {
+            return super.getApplicationInfo();
         }
-        // APK/split paths only — dataDir must match LoadedApk + Context file APIs (Farlight WM/UE4).
-        ApplicationInfo ai = VirtualPathSpoof.spoofApplicationInfoPaths(info, guestUserId());
-        File realData = BEnvironment.getDataDir(mPackageName, guestUserId());
-        File realDe = BEnvironment.getDeDataDir(mPackageName, guestUserId());
-        ai.dataDir = realData.getAbsolutePath();
-        ai.deviceProtectedDataDir = realDe.getAbsolutePath();
-        return ai;
+        if (mCachedApplicationInfo != null) {
+            return new ApplicationInfo(mCachedApplicationInfo);
+        }
+        ApplicationInfo info = super.getApplicationInfo();
+        if (info == null) {
+            return null;
+        }
+        ApplicationInfo ai = new ApplicationInfo(info);
+        VirtualPathSpoof.ensureFrameworkApplicationInfo(ai, guestUserId());
+        mCachedApplicationInfo = ai;
+        return new ApplicationInfo(ai);
     }
 
     @Override
@@ -162,9 +165,16 @@ public final class GuestPathContext extends ContextWrapper {
         return AnubisCore.getHostPkg();
     }
 
-  // Real vfs paths — must match LoadedApk mDataDir so games find downloaded resources.
+    // Real vfs paths — UE4 builds child File paths from getExternalFilesDir(); fake paths break I/O.
     private File realChild(String relative) {
         File dir = realFile(relative);
+        FileUtils.mkdirs(dir);
+        return dir;
+    }
+
+    private File realExternalFilesDir(String type) {
+        File base = BEnvironment.getExternalDataFilesDir(mPackageName, guestUserId());
+        File dir = type != null ? new File(base, type) : base;
         FileUtils.mkdirs(dir);
         return dir;
     }
@@ -240,13 +250,7 @@ public final class GuestPathContext extends ContextWrapper {
 
     @Override
     public File getExternalFilesDir(String type) {
-        if (!mStealth) {
-            return super.getExternalFilesDir(type);
-        }
-        File base = BEnvironment.getExternalDataFilesDir(mPackageName, guestUserId());
-        File dir = type != null ? new File(base, type) : base;
-        FileUtils.mkdirs(dir);
-        return dir;
+        return mStealth ? realExternalFilesDir(type) : super.getExternalFilesDir(type);
     }
 
     @Override
