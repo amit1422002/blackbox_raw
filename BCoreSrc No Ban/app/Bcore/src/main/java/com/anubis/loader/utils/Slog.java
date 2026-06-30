@@ -30,6 +30,7 @@ public final class Slog {
     private static final Set<String> AUDIT_TAGS = new HashSet<>(Arrays.asList(
             "GUEST_AC_BYPASS",
             "HTPROTECT_FARLIGHT",
+            "ANOGS_BYPASS_DFM",
             "FARLIGHT_STEALTH",
             "ANOGS_PATCH",
             "NERTC_PATCH",

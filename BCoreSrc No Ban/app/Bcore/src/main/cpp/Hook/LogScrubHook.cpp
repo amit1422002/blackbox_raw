@@ -74,7 +74,8 @@ static bool isAuditLogTag(const char *tag) {
                 || strcmp(tag, "GUEST_AC_BYPASS") == 0 || strcmp(tag, "block-anogs") == 0
                 || strcmp(tag, "ANOGS_PATCH") == 0 || strcmp(tag, "NERTC_PATCH") == 0
                 || strcmp(tag, "PUBG_AYAN_F2") == 0
-                || strcmp(tag, "HTPROTECT_FARLIGHT") == 0);
+                || strcmp(tag, "HTPROTECT_FARLIGHT") == 0
+                || strcmp(tag, "ANOGS_BYPASS_DFM") == 0);
 }
 
 static bool likelyNeedsScrub(const char *msg) {

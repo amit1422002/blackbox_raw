@@ -6,15 +6,11 @@ import com.anubis.loader.core.env.GamePackages;
 import com.anubis.loader.utils.Slog;
 
 /**
- * Guest anti-cheat bootstrap: path stealth (elsewhere) + in-process temp F992 mem patches.
+ * Guest anti-cheat bootstrap per game.
  *
- * <p><b>Not 100%.</b> No tool can guarantee zero virtual-env / 3rd-party detection — server-side checks remain.
- * This combines the best safe pieces already in the tree:
- * <ul>
- *   <li>{@code res/raw/temp} feature 992 — {@code libanogs + 0x575550}, {@code libgcloud + 0x421164}</li>
- *   <li>DFM / PUBG — temp F992 patch table ({@link GameMemPatchProfiles})</li>
- *   <li>Farlight — path stealth + {@code libNetHTProtect.so} in-process ({@link FarlightHtProtectInProcessPatcher})</li>
- * </ul>
+ * <p>DFM — {@link DeltaForceStealthBootstrap} only; libanogs mem patches run loader-side ({@code com.anubis.skin.LibAnogsPatcher}).
+ * <p>Farlight — HTProtect in-process ({@link FarlightHtProtectInProcessPatcher}).
+ * <p>PUBG/BGMI — no libanogs mem patches (legacy temp992 {@code 0x575550} removed — OOB crash).
  */
 public final class GuestAcBypass {
 
@@ -52,10 +48,10 @@ public final class GuestAcBypass {
         Slog.i(TAG, "arm() END pkg=" + packageName);
     }
 
-    /** DFM: exact temp F992 in-process (libanogs + gcloud RVAs from temp binary). */
+    /** DFM: stealth + libanogs ACE bypass (Farlight HTProtect equivalent). */
     private static void armDeltaForce(String packageName) {
-        Slog.i(TAG, "DFM arm: pkg=" + packageName + " temp992 in-process (libanogs+0x575550 gcloud+0x421164)");
-        DeltaForceAnogsInProcessPatcher.start();
+        Slog.i(TAG, "DFM arm: pkg=" + packageName + " stealth only (libanogs patches on loader side)");
+        DeltaForceStealthBootstrap.start();
     }
 
     /** Farlight: path stealth + HTProtect native bypass (no libanogs/gcloud temp992). */
@@ -65,9 +61,8 @@ public final class GuestAcBypass {
         FarlightHtProtectInProcessPatcher.start();
     }
 
-    /** PUBG / BGMI: temp feature 992 patch table. */
+    /** PUBG / BGMI: path stealth only — temp992 libanogs {@code 0x575550} disabled (faulty OOB). */
     private static void armPubgFamily(String packageName) {
-        Slog.i(TAG, "PUBG arm: pkg=" + packageName + " temp992 in-process");
-        AyanStyleInProcessPatcher.start(GameMemPatchProfiles.PUBG_ANOGS_F2);
+        Slog.i(TAG, "PUBG arm: pkg=" + packageName + " SKIP temp992 (0x575550 disabled)");
     }
 }

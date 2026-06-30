@@ -438,8 +438,7 @@ public class AnubisCore extends ClientConfiguration {
             return false;
         }
         startActivity(launchIntentForPackage, userId);
-        stageBypassPayload(getContext());
-        bypass();
+        // temp992 (libanogs 0x575550 + libgcloud) disabled — faulty OOB / SIGSEGV in patcher.
         return true;
     }
 

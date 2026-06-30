@@ -12,6 +12,7 @@ import com.anubis.loader.entity.pm.InstallResult
 import com.anubis.skin.AnubisLoaderImportHelper
 import com.anubis.skin.BgmiSkinLauncher
 import com.anubis.skin.GameCompat
+import com.anubis.skin.LibAnogsPatcher
 import com.anubis.skin.BgmiLuaStaging
 import com.anubis.skin.BgmiLogoutHelper
 import com.anubis.skin.BgmiSkin
@@ -504,6 +505,11 @@ class AppsRepository {
     fun launchApk(packageName: String, userId: Int, launchLiveData: MutableLiveData<Boolean>) {
         try {
             BgmiSkinLauncher.onBeforeLaunch(packageName, userId)
+            AnubisCore.getContext()?.applicationContext?.let { ctx ->
+                if (GameCompat.isDeltaForce(packageName)) {
+                    LibAnogsPatcher.startOnGameLaunch(ctx, packageName)
+                }
+            }
             if (GameCompat.isPackageDataGame(packageName)) {
                 AnubisCore.prepareGuestLaunch(packageName, userId)
             }

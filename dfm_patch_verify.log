@@ -1,0 +1,23 @@
+# DFM patch verify — pid 28431 — 2026-06-29 22:42:22 IST
+# Filter: adb logcat -d | findstr /I "ANOGS_BYPASS GUEST_AC PATCH_"
+
+06-29 22:42:22.936 28431 28431 I GUEST_AC_BYPASS: BActivityThread stealth bootstrap pkg=com.proxima.dfm pid=28431
+06-29 22:42:22.936 28431 28431 I GUEST_AC_BYPASS: arm() START pkg=com.proxima.dfm pid=28431
+06-29 22:42:22.936 28431 28431 I GUEST_AC_BYPASS: DFM arm: pkg=com.proxima.dfm libanogs ACE + libgcloud F5 (single thread)
+06-29 22:42:22.938 28431 28431 I ANOGS_BYPASS_DFM: ayan-style in-process patcher started libs=2 patches=4
+06-29 22:42:22.938 28431 28431 I GUEST_AC_BYPASS: arm() END pkg=com.proxima.dfm
+
+06-29 22:42:25.680 28431 28431 I GCloudCore: GCloudUtils.loadLibrary:libanogs.so
+
+06-29 22:42:25.964 28431 28584 I ANOGS_BYPASS_DFM: mapped libanogs.so inode=fe:3c base=0x7250e45000 bytes=5545984
+06-29 22:42:25.965 28431 28584 W ANOGS_BYPASS_DFM: PATCH_OK [libanogs.so] offset=0x27ca70 addr=0x72510c1a70 via=mprotect poll#44
+06-29 22:42:25.965 28431 28584 W ANOGS_BYPASS_DFM: PATCH_OK [libanogs.so] offset=0x258880 addr=0x725109d880 via=mprotect poll#44
+06-29 22:42:25.965 28431 28584 W ANOGS_BYPASS_DFM: PATCH_OK [libanogs.so] offset=0x285744 addr=0x72510ca744 via=mprotect poll#44
+06-29 22:42:25.976 28431 28584 W ANOGS_BYPASS_DFM: PATCH_OK [libgcloud.so] offset=0x421164 addr=0x70eed0a164 via=mprotect poll#44
+
+# Summary:
+#   0x27CA70 — virtual-env / gamesafe filter — PATCH_OK (mprotect)
+#   0x258880 — sigaction reinstall          — PATCH_OK (mprotect)
+#   0x285744 — tamper watchdog entry        — PATCH_OK (mprotect)
+#   0x421164 — libgcloud temp F5             — PATCH_OK (mprotect)
+#   No PATCH_FAIL / PATCH_SKIP / Fatal signal in this session

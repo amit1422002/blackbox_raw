@@ -1,10 +1,11 @@
 package com.anubis.loader.fake.service;
 
 import android.content.Context;
-import android.os.Process;
-import android.webkit.WebSettings;
+import android.os.Build;
 import android.webkit.WebView;
 import com.anubis.loader.AnubisCore;
+import com.anubis.loader.app.BActivityThread;
+import com.anubis.loader.core.env.BEnvironment;
 import com.anubis.loader.fake.hook.ClassInvocationStub;
 import com.anubis.loader.utils.Slog;
 
@@ -25,7 +26,6 @@ public class WebViewProxy extends ClassInvocationStub {
 
     @Override
     protected void inject(Object who, Object origin) {
-        // No super.inject() here because ClassInvocationStub defines it abstract.
         try {
             ensureWebViewDataDirectorySuffix();
         } catch (Throwable t) {
@@ -41,8 +41,8 @@ public class WebViewProxy extends ClassInvocationStub {
                 Slog.w(TAG, "isBadEnv: context is null");
                 return true;
             }
-            if (android.os.Build.VERSION.SDK_INT < 14) {
-                Slog.w(TAG, "isBadEnv: SDK too old: " + android.os.Build.VERSION.SDK_INT);
+            if (Build.VERSION.SDK_INT < 14) {
+                Slog.w(TAG, "isBadEnv: SDK too old: " + Build.VERSION.SDK_INT);
                 return true;
             }
             return false;
@@ -53,27 +53,23 @@ public class WebViewProxy extends ClassInvocationStub {
     }
 
     private void ensureWebViewDataDirectorySuffix() {
-        if (android.os.Build.VERSION.SDK_INT < 28) return;
-        String suffix = buildDataDirectorySuffix();
-        if (suffix == null || suffix.isEmpty()) return;
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            return;
+        }
+        String packageName = BActivityThread.getAppPackageName();
+        if (packageName == null || packageName.isEmpty()) {
+            return;
+        }
+        int bpid = BActivityThread.getAppPid();
+        String suffix = BEnvironment.buildWebViewDataDirectorySuffix(packageName, bpid);
+        BEnvironment.ensureWebViewDataDirectory(packageName, BActivityThread.getUserId(), suffix);
         try {
-            Class<?> webViewClass = Class.forName("android.webkit.WebView");
-            java.lang.reflect.Method m = webViewClass.getMethod("setDataDirectorySuffix", String.class);
-            m.invoke(null, suffix);
+            WebView.setDataDirectorySuffix(suffix);
             Slog.d(TAG, "Applied WebView suffix=" + suffix);
+        } catch (IllegalStateException alreadySet) {
+            Slog.d(TAG, "WebView suffix already set: " + suffix);
         } catch (Throwable t) {
             Slog.w(TAG, "Failed to set WebView suffix", t);
-        }
-    }
-
-    private String buildDataDirectorySuffix() {
-        try {
-            int uid = Process.myUid();
-            int pid = Process.myPid();
-            // Guest was detecting "anubis_u*_p*" WebView data directory suffix.
-            return "app_" + uid + "_" + pid;
-        } catch (Throwable t) {
-            return null;
         }
     }
 }

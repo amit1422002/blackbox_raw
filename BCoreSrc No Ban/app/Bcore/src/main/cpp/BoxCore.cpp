@@ -348,9 +348,39 @@ static jstring readRealProcSelfMaps(JNIEnv *env, jclass) {
     return env->NewStringUTF(maps.c_str());
 }
 
+static bool memoryRangeReadable(const void *addr, size_t len) {
+    if (addr == nullptr || len == 0) {
+        return false;
+    }
+    const long pageSize = sysconf(_SC_PAGESIZE);
+    if (pageSize <= 0) {
+        return false;
+    }
+    uintptr_t start = reinterpret_cast<uintptr_t>(addr);
+    uintptr_t end = start + len;
+    for (uintptr_t page = start & ~(static_cast<uintptr_t>(pageSize) - 1);
+         page < end;
+         page += static_cast<uintptr_t>(pageSize)) {
+        unsigned char vec = 0;
+        if (mincore(reinterpret_cast<void *>(page),
+                    static_cast<size_t>(pageSize),
+                    &vec) != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool patchExecBytes(void *addr, const uint8_t *patch, size_t patchLen,
                            const uint8_t *expected, size_t expectedLen) {
     if (addr == nullptr || patch == nullptr || patchLen == 0) {
+        return false;
+    }
+    size_t probeLen = patchLen;
+    if (expected != nullptr && expectedLen > probeLen) {
+        probeLen = expectedLen;
+    }
+    if (!memoryRangeReadable(addr, probeLen)) {
         return false;
     }
     if (memcmp(addr, patch, patchLen) == 0) {

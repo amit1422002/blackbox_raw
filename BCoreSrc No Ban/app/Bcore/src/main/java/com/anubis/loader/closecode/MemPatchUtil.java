@@ -32,14 +32,44 @@ final class MemPatchUtil {
     private MemPatchUtil() {
     }
 
+    static final class MapSegment {
+        long vmaStart;
+        long vmaEnd;
+        long fileOffset;
+        boolean exec;
+
+        long size() {
+            return Math.max(0, vmaEnd - vmaStart);
+        }
+    }
+
     static final class Mapping {
         final String inode;
         long minStart = Long.MAX_VALUE;
-        long totalBytes;
+        long execBytes;
         boolean hasExec;
+        final List<MapSegment> segments = new ArrayList<>();
 
         Mapping(String inode) {
             this.inode = inode;
+        }
+
+        /** Resolve ELF file offset to VMA using maps segment file-offset fields. */
+        Long resolvePatchAddress(long fileOffset, int needBytes) {
+            if (needBytes <= 0) {
+                return null;
+            }
+            for (MapSegment seg : segments) {
+                if (!seg.exec) {
+                    continue;
+                }
+                long segSize = seg.size();
+                if (fileOffset < seg.fileOffset || fileOffset + needBytes > seg.fileOffset + segSize) {
+                    continue;
+                }
+                return seg.vmaStart + (fileOffset - seg.fileOffset);
+            }
+            return null;
         }
     }
 
@@ -47,15 +77,29 @@ final class MemPatchUtil {
         final long offset;
         final byte[] bytes;
         final byte[] expected;
+        /** Optional audit label for logcat (e.g. {@code ACE_VIRTUAL_ENV}). */
+        final String label;
 
         Patch(long offset, byte[] bytes) {
-            this(offset, bytes, null);
+            this(offset, bytes, null, null);
         }
 
         Patch(long offset, byte[] bytes, byte[] expected) {
+            this(offset, bytes, expected, null);
+        }
+
+        Patch(long offset, byte[] bytes, byte[] expected, String label) {
             this.offset = offset;
             this.bytes = bytes;
             this.expected = expected;
+            this.label = label;
+        }
+
+        String auditTag() {
+            if (label == null || label.isEmpty()) {
+                return "offset=0x" + Long.toHexString(offset);
+            }
+            return label + " offset=0x" + Long.toHexString(offset);
         }
     }
 
@@ -143,13 +187,27 @@ final class MemPatchUtil {
                 }
                 long start = Long.parseLong(range[0], 16);
                 long end = Long.parseLong(range[1], 16);
+                long fileOff = 0;
+                if (parts.length >= 3) {
+                    try {
+                        fileOff = Long.parseLong(parts[2], 16);
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                boolean exec = parts[1].contains("x");
                 Mapping m = groups.computeIfAbsent(inode, Mapping::new);
+                MapSegment seg = new MapSegment();
+                seg.vmaStart = start;
+                seg.vmaEnd = end;
+                seg.fileOffset = fileOff;
+                seg.exec = exec;
+                m.segments.add(seg);
                 if (start < m.minStart) {
                     m.minStart = start;
                 }
-                m.totalBytes += Math.max(0, end - start);
-                if (parts[1].contains("x")) {
+                if (exec) {
                     m.hasExec = true;
+                    m.execBytes += Math.max(0, end - start);
                 }
             }
         } catch (IOException | NumberFormatException ignored) {
@@ -157,11 +215,11 @@ final class MemPatchUtil {
         }
         List<Mapping> out = new ArrayList<>();
         for (Mapping m : groups.values()) {
-            if (m.hasExec && m.totalBytes >= minMappedBytes && m.minStart != Long.MAX_VALUE) {
+            if (m.hasExec && m.execBytes >= minMappedBytes && m.minStart != Long.MAX_VALUE) {
                 out.add(m);
             }
         }
-        out.sort((a, b) -> Long.compare(b.totalBytes, a.totalBytes));
+        out.sort((a, b) -> Long.compare(b.execBytes, a.execBytes));
         return out;
     }
 
@@ -183,13 +241,27 @@ final class MemPatchUtil {
                 }
                 com.anubis.loader.utils.Slog.i(logTag, "mapped " + libName + " inode=" + m.inode
                         + " base=0x" + Long.toHexString(m.minStart)
-                        + " bytes=" + m.totalBytes);
+                        + " exec_bytes=" + m.execBytes
+                        + " segs=" + m.segments.size());
             }
             for (Patch p : patches) {
                 if (session != null && session.isStable(m.inode, p.offset)) {
                     continue;
                 }
-                long patchAddr = m.minStart + p.offset;
+                int needBytes = p.bytes != null ? p.bytes.length : 0;
+                if (p.expected != null && p.expected.length > needBytes) {
+                    needBytes = p.expected.length;
+                }
+                Long patchAddrBox = m.resolvePatchAddress(p.offset, needBytes);
+                if (patchAddrBox == null) {
+                    if (polls <= 3 || polls % 200 == 0) {
+                        com.anubis.loader.utils.Slog.w(logTag, "PATCH_OOB [" + libName + "] offset=0x"
+                                + Long.toHexString(p.offset) + " need=" + needBytes
+                                + " exec_bytes=" + m.execBytes);
+                    }
+                    continue;
+                }
+                long patchAddr = patchAddrBox;
                 if (tryNativePatchAt(patchAddr, p, libName, logTag, polls)) {
                     writes++;
                     if (session != null) {
@@ -213,8 +285,8 @@ final class MemPatchUtil {
                         session.markStable(m.inode, p.offset);
                         session.cachedMaps = null;
                     }
-                    com.anubis.loader.utils.Slog.w(logTag, "PATCH_OK [" + libName + "] offset=0x"
-                            + Long.toHexString(p.offset)
+                    com.anubis.loader.utils.Slog.w(logTag, "PATCH_OK [" + libName + "] "
+                            + p.auditTag()
                             + " addr=0x" + Long.toHexString(patchAddr)
                             + " before=" + toHex(before)
                             + " after=" + toHex(p.bytes)
@@ -272,8 +344,8 @@ final class MemPatchUtil {
                 }
                 return false;
             }
-            com.anubis.loader.utils.Slog.w(logTag, "PATCH_OK [" + libName + "] offset=0x"
-                    + Long.toHexString(p.offset) + " addr=0x"
+            com.anubis.loader.utils.Slog.w(logTag, "PATCH_OK [" + libName + "] "
+                    + p.auditTag() + " addr=0x"
                     + Long.toHexString(patchAddr) + " via=mprotect poll#" + polls);
             return true;
         } catch (Throwable t) {

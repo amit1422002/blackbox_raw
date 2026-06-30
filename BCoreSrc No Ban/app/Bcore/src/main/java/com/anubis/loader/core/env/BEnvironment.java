@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Process;
 
 import org.lsposed.lsparanoid.Obfuscate;
 
@@ -341,6 +342,38 @@ public class BEnvironment {
                 "shared_prefs/" + prefFileName + ".xml");
     }
 
+    /** Matches {@link com.anubis.loader.app.BActivityThread} WebView.setDataDirectorySuffix. */
+    public static String buildWebViewDataDirectorySuffix(String packageName, int bpid) {
+        if (packageName == null || packageName.isEmpty()) {
+            return null;
+        }
+        return "wv_" + Math.abs(packageName.hashCode())
+                + "_p" + (bpid >= 0 ? bpid : 0) + "_" + Process.myPid();
+    }
+
+    public static File getWebViewDataDirectory(String packageName, int userId, String suffix) {
+        File data = getDataDir(packageName, userId);
+        if (suffix == null || suffix.isEmpty()) {
+            return new File(data, "app_webview");
+        }
+        return new File(data, "app_webview_" + suffix);
+    }
+
+    /** Pre-create WebView profile dir so Chromium can open webview_data.lock (email/OAuth login). */
+    public static void ensureWebViewDataDirectory(String packageName, int userId, String suffix) {
+        if (packageName == null || packageName.isEmpty()) {
+            return;
+        }
+        File dir = getWebViewDataDirectory(packageName, userId, suffix);
+        FileUtils.mkdirs(dir);
+        FileUtils.mkdirs(new File(dir, "Default"));
+        File extData = getExternalDataDir(packageName, userId);
+        if (extData != null) {
+            String extName = (suffix == null || suffix.isEmpty()) ? "app_webview" : "app_webview_" + suffix;
+            FileUtils.mkdirs(new File(extData, extName));
+        }
+    }
+
     /** Create guest data tree before bindApplication / SQLite (avoids EACCES on /data/user/0/<pkg>). */
     public static void ensureGuestDataLayout(String packageName, int userId, String processName) {
         if (packageName == null || packageName.isEmpty()) {
@@ -365,6 +398,11 @@ public class BEnvironment {
         FileUtils.mkdirs(new File(data, "app_webview"));
         FileUtils.mkdirs(new File(data, "app_hws_webview"));
         FileUtils.mkdirs(new File(data, "app_textures"));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            int bpid = BActivityThread.getAppPid();
+            String webViewSuffix = buildWebViewDataDirectorySuffix(packageName, bpid);
+            ensureWebViewDataDirectory(packageName, userId, webViewSuffix);
+        }
         if (processName != null && !processName.isEmpty()) {
             String suffix = userId + ":" + packageName + ":" + processName;
             FileUtils.mkdirs(new File(data, "app_webview_" + suffix));

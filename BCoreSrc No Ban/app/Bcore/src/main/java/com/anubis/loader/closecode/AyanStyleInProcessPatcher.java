@@ -55,8 +55,9 @@ public final class AyanStyleInProcessPatcher {
         while (System.currentTimeMillis() < deadline && !Thread.currentThread().isInterrupted()) {
             polls++;
             if (profile.exitWhenQuiescent && session.isQuiescent()) {
-                Slog.i(profile.logTag, "patcher done patches stable — thread exiting (polls="
-                        + polls + " writes=" + patchCount + ")");
+                Slog.w(profile.logTag, "ALL_PATCHES_OK expected=" + profile.patchCount()
+                        + " polls=" + polls + " writes=" + patchCount
+                        + " — patcher exiting (no re-mprotect loop)");
                 break;
             }
             if (session.isQuiescent()) {

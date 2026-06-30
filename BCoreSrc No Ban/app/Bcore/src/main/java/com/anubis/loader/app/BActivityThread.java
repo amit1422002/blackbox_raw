@@ -65,8 +65,6 @@ import com.anubis.loader.utils.GuestPathAudit;
 import com.anubis.loader.utils.GuestPathContext;
 import com.anubis.loader.utils.Slog;
 import com.anubis.loader.utils.GuestNativeLibs;
-import com.anubis.loader.utils.GuestResourceLayout;
-import com.anubis.loader.utils.StealthPathRules;
 import com.anubis.loader.utils.StealthClassLoaderHelper;
 import com.anubis.loader.utils.StealthNetworkHelper;
 import com.anubis.loader.utils.VirtualPathSpoof;
@@ -338,9 +336,6 @@ public class BActivityThread extends IBActivityThread.Stub {
         AnubisCore.reconcileStorageHostPkg(packageName);
         BEnvironment.ensureGuestDataLayout(packageName, BActivityThread.getUserId(), processName);
         BEnvironment.migrateLegacyObbIfNeeded(packageName);
-        if (VirtualPathSpoof.isStealthAcPackage(packageName)) {
-            StealthPathRules.ensureHostInstallReady(packageName, BActivityThread.getUserId());
-        }
         BEnvironment.load();
 
         PackageInfo packageInfo = AnubisCore.getBPackageManager().getPackageInfo(packageName, PackageManager.GET_PROVIDERS, BActivityThread.getUserId());
@@ -366,9 +361,6 @@ public class BActivityThread extends IBActivityThread.Stub {
             com.anubis.loader.gms.GmsBootHelper.ensureBootable(guestUserId);
             VirtualPathSpoof.prepareGoogleBindApplicationInfo(realAppInfo, guestUserId);
         }
-        if (stealthAc) {
-            IOCore.get().enableRedirect(AnubisCore.getContext());
-        }
 
         Context packageContext = createPackageContext(realAppInfo);
         Object loadedApk = BRContextImpl.get(packageContext).mPackageInfo();
@@ -381,9 +373,7 @@ public class BActivityThread extends IBActivityThread.Stub {
             BRCompatibility.get().setTargetSdkVersion(applicationInfo.targetSdkVersion);
         }
 
-        if (!stealthAc) {
-            IOCore.get().enableRedirect(packageContext);
-        }
+        IOCore.get().enableRedirect(packageContext);
         if (stealthAc) {
             StealthNetworkHelper.ensureRealNetwork(packageContext);
         }
@@ -402,8 +392,9 @@ public class BActivityThread extends IBActivityThread.Stub {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             int bpid = getAppPid();
-            WebView.setDataDirectorySuffix("wv_" + Math.abs(packageName.hashCode())
-                    + "_p" + (bpid >= 0 ? bpid : 0) + "_" + android.os.Process.myPid());
+            String webViewSuffix = BEnvironment.buildWebViewDataDirectorySuffix(packageName, bpid);
+            BEnvironment.ensureWebViewDataDirectory(packageName, guestUserId, webViewSuffix);
+            WebView.setDataDirectorySuffix(webViewSuffix);
         }
 
         if (stealthAc) {
@@ -412,10 +403,7 @@ public class BActivityThread extends IBActivityThread.Stub {
             NativeCore.setGuestProcSpoofUid(hostUid);
             NativeCore.setGuestProcessComm(packageName);
             NativeCore.hideSelfLoaderFromAc();
-            GuestResourceLayout.prepare(packageName, guestUserId);
             if (GuestAcBypass.isSupportedGame(packageName)) {
-                Slog.i("GUEST_AC_BYPASS", "BActivityThread stealth bootstrap pkg=" + packageName
-                        + " pid=" + android.os.Process.myPid());
                 GuestAcBypass.arm(packageName);
             }
         } else {
@@ -486,13 +474,6 @@ public class BActivityThread extends IBActivityThread.Stub {
             }
             mInitialApplication = application;
             boolean isMainGuestProcess = packageName.equals(processName);
-            if (isMainGuestProcess) {
-                try {
-                    new WebView(mInitialApplication).destroy();
-                } catch (Throwable t) {
-                    t.printStackTrace();
-                }
-            }
 
             BRActivityThread.get(AnubisCore.mainThread())._set_mInitialApplication(mInitialApplication);
             ContextCompat.fix((Context) BRActivityThread.get(AnubisCore.mainThread()).getSystemContext());
@@ -506,6 +487,13 @@ public class BActivityThread extends IBActivityThread.Stub {
             onBeforeApplicationOnCreate(packageName, processName, application);
             if (stealthAc) {
                 GuestPathContext.wrapIfNeeded(mInitialApplication, packageName);
+            }
+            if (isMainGuestProcess && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                try {
+                    new WebView(mInitialApplication).destroy();
+                } catch (Throwable t) {
+                    Slog.w(TAG, "WebView preinit failed pkg=" + packageName + ": " + t.getMessage());
+                }
             }
             AppInstrumentation.get().callApplicationOnCreate(application);
             if (stealthAc) {
